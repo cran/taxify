@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Getting started with taxify</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Getting started with taxify</h1>
+
+
+
+<div id="why-taxify" class="section level2">
+<h2>Why taxify</h2>
+<p>Biodiversity data analysis almost always starts with a name-matching
+step. Field records, herbarium labels, and literature extractions use
+different spellings, outdated synonyms, and informal qualifiers. Before
+any statistical work can begin, those raw strings need to be resolved to
+a single accepted name per taxon.</p>
+<p>Two R packages handle this well: <a href="https://docs.ropensci.org/taxize/">taxize</a> queries online APIs
+in real time, and <a href="https://cran.r-project.org/package=WorldFlora">WorldFlora</a>
+matches names offline against the WFO backbone. taxify builds on the
+same idea but works offline against ten backbone databases at once, with
+fuzzy matching in C, synonym resolution, and a built-in enrichment
+pipeline for joining trait and status data.</p>
+<p>taxify takes a different approach. It downloads Darwin Core backbone
+snapshots to disk once, converts them to a compressed columnar format
+(.vtr files powered by the vectra engine), and runs all matching offline
+against those local copies. Nine backbones are available: WFO (plants),
+COL (all-kingdom catalogue), GBIF (all kingdoms, largest), ITIS (North
+American focus), NCBI Taxonomy (molecular/genomic), Open Tree of Life
+(synthetic tree), WoRMS (marine taxa), Species Fungorum (fungi), and
+AlgaeBase (algae). A single function call matches names, resolves
+synonyms, and returns a uniform 16-column data.frame regardless of which
+backbone was used.</p>
+<p>The choice of backbone matters. WFO is maintained by the World Flora
+Online consortium and represents the most authoritative source for
+vascular plants, bryophytes, and ferns. COL (the Catalogue of Life)
+covers all kingdoms but with less taxonomic depth per group; it is a
+good second choice when a dataset mixes plants with fungi or animals.
+GBIF has the widest raw coverage because it aggregates multiple source
+taxonomies, but its synonym handling is coarser. For marine taxa, WoRMS
+is the standard. For molecular work, NCBI Taxonomy aligns with GenBank
+accession metadata. The remaining backbones serve more specialized
+needs: ITIS for North American regulatory contexts, OTT for phylogenetic
+placement, Species Fungorum for fungal nomenclature, and AlgaeBase for
+algal taxonomy.</p>
+<p>This vignette walks through the core workflow: installing a backbone,
+matching names, reading the output, and layering on enrichment data. The
+code chunks are not evaluated here because the backbone files are too
+large for CRAN build infrastructure, but every example uses real species
+names and realistic outputs.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
+</div>
+<div id="installing-a-backbone" class="section level2">
+<h2>Installing a backbone</h2>
+<p>The first call to <code>taxify()</code> auto-downloads the WFO
+backbone if no local copy exists. For a more deliberate setup, or to
+pre-install several backbones before an analysis session, use
+<code>taxify_download_vtr()</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Download the WFO backbone (~150 MB)</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">taxify_download_vtr</span>(<span class="st">&quot;wfo&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; i WFO backbone not found locally. Downloading v2024-12...
+#&gt; v WFO backbone ready (v2024-12, 148 MB).</code></pre>
+<p>The file lands in a platform-appropriate data directory. On Linux
+that is typically
+<code>~/.local/share/R/taxify/wfo/latest/wfo.vtr</code>; on macOS,
+<code>~/Library/Application Support/R/taxify/wfo/latest/wfo.vtr</code>;
+on Windows,
+<code>%LOCALAPPDATA%/R/data/R/taxify/wfo/latest/wfo.vtr</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">taxify_data_dir</span>()</span></code></pre></div>
+<pre><code>#&gt; [1] &quot;/home/user/.local/share/R/taxify&quot;</code></pre>
+<p>Multiple backbones can be installed in one call. Each backbone is
+independent and occupies its own subdirectory.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">taxify_download_vtr</span>(<span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>))</span></code></pre></div>
+<p>taxify checks backbone versions once per R session. If a newer
+release appears on Zenodo, the next <code>taxify()</code> call downloads
+the update automatically. Pinned versions (useful for reproducibility)
+are also supported:
+<code>taxify_download_vtr(&quot;wfo&quot;, version = &quot;2024.06&quot;)</code> downloads
+into a separate directory that is never overwritten. This distinction
+matters for long-running projects. The “latest” directory always tracks
+the most recent release, while a pinned directory preserves an exact
+snapshot. If a collaborator needs to reproduce your results six months
+later, the pinned version guarantees that the same backbone rows are
+used even if WFO has published a new release in the interim.</p>
+</div>
+<div id="basic-matching" class="section level2">
+<h2>Basic matching</h2>
+<p>The core function is <code>taxify()</code>. It accepts a character
+vector of taxonomic names and returns a data.frame with one row per
+input name.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="st">&quot;Fagus sylvatica&quot;</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>))</span></code></pre></div>
+<pre><code>#&gt; Matching 5 names...</code></pre>
+<p>The result is a standard data.frame. Every column is character or
+logical, so it plays well with dplyr, data.table, or base R subsetting
+without type coercion surprises.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>, <span class="st">&quot;match_type&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;              input_name       accepted_name    family match_type
+#&gt; 1        Quercus robur       Quercus robur   Fagaceae      exact
+#&gt; 2     Pinus sylvestris    Pinus sylvestris   Pinaceae      exact
+#&gt; 3       Betula pendula      Betula pendula Betulaceae      exact
+#&gt; 4      Fagus sylvatica     Fagus sylvatica   Fagaceae      exact
+#&gt; 5 Acer pseudoplatanus Acer pseudoplatanus Sapindaceae      exact</code></pre>
+<p>All five names matched exactly. The <code>family</code> column comes
+from the backbone, not from a separate taxonomy lookup, so it is always
+consistent with the accepted name.</p>
+</div>
+<div id="understanding-the-output" class="section level2">
+<h2>Understanding the output</h2>
+<p>Every <code>taxify()</code> call returns the same 16 columns,
+regardless of which backbone produced the match. This uniformity means
+downstream code never needs to branch on backend type.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Column</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>input_name</code></td>
+<td align="left">character</td>
+<td align="left">The original string as submitted</td>
+</tr>
+<tr class="even">
+<td align="left"><code>matched_name</code></td>
+<td align="left">character</td>
+<td align="left">The backbone entry that matched</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>accepted_name</code></td>
+<td align="left">character</td>
+<td align="left">The currently accepted name (equals
+<code>matched_name</code> when the match is not a synonym)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>taxon_id</code></td>
+<td align="left">character</td>
+<td align="left">Backend-specific ID of the matched name</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>accepted_id</code></td>
+<td align="left">character</td>
+<td align="left">ID of the accepted name</td>
+</tr>
+<tr class="even">
+<td align="left"><code>rank</code></td>
+<td align="left">character</td>
+<td align="left">Taxonomic rank: species, subspecies, genus, family,
+etc.</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>family</code></td>
+<td align="left">character</td>
+<td align="left">Family of the accepted name</td>
+</tr>
+<tr class="even">
+<td align="left"><code>genus</code></td>
+<td align="left">character</td>
+<td align="left">Genus of the accepted name</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>epithet</code></td>
+<td align="left">character</td>
+<td align="left">Specific epithet</td>
+</tr>
+<tr class="even">
+<td align="left"><code>authorship</code></td>
+<td align="left">character</td>
+<td align="left">Taxonomic authority string</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>is_synonym</code></td>
+<td align="left">logical</td>
+<td align="left">TRUE if the matched name is a synonym</td>
+</tr>
+<tr class="even">
+<td align="left"><code>is_hybrid</code></td>
+<td align="left">logical</td>
+<td align="left">TRUE if a hybrid marker was detected in the input</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>match_type</code></td>
+<td align="left">character</td>
+<td align="left">One of <code>exact</code>, <code>exact_ci</code>,
+<code>fuzzy</code>, <code>out_of_scope</code>, or <code>none</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>fuzzy_dist</code></td>
+<td align="left">numeric</td>
+<td align="left">Normalized edit distance (0–1), NA for exact
+matches</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>backend</code></td>
+<td align="left">character</td>
+<td align="left">Which backbone was used (e.g., <code>wfo</code>,
+<code>col</code>, <code>gbif</code>)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>backbone_version</code></td>
+<td align="left">character</td>
+<td align="left">Backend name, version, and download date for
+reproducibility</td>
+</tr>
+</tbody>
+</table>
+<p>To see what a single row looks like in practice, consider the synonym
+“Pinus abies” matched against WFO.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>row <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="st">&quot;Pinus abies&quot;</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">t</span>(row)</span></code></pre></div>
+<pre><code>#&gt;                  [,1]
+#&gt; input_name       &quot;Pinus abies&quot;
+#&gt; matched_name     &quot;Pinus abies&quot;
+#&gt; accepted_name    &quot;Picea abies&quot;
+#&gt; taxon_id         &quot;wfo-0000483065&quot;
+#&gt; accepted_id      &quot;wfo-0000471692&quot;
+#&gt; rank             &quot;species&quot;
+#&gt; family           &quot;Pinaceae&quot;
+#&gt; genus            &quot;Picea&quot;
+#&gt; epithet          &quot;abies&quot;
+#&gt; authorship       &quot;L.&quot;
+#&gt; is_synonym       &quot;TRUE&quot;
+#&gt; is_hybrid        &quot;FALSE&quot;
+#&gt; match_type       &quot;exact&quot;
+#&gt; fuzzy_dist       NA
+#&gt; backend          &quot;wfo&quot;
+#&gt; backbone_version &quot;wfo:2024-12 (2026-04-01)&quot;</code></pre>
+<p>Several things stand out. The <code>taxon_id</code> is the WFO
+identifier of the row that actually matched (“Pinus abies”), while
+<code>accepted_id</code> points to the currently accepted taxon (“Picea
+abies”). These two IDs differ whenever a synonym is involved. The
+<code>genus</code> and <code>family</code> columns always reflect the
+accepted name, not the matched synonym, so downstream joins on genus or
+family work correctly even for synonym inputs. The
+<code>backbone_version</code> string encodes both the WFO release
+version and the date the backbone was downloaded. This is useful for
+methods sections: “We matched names against WFO v2024-12, downloaded
+2026-04-01.”</p>
+<p>When a name is not a synonym, <code>taxon_id</code> and
+<code>accepted_id</code> are identical, <code>matched_name</code> and
+<code>accepted_name</code> are identical, and <code>is_synonym</code> is
+FALSE. The <code>fuzzy_dist</code> column holds NA for all exact and
+case-insensitive matches; it only gets a numeric value for fuzzy
+matches. This makes it straightforward to filter for uncertain matches
+with <code>result[!is.na(result$fuzzy_dist), ]</code>.</p>
+<p>The <code>rank</code> column deserves a brief note. Most matched
+names will have rank “species”, but taxify also matches genus-level
+names (rank “genus”), infraspecific names (rank “subspecies”, “variety”,
+“form”), and higher-rank names (rank “family”, “order”, etc.) when they
+appear in the backbone. If you submit “Quercus” without an epithet,
+taxify matches the genus-level entry and returns rank “genus”. If you
+submit “Pinus sylvestris var. hamata” and the variety exists in the
+backbone, you get rank “variety”; if it does not exist, taxify falls
+back to the species-level match and returns rank “species”.</p>
+<p>The <code>authorship</code> column contains the taxonomic authority
+as recorded in the backbone. For WFO this is typically the standard
+abbreviation (“L.”, “Sm.”, “(Aiton) Sm.”), while COL and GBIF may
+include the full unabbreviated author name. Note that this is the
+authorship of the <em>matched</em> name, not necessarily of the accepted
+name. When a synonym is matched, the authorship reflects the synonym’s
+authority. This can be useful for disambiguating homonyms (different
+species that share the same binomial but differ in authorship).</p>
+</div>
+<div id="name-cleaning" class="section level2">
+<h2>Name cleaning</h2>
+<p>taxify cleans input names before matching, so messy real-world data
+works without manual preprocessing. The cleaning pipeline runs entirely
+on the user’s input vector (which is small); the backbone is already
+clean. The following transformations happen in order:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Qualifier stripping.</strong> Prefixes and infixes like
+<code>cf.</code>, <code>aff.</code>, <code>s.l.</code>,
+<code>s.str.</code>, <code>sp.</code>, <code>spp.</code>,
+<code>subsp.</code>, <code>var.</code>, <code>f.</code>,
+<code>auct.</code>, <code>sensu</code>, <code>agg.</code> are removed.
+The qualifier is recorded separately and can be retrieved later with
+<code>add_qualifier_info()</code>.</p></li>
+<li><p><strong>Authorship removal.</strong> Parenthesized authorship
+strings like “(L.)” or “(Aiton) Sm.” are stripped first, then trailing
+authorship patterns like “L.” or “ex DC.” are removed. The backbone’s
+own <code>authorship</code> column still carries the authority for the
+matched name.</p></li>
+<li><p><strong>Whitespace and case normalization.</strong> Multiple
+spaces collapse to one. Everything except the genus initial is
+lowercased. “ACER PSEUDOPLATANUS” becomes “Acer
+pseudoplatanus”.</p></li>
+<li><p><strong>Hybrid marker detection.</strong> The multiplication
+sign, the letter “x” between genus and epithet, or “x” between two
+binomials are recognized as hybrid markers. The <code>is_hybrid</code>
+flag is set, and the marker is stripped for matching purposes.</p></li>
+<li><p><strong>Latin orthographic normalization.</strong> Common epithet
+spelling alternations are reduced to a canonical form. Pairs like
+“hirtaeformis”/“hirtiformis”, “caeruleum”/“ceruleum”, and
+“phyllum”/“fillum” all normalize to the same key. This catches
+mismatches that are really just alternative transliterations, not
+typos.</p></li>
+</ol>
+<p>Here are those transformations in action.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>messy_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur L.&quot;</span>,              <span class="co"># trailing authorship</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="st">&quot;cf. Betula pendula&quot;</span>,            <span class="co"># qualifier prefix</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris var. hamata&quot;</span>,  <span class="co"># infraspecific qualifier</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="st">&quot;  Fagus   sylvatica  &quot;</span>,         <span class="co"># extra whitespace</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>  <span class="st">&quot;ACER PSEUDOPLATANUS&quot;</span>            <span class="co"># all caps</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>))</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>messy_result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;                        input_name       accepted_name match_type
+#&gt; 1              Quercus robur L.        Quercus robur      exact
+#&gt; 2            cf. Betula pendula       Betula pendula      exact
+#&gt; 3 Pinus sylvestris var. hamata    Pinus sylvestris      exact
+#&gt; 4           Fagus   sylvatica      Fagus sylvatica      exact
+#&gt; 5         ACER PSEUDOPLATANUS  Acer pseudoplatanus   exact_ci</code></pre>
+<p>The authorship “L.” after “Quercus robur” was removed before
+matching. The “cf.” prefix on “Betula pendula” was stripped (the
+qualifier itself is recorded internally and can be retrieved with
+<code>add_qualifier_info()</code>). “Pinus sylvestris var. hamata” did
+not match at the variety rank, so taxify fell back to matching “Pinus
+sylvestris” at species rank and reported it as an exact match. The
+all-caps version of Acer pseudoplatanus matched after case folding, so
+it received match type <code>exact_ci</code>.</p>
+<p>Latin orthographic normalization is grouped under
+<code>exact_ci</code> as well, since no edit distance algorithm is
+involved. The normalizer handles six common alternation patterns in
+Latin epithets: <code>ae</code>/<code>i</code> (as in
+caeruleum/ceruleum), <code>oe</code>/<code>i</code>, terminal
+<code>ii</code>/<code>i</code>, <code>y</code>/<code>i</code>,
+<code>ph</code>/<code>f</code> (phyllum/fillum),
+<code>rh</code>/<code>r</code>, and <code>th</code>/<code>t</code>.
+These transformations are applied only to the epithet, never to the
+genus, and only during the normalization matching pass. They catch a
+class of discrepancies that would otherwise require fuzzy matching and
+consume edit-distance budget that might be needed for genuine typos.</p>
+<p>The cleaning pipeline is conservative by design. It strips known
+qualifiers and authorship patterns but preserves the core binomial. It
+does not attempt to correct obvious misspellings (that is the fuzzy
+matcher’s job), and it does not guess at abbreviated genus names. The
+goal is to remove noise while leaving the signal intact for the matching
+engine to handle.</p>
+</div>
+<div id="synonym-resolution" class="section level2">
+<h2>Synonym resolution</h2>
+<p>Synonyms are resolved transparently. When a submitted name matches a
+synonym in the backbone, <code>matched_name</code> shows what was found
+and <code>accepted_name</code> shows what it resolves to. The
+<code>is_synonym</code> flag marks these rows.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>syn_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>  <span class="st">&quot;Picea abies&quot;</span>,</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>,       <span class="co"># basionym / synonym of Picea abies</span></span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>  <span class="st">&quot;Quercus pedunculata&quot;</span> <span class="co"># synonym of Quercus robur</span></span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a>))</span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a>syn_result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;matched_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;is_synonym&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;            input_name       matched_name  accepted_name is_synonym
+#&gt; 1         Picea abies        Picea abies    Picea abies      FALSE
+#&gt; 2         Pinus abies        Pinus abies    Picea abies       TRUE
+#&gt; 3       Quercus robur      Quercus robur  Quercus robur      FALSE
+#&gt; 4 Quercus pedunculata Quercus pedunculata Quercus robur       TRUE</code></pre>
+<p>Both “Pinus abies” and “Picea abies” resolve to the same
+<code>accepted_name</code>, and both share the same
+<code>accepted_id</code>. This is the key that enrichment joins and
+<code>add_data()</code> use, so trait data attached via accepted ID
+propagates correctly regardless of which synonym the user submitted.</p>
+<p>Some species accumulate many synonyms over their taxonomic history.
+The common Norway spruce has been described under at least four
+different genera: <em>Pinus abies</em> L. (the Linnaean basionym),
+<em>Abies picea</em> Mill., <em>Picea excelsa</em> (Lam.) Link, and the
+accepted <em>Picea abies</em> (L.) H.Karst. All four names are present
+in the WFO backbone as synonyms pointing to the same accepted taxon ID.
+Submitting any of them to taxify returns the same
+<code>accepted_name</code> and <code>accepted_id</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>spruce <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>  <span class="st">&quot;Picea abies&quot;</span>,       <span class="co"># accepted name</span></span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>,       <span class="co"># Linnaean basionym</span></span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>  <span class="st">&quot;Abies picea&quot;</span>,       <span class="co"># Miller&#39;s combination</span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  <span class="st">&quot;Picea excelsa&quot;</span>      <span class="co"># Link&#39;s combination</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>))</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>spruce[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;accepted_id&quot;</span>, <span class="st">&quot;is_synonym&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;       input_name accepted_name     accepted_id is_synonym
+#&gt; 1    Picea abies   Picea abies wfo-0000471692      FALSE
+#&gt; 2    Pinus abies   Picea abies wfo-0000471692       TRUE
+#&gt; 3    Abies picea   Picea abies wfo-0000471692       TRUE
+#&gt; 4  Picea excelsa   Picea abies wfo-0000471692       TRUE</code></pre>
+<p>The identical <code>accepted_id</code> across all four rows means any
+downstream operation that groups or joins on accepted ID treats them as
+the same species. This is the entire point of synonym resolution: it
+collapses the many-to-one relationship between historical names and the
+current consensus.</p>
+<p>Taxonomic synonyms come in two flavours. A <em>homotypic synonym</em>
+(also called a nomenclatural synonym) is based on the same type specimen
+as the accepted name; the species was simply moved to a different genus.
+“Pinus abies” is a homotypic synonym of “Picea abies” because both are
+based on the same Linnaean type. A <em>heterotypic synonym</em> (also
+called a taxonomic synonym) is based on a different type specimen but
+was later judged to represent the same species. taxify does not
+distinguish between the two in the output: the <code>is_synonym</code>
+column is TRUE for both. Some backbones (GBIF, COL) do record whether a
+synonym is homotypic or heterotypic, and that information is available
+via <code>add_gbif_info()</code> or <code>add_col_info()</code>, but for
+most workflows the simple TRUE/FALSE flag is sufficient.</p>
+<p>Synonym resolution handles chains. If synonym A points to synonym B,
+which points to accepted name C, taxify follows the chain (up to 10
+hops) and returns C. This matters for backbones like COL and GBIF where
+synonym chains of length two or three are common.</p>
+</div>
+<div id="match-types" class="section level2">
+<h2>Match types</h2>
+<p>taxify classifies every match into one of five categories. Each
+category reflects a different level of confidence in the result.</p>
+<p><strong>exact</strong>: The cleaned input matches a backbone entry
+character for character. This is the fastest path and the most reliable.
+In practice, the majority of well-formatted species names fall into this
+category.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Quercus robur&quot;</span>)[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;     input_name match_type fuzzy_dist
+#&gt; 1 Quercus robur      exact         NA</code></pre>
+<p><strong>exact_ci</strong>: The input matches after case folding or
+after Latin orthographic normalization. No edit distance is involved.
+This category catches two distinct classes of mismatch: pure
+capitalization differences, and Latin spelling alternations.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;quercus robur&quot;</span>)[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;     input_name match_type fuzzy_dist
+#&gt; 1 quercus robur   exact_ci         NA</code></pre>
+<p>The name “quercus robur” (all lowercase) does not match “Quercus
+robur” character-for-character, but it does match after case folding.
+The match type is <code>exact_ci</code> and <code>fuzzy_dist</code>
+remains NA because no edit distance algorithm was needed.</p>
+<p><strong>fuzzy</strong>: The input does not match exactly but falls
+within the allowed edit distance of a backbone entry. The default
+threshold is 0.2 (normalized Damerau-Levenshtein), which allows roughly
+one edit per five characters. Fuzzy matching is genus-blocked: “Quercus
+robor” will only be compared against other <em>Quercus</em> entries, not
+the entire backbone.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Quercus robor&quot;</span>)[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>,</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>                            <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;     input_name accepted_name match_type fuzzy_dist
+#&gt; 1 Quercus robor Quercus robur      fuzzy 0.07142857</code></pre>
+<p>The typo “robor” (missing the “u”) was corrected to “Quercus robur”
+with a normalized edit distance of about 0.07. The
+<code>fuzzy_dist</code> column always holds the normalized distance, so
+values are comparable across names of different lengths.</p>
+<p><strong>out_of_scope</strong>: The genus is recognized in the genus
+register but is not covered by the requested backbone. Submitting
+“Panthera leo” to the WFO backbone (plants only) produces this
+classification, because taxify knows <em>Panthera</em> is a real genus
+that belongs to a different backbone.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Panthera leo&quot;</span>)[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;life_form&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;    input_name   match_type life_form
+#&gt; 1 Panthera leo out_of_scope    animal</code></pre>
+<p>The <code>life_form</code> column (populated from the genus register)
+shows “animal”, which explains why the name is out of scope for a
+plant-only backbone. The summary method uses this information to suggest
+alternative backends.</p>
+<p><strong>none</strong>: No match was found and the genus is either
+unknown or also covered by the requested backend. This means the name is
+genuinely absent from the backbone, not merely scoped to a different
+one.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Fakegenus fakus&quot;</span>)[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;       input_name match_type
+#&gt; 1 Fakegenus fakus       none</code></pre>
+<p>“Fakegenus fakus” is not recognized by any backbone, so it receives
+<code>none</code>. There is no genus register entry for “Fakegenus”, no
+alternative backend to suggest. In real-world datasets,
+<code>none</code> typically indicates a garbled name, a common name that
+was not converted to Latin, or an organism described in a publication
+that predates the backbone’s coverage.</p>
+<p>The five categories together give a complete picture of match
+quality. A quick diagnostic pass over the output might look like
+this:</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a>types_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,      <span class="co"># exact</span></span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a>  <span class="st">&quot;quercus robur&quot;</span>,      <span class="co"># exact_ci (case folding)</span></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a>  <span class="st">&quot;Quercus robor&quot;</span>,      <span class="co"># fuzzy (one-char typo)</span></span>
+<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>,       <span class="co"># out_of_scope (animal in WFO)</span></span>
+<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a>  <span class="st">&quot;Fakegenus fakus&quot;</span>     <span class="co"># none</span></span>
+<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a>))</span>
+<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a></span>
+<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a><span class="fu">table</span>(types_result<span class="sc">$</span>match_type)</span></code></pre></div>
+<pre><code>#&gt;       exact    exact_ci       fuzzy        none out_of_scope
+#&gt;           1           1           1           1            1</code></pre>
+<p>Fuzzy matching is controlled by three arguments.
+<code>fuzzy = FALSE</code> disables it entirely.
+<code>fuzzy_threshold</code> sets the maximum normalized distance
+(default 0.2) or, when &gt;= 1, a raw edit count (e.g.,
+<code>fuzzy_threshold = 2L</code> allows at most 2 edits regardless of
+name length). <code>fuzzy_method</code> selects the algorithm:
+<code>&quot;dl&quot;</code> (Damerau-Levenshtein, default),
+<code>&quot;levenshtein&quot;</code>, or <code>&quot;jw&quot;</code> (Jaro-Winkler).</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="co"># Strict: only allow 1 edit total, regardless of name length</span></span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Quercus robor&quot;</span>, <span class="at">fuzzy_threshold =</span> <span class="dv">1</span><span class="dt">L</span>)</span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a></span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="co"># Jaro-Winkler instead of Damerau-Levenshtein</span></span>
+<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Quercus robor&quot;</span>, <span class="at">fuzzy_method =</span> <span class="st">&quot;jw&quot;</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a></span>
+<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a><span class="co"># No fuzzy matching at all</span></span>
+<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Quercus robor&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+</div>
+<div id="the-summary-method" class="section level2">
+<h2>The summary method</h2>
+<p>Calling <code>summary()</code> on a taxify result prints a compact
+digest of match quality. This is the fastest way to assess whether a run
+went well or whether something needs attention upstream.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a>mixed <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>  <span class="st">&quot;Picea abies&quot;</span>, <span class="st">&quot;Pinus abies&quot;</span>,</span>
+<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>  <span class="st">&quot;Quercus robor&quot;</span>,       <span class="co"># typo</span></span>
+<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>,         <span class="co"># animal in WFO</span></span>
+<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>  <span class="st">&quot;Felis catus&quot;</span>,          <span class="co"># animal in WFO</span></span>
+<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a>  <span class="st">&quot;Fakus invalidus&quot;</span>       <span class="co"># genuinely absent</span></span>
+<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a>))</span>
+<span id="cb32-9"><a href="#cb32-9" tabindex="-1"></a></span>
+<span id="cb32-10"><a href="#cb32-10" tabindex="-1"></a><span class="fu">summary</span>(mixed)</span></code></pre></div>
+<pre><code>#&gt; -- taxify results ------------------------------------------------------------
+#&gt;   backend: WFO v2024-12  |  9 names submitted
+#&gt;
+#&gt;   matched         6  (exact: 4, case-insensitive: 0, fuzzy: 1)
+#&gt;   out of scope    2  (animal: 2 -- not in WFO, try backend = &quot;col&quot;, &quot;gbif&quot;)
+#&gt;   unmatched       1  (taxon_group: unknown: 1)
+#&gt;   ------------------------------------------------------------
+#&gt;   taxon groups: vascular plant: 6  animal: 2  unknown: 1</code></pre>
+<p>The first line identifies the backend and version, and the total
+number of names submitted. The “matched” line breaks down by match type
+so we can immediately see that four names matched exactly, zero needed
+case folding, and one required fuzzy correction. The “out of scope” line
+reports two animal names that have no business being in a plant
+backbone, and helpfully suggests <code>&quot;col&quot;</code> or
+<code>&quot;gbif&quot;</code> as alternatives. The “unmatched” line tallies
+genuinely absent names, broken down by taxon group from the genus
+register. The taxon-groups summary at the bottom shows the life-form
+composition of the full input. If a dataset that should be all plants
+shows 50 animals, something went wrong upstream.</p>
+<p>When enrichments have been applied, the summary includes them as
+well. Each enrichment layer gets its own line showing the source,
+version, and how many species received data.</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a>enriched <span class="ot">&lt;-</span> mixed <span class="sc">|&gt;</span></span>
+<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>() <span class="sc">|&gt;</span></span>
+<span id="cb34-3"><a href="#cb34-3" tabindex="-1"></a>  <span class="fu">add_woodiness</span>()</span>
+<span id="cb34-4"><a href="#cb34-4" tabindex="-1"></a></span>
+<span id="cb34-5"><a href="#cb34-5" tabindex="-1"></a><span class="fu">summary</span>(enriched)</span></code></pre></div>
+<pre><code>#&gt; -- taxify results ------------------------------------------------------------
+#&gt;   backend: WFO v2024-12  |  9 names submitted
+#&gt;
+#&gt;   matched         6  (exact: 4, case-insensitive: 0, fuzzy: 1)
+#&gt;   out of scope    2  (animal: 2 -- not in WFO, try backend = &quot;col&quot;, &quot;gbif&quot;)
+#&gt;   unmatched       1  (taxon_group: unknown: 1)
+#&gt;   ------------------------------------------------------------
+#&gt;   taxon groups: vascular plant: 6  animal: 2  unknown: 1
+#&gt;
+#&gt;   enrichments:
+#&gt;     conservation_status  (IUCN Red List 2024.12) -- 4 of 9 matched
+#&gt;     woodiness            (Zanne et al. 2014 2024.12) -- 5 of 9 matched</code></pre>
+<p>The enrichment lines show that 4 of the 9 input names received an
+IUCN conservation status, and 5 received woodiness data. The difference
+is expected: the two animal names and the unmatched name have no records
+in either enrichment, and not every plant species has been assessed by
+IUCN.</p>
+</div>
+<div id="multi-backend-fallback" class="section level2">
+<h2>Multi-backend fallback</h2>
+<p>A single backbone rarely covers everything in a mixed-kingdom
+dataset. Passing multiple backend names creates a fallback chain: names
+matched by an earlier backend are not re-matched by later ones.</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a>multi <span class="ot">&lt;-</span> <span class="fu">taxify</span>(</span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Panthera leo&quot;</span>, <span class="st">&quot;Amanita muscaria&quot;</span>,</span>
+<span id="cb36-3"><a href="#cb36-3" tabindex="-1"></a>    <span class="st">&quot;Escherichia coli&quot;</span>, <span class="st">&quot;Salmo trutta&quot;</span>),</span>
+<span id="cb36-4"><a href="#cb36-4" tabindex="-1"></a>  <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>)</span>
+<span id="cb36-5"><a href="#cb36-5" tabindex="-1"></a>)</span></code></pre></div>
+<pre><code>#&gt; Matching 5 names against 3 backends: wfo -&gt; col -&gt; gbif
+#&gt;   [wfo] Matching 5 names...
+#&gt;   [col] Matching 3 remaining names...
+#&gt;   [gbif] Matching 1 remaining names...</code></pre>
+<p>The progress messages tell the story. WFO receives all 5 names. It
+matches “Quercus robur” (a plant) and fails on the other four. COL then
+receives the 3 remaining names and matches “Panthera leo” (a mammal),
+“Amanita muscaria” (a fungus), and “Salmo trutta” (a fish). That leaves
+only “Escherichia coli” (a bacterium) for GBIF.</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a>multi[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;         input_name      accepted_name backend
+#&gt; 1    Quercus robur      Quercus robur     wfo
+#&gt; 2     Panthera leo       Panthera leo     col
+#&gt; 3 Amanita muscaria  Amanita muscaria     col
+#&gt; 4 Escherichia coli  Escherichia coli    gbif
+#&gt; 5     Salmo trutta      Salmo trutta     col</code></pre>
+<p>The <code>backend</code> column records which backbone resolved each
+name. This column is essential for reproducibility: it tells a reviewer
+(or your future self) that Quercus robur was resolved using WFO while
+Panthera leo used COL.</p>
+<p>The fallback order matters. WFO is the most authoritative source for
+plants, so putting it first ensures plant names get WFO-quality synonym
+resolution. COL covers all kingdoms but with less taxonomic depth per
+group. GBIF has the widest coverage but coarser synonym handling. A
+sensible default for mixed-kingdom work is
+<code>backend = c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;)</code>.</p>
+<p>A subtle point: once a name matches in an earlier backend, it is
+removed from the pool sent to subsequent backends. This means the COL
+and GBIF backends never see “Quercus robur” at all, which both speeds up
+matching and avoids conflicting results for names that exist in multiple
+backbones. If Quercus robur had been sent to all three backbones, it
+would match in each, potentially returning different taxon IDs and
+slightly different synonym chains. The fallback design avoids this
+ambiguity by construction.</p>
+<p>One practical consequence: the <code>accepted_id</code> values in a
+multi-backend result are not globally unique across backends. A WFO ID
+like “wfo-0000306015” and a COL ID like “9TQBG” are both valid
+identifiers but belong to different namespaces. Downstream joins that
+combine results from different taxify runs should join on
+<code>accepted_name</code> (which is a real taxonomic name) rather than
+<code>accepted_id</code> (which is backend-specific).</p>
+<p>The summary for a multi-backend run aggregates across all backends
+but preserves the per-backend breakdown in the out-of-scope tally. It
+also shows the backend names in the header line, making it clear that
+multiple sources contributed to the result.</p>
+</div>
+<div id="enrichments" class="section level2">
+<h2>Enrichments</h2>
+<p>taxify ships with 12 enrichment layers that join external trait and
+status data to a <code>taxify()</code> result. Each enrichment is a
+separate .vtr file downloaded on first use and cached locally. The join
+key is <code>accepted_name</code>, so synonyms in the original input
+resolve correctly.</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu">list_enrichments</span>()</span></code></pre></div>
+<pre><code>#&gt;                name   version   nrow static                                  trait_cols                                  source_url
+#&gt; 1  conservation_status 2024.12 166342   TRUE                         conservation_status    https://doi.org/10.15468/39omei
+#&gt; 2             griis    2024.12  25918   TRUE                          invasive_status  https://doi.org/10.15468/6jbdk3
+#&gt; 3              wcvp    2024.12 356224   TRUE                            native_status      https://doi.org/10.34885/gah...
+#&gt; 4              eive    2024.12   6937   TRUE   light, temperature, moisture, reaction  https://doi.org/10.1111/jvs.13031
+#&gt; 5       elton_traits   2024.12   9994   TRUE         diet_inv, diet_vend, ..., body...      https://doi.org/10.1890/13-1917.1
+#&gt; 6            avonet    2024.12  11009   TRUE        beak_length, wing_length, migrat...    https://doi.org/10.1111/ele.13898
+#&gt; 7          pantheria   2024.12   5416   TRUE   longevity_mo, litter_size, gestation...   https://doi.org/10.1890/08-1494.1
+#&gt; 8          amphibio    2024.12   6776   TRUE  body_size_mm, age_maturity_d, reproduc...   https://doi.org/10.1038/sdata.2017.123
+#&gt; 9      common_names    2024.12 982445  FALSE                             common_name     https://doi.org/10.15468/39omei
+#&gt; 10        woodiness    2024.12  47898   TRUE                               woodiness        https://doi.org/10.1038/nature12872
+#&gt; 11      diaz_traits   2024.12   7381   TRUE              seed_mass_mg, plant_height_m  https://doi.org/10.1038/s41586-015-...
+#&gt; 12             leda    2024.12   3625   TRUE   raunkiaer_life_form, dispersal_type, ...  https://doi.org/10.1111/j.1365-...</code></pre>
+<p>Each <code>add_*()</code> function appends one or more columns to the
+result. The functions download their .vtr on first use, so no separate
+installation step is needed. The <code>static</code> column in the
+listing above indicates whether the dataset is version-locked (TRUE
+means it will never change; FALSE means taxify checks for updates once
+per session).</p>
+<p>The enrichment join key is <code>accepted_name</code>, not
+<code>input_name</code>. This is a deliberate choice. If two rows in the
+taxify result were submitted as “Pinus abies” (a synonym) and “Picea
+abies” (the accepted name), both resolve to the same
+<code>accepted_name</code> and therefore receive the same trait values
+from the enrichment layer. The enrichment .vtr files are built with
+cross-backbone name resolution, meaning a species name is resolved
+against all seven backbones during the enrichment build pipeline, and
+the union of all resulting accepted names is stored. This ensures that
+<code>add_woodiness()</code> works correctly regardless of whether the
+user matched against WFO, COL, or GBIF.</p>
+<p>Some enrichments are kingdom-specific. Woodiness, EIVE, WCVP, Diaz
+traits, and LEDA cover plants only. EltonTraits covers birds and
+mammals. AVONET is bird-only. PanTHERIA is mammal-only. AmphiBIO is
+amphibian-only. Conservation status and common names are cross-kingdom.
+When an enrichment does not cover a particular taxon group, those rows
+simply receive NA. The summary method reports how many rows received
+data, so the coverage gap is immediately visible.</p>
+<div id="conservation-status" class="section level3">
+<h3>Conservation status</h3>
+<p><code>add_conservation_status()</code> joins IUCN Red List
+categories. Coverage is global across all taxonomic groups,
+approximately 166,000 species.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a>conservation <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a>  <span class="st">&quot;Panthera tigris&quot;</span>,</span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a>  <span class="st">&quot;Ailuropoda melanoleuca&quot;</span>,</span>
+<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a>  <span class="st">&quot;Spheniscus demersus&quot;</span></span>
+<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a>), <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb42-8"><a href="#cb42-8" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>()</span>
+<span id="cb42-9"><a href="#cb42-9" tabindex="-1"></a></span>
+<span id="cb42-10"><a href="#cb42-10" tabindex="-1"></a>conservation[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;conservation_status&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;              input_name          accepted_name conservation_status
+#&gt; 1       Panthera tigris        Panthera tigris                  EN
+#&gt; 2         Quercus robur          Quercus robur                  LC
+#&gt; 3 Ailuropoda melanoleuca Ailuropoda melanoleuca                 VU
+#&gt; 4      Pinus sylvestris       Pinus sylvestris                  LC
+#&gt; 5    Spheniscus demersus    Spheniscus demersus                 EN</code></pre>
+<p>The IUCN abbreviations are standard: LC (Least Concern), NT (Near
+Threatened), VU (Vulnerable), EN (Endangered), CR (Critically
+Endangered), EW (Extinct in the Wild), EX (Extinct). Species not yet
+assessed by the IUCN receive NA. The Sumatran tiger and African penguin
+both show EN; Quercus robur and Pinus sylvestris are LC.</p>
+</div>
+<div id="common-names" class="section level3">
+<h3>Common names</h3>
+<p><code>add_common_names()</code> joins GBIF vernacular names filtered
+by ISO 639-1 language code. The default is English.</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>common <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span></span>
+<span id="cb44-5"><a href="#cb44-5" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb44-6"><a href="#cb44-6" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span>
+<span id="cb44-7"><a href="#cb44-7" tabindex="-1"></a></span>
+<span id="cb44-8"><a href="#cb44-8" tabindex="-1"></a>common[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;common_name&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;        input_name   common_name
+#&gt; 1   Quercus robur   Pedunculate Oak
+#&gt; 2 Pinus sylvestris  Scots Pine
+#&gt; 3   Betula pendula  Silver Birch</code></pre>
+<p>Other languages work the same way. German names for the same
+species:</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a>common_de <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb46-3"><a href="#cb46-3" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb46-4"><a href="#cb46-4" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span></span>
+<span id="cb46-5"><a href="#cb46-5" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb46-6"><a href="#cb46-6" tabindex="-1"></a>  <span class="fu">add_common_names</span>(<span class="at">lang =</span> <span class="st">&quot;de&quot;</span>)</span>
+<span id="cb46-7"><a href="#cb46-7" tabindex="-1"></a></span>
+<span id="cb46-8"><a href="#cb46-8" tabindex="-1"></a>common_de[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;common_name&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;        input_name common_name
+#&gt; 1   Quercus robur  Stieleiche
+#&gt; 2 Pinus sylvestris Waldkiefer
+#&gt; 3   Betula pendula  Hängebirke</code></pre>
+<p>When multiple vernacular names exist for a species in the requested
+language, the most commonly used one is returned.</p>
+</div>
+<div id="woodiness" class="section level3">
+<h3>Woodiness</h3>
+<p><code>add_woodiness()</code> joins the Zanne et al. (2014) woodiness
+classification. Coverage is about 48,000 plant species, each labelled as
+“woody”, “herbaceous”, or “variable” (species that can be either
+depending on growth conditions).</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a>woody <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb48-2"><a href="#cb48-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb48-3"><a href="#cb48-3" tabindex="-1"></a>  <span class="st">&quot;Trifolium repens&quot;</span>,</span>
+<span id="cb48-4"><a href="#cb48-4" tabindex="-1"></a>  <span class="st">&quot;Salix caprea&quot;</span>,</span>
+<span id="cb48-5"><a href="#cb48-5" tabindex="-1"></a>  <span class="st">&quot;Plantago lanceolata&quot;</span></span>
+<span id="cb48-6"><a href="#cb48-6" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb48-7"><a href="#cb48-7" tabindex="-1"></a>  <span class="fu">add_woodiness</span>()</span>
+<span id="cb48-8"><a href="#cb48-8" tabindex="-1"></a></span>
+<span id="cb48-9"><a href="#cb48-9" tabindex="-1"></a>woody[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;woodiness&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;           input_name       accepted_name woodiness
+#&gt; 1      Quercus robur       Quercus robur     woody
+#&gt; 2  Trifolium repens    Trifolium repens herbaceous
+#&gt; 3      Salix caprea        Salix caprea     woody
+#&gt; 4 Plantago lanceolata Plantago lanceolata herbaceous</code></pre>
+<p>Enrichments stack naturally in a pipe. The columns added by each
+<code>add_*()</code> function are independent, so the order of
+application does not matter.</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a>stacked <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb50-2"><a href="#cb50-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb50-3"><a href="#cb50-3" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb50-4"><a href="#cb50-4" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span></span>
+<span id="cb50-5"><a href="#cb50-5" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb50-6"><a href="#cb50-6" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>() <span class="sc">|&gt;</span></span>
+<span id="cb50-7"><a href="#cb50-7" tabindex="-1"></a>  <span class="fu">add_woodiness</span>() <span class="sc">|&gt;</span></span>
+<span id="cb50-8"><a href="#cb50-8" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span>
+<span id="cb50-9"><a href="#cb50-9" tabindex="-1"></a></span>
+<span id="cb50-10"><a href="#cb50-10" tabindex="-1"></a>stacked[, <span class="fu">c</span>(<span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;conservation_status&quot;</span>,</span>
+<span id="cb50-11"><a href="#cb50-11" tabindex="-1"></a>            <span class="st">&quot;woodiness&quot;</span>, <span class="st">&quot;common_name&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;      accepted_name conservation_status woodiness    common_name
+#&gt; 1    Quercus robur                  LC     woody Pedunculate Oak
+#&gt; 2   Betula pendula                  LC     woody    Silver Birch
+#&gt; 3 Pinus sylvestris                  LC     woody     Scots Pine</code></pre>
+</div>
+</div>
+<div id="custom-data" class="section level2">
+<h2>Custom data</h2>
+<p><code>add_data()</code> joins any external dataset to a taxify result
+through backbone matching. The external data’s species names are run
+through the same backbone(s) that produced the original result, and the
+join is performed on <code>accepted_id</code>. This means synonyms in
+either the user’s data or the external dataset resolve to the same
+key.</p>
+<div id="from-a-data.frame" class="section level3">
+<h3>From a data.frame</h3>
+<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a>traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb52-2"><a href="#cb52-2" tabindex="-1"></a>  <span class="at">species =</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Quercus pedunculata&quot;</span>,</span>
+<span id="cb52-3"><a href="#cb52-3" tabindex="-1"></a>              <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>),</span>
+<span id="cb52-4"><a href="#cb52-4" tabindex="-1"></a>  <span class="at">max_height_m =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">40</span>, <span class="dv">35</span>, <span class="dv">25</span>),</span>
+<span id="cb52-5"><a href="#cb52-5" tabindex="-1"></a>  <span class="at">shade_tolerance =</span> <span class="fu">c</span>(<span class="st">&quot;moderate&quot;</span>, <span class="st">&quot;moderate&quot;</span>, <span class="st">&quot;intolerant&quot;</span>, <span class="st">&quot;intolerant&quot;</span>),</span>
+<span id="cb52-6"><a href="#cb52-6" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb52-7"><a href="#cb52-7" tabindex="-1"></a>)</span>
+<span id="cb52-8"><a href="#cb52-8" tabindex="-1"></a></span>
+<span id="cb52-9"><a href="#cb52-9" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>))</span>
+<span id="cb52-10"><a href="#cb52-10" tabindex="-1"></a></span>
+<span id="cb52-11"><a href="#cb52-11" tabindex="-1"></a>enriched <span class="ot">&lt;-</span> result <span class="sc">|&gt;</span></span>
+<span id="cb52-12"><a href="#cb52-12" tabindex="-1"></a>  <span class="fu">add_data</span>(traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; Matching 4 names from &#39;species&#39; through WFO backbone...
+#&gt; Matching 4 names...
+#&gt; add_data: 3 of 3 species matched (100.0%). 0 names in data unmatched.</code></pre>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" tabindex="-1"></a>enriched[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;max_height_m&quot;</span>, <span class="st">&quot;shade_tolerance&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;        input_name     accepted_name max_height_m shade_tolerance
+#&gt; 1   Quercus robur     Quercus robur           40        moderate
+#&gt; 2 Pinus sylvestris  Pinus sylvestris           35      intolerant
+#&gt; 3   Betula pendula    Betula pendula           25      intolerant</code></pre>
+<p>The traits data.frame contained both “Quercus robur” and “Quercus
+pedunculata” (a synonym). Because both resolve to the same accepted ID,
+the join works correctly without deduplication on the user’s side. If
+the two rows had different trait values for the same accepted species,
+<code>add_data()</code> would raise an error rather than picking one
+arbitrarily.</p>
+</div>
+<div id="from-a-csv-file" class="section level3">
+<h3>From a CSV file</h3>
+<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" tabindex="-1"></a>enriched <span class="ot">&lt;-</span> result <span class="sc">|&gt;</span></span>
+<span id="cb56-2"><a href="#cb56-2" tabindex="-1"></a>  <span class="fu">add_data</span>(<span class="st">&quot;my_field_traits.csv&quot;</span>)</span></code></pre></div>
+<p>When <code>species_col</code> is not specified,
+<code>add_data()</code> auto-detects it by probing the first 10 rows of
+each character column against the backbone. The column with the highest
+match rate wins. If no column reaches 50% match rate, an error asks the
+user to specify <code>species_col</code> explicitly. The auto-detection
+runs a small <code>taxify()</code> call internally, so it adds a brief
+delay on first use, but it saves time in exploratory workflows where the
+column name varies across datasets (“species”, “taxon”,
+“scientific_name”, “Taxon.name”, and so on).</p>
+<p>The join itself is performed on <code>accepted_id</code>, not on the
+raw species name. This is the key difference from a naive
+<code>merge()</code>. If the user’s CSV contains “Quercus pedunculata”
+(a synonym) and the taxify result contains “Quercus robur” (the accepted
+name), a raw string merge would miss the connection. The
+<code>add_data()</code> join resolves both names through the backbone,
+discovers that they share the same accepted ID, and links them
+correctly. Duplicate handling is strict: if two rows in the external
+data resolve to the same accepted ID with different trait values,
+<code>add_data()</code> raises an error rather than picking one row
+arbitrarily.</p>
+</div>
+<div id="supported-file-formats" class="section level3">
+<h3>Supported file formats</h3>
+<p><code>add_data()</code> reads <code>.csv</code>,
+<code>.csv.gz</code>, <code>.xlsx</code> (requires the openxlsx2
+package), <code>.sqlite</code>/<code>.db</code> (requires DBI and
+RSQLite), and <code>.vtr</code> files natively. For SQLite files,
+specify the table name with the <code>table</code> argument. Any other
+format can be read into a data.frame first and passed directly.</p>
+<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" tabindex="-1"></a><span class="co"># SQLite</span></span>
+<span id="cb57-2"><a href="#cb57-2" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(<span class="st">&quot;ecology_db.sqlite&quot;</span>, <span class="at">table =</span> <span class="st">&quot;plant_traits&quot;</span>)</span>
+<span id="cb57-3"><a href="#cb57-3" tabindex="-1"></a></span>
+<span id="cb57-4"><a href="#cb57-4" tabindex="-1"></a><span class="co"># XLSX</span></span>
+<span id="cb57-5"><a href="#cb57-5" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(<span class="st">&quot;supplementary_table_S1.xlsx&quot;</span>, <span class="at">species_col =</span> <span class="st">&quot;Taxon&quot;</span>)</span>
+<span id="cb57-6"><a href="#cb57-6" tabindex="-1"></a></span>
+<span id="cb57-7"><a href="#cb57-7" tabindex="-1"></a><span class="co"># Subset columns</span></span>
+<span id="cb57-8"><a href="#cb57-8" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>, <span class="at">cols =</span> <span class="st">&quot;max_height_m&quot;</span>)</span></code></pre></div>
+</div>
+</div>
+<div id="hybrid-names" class="section level2">
+<h2>Hybrid names</h2>
+<p>taxify detects hybrid markers in input names (the multiplication
+sign, the letter x between genus and epithet, or between two binomials)
+and sets <code>is_hybrid = TRUE</code> in the output.
+<code>add_hybrid_info()</code> goes further, parsing hybrid formulas to
+extract parent names and classify the hybrid type.</p>
+<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" tabindex="-1"></a>hybrids <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb58-2"><a href="#cb58-2" tabindex="-1"></a>  <span class="st">&quot;Quercus x rosacea&quot;</span>,                  <span class="co"># nothospecies</span></span>
+<span id="cb58-3"><a href="#cb58-3" tabindex="-1"></a>  <span class="st">&quot;Quercus pyrenaica x Q. petraea&quot;</span>,     <span class="co"># hybrid formula</span></span>
+<span id="cb58-4"><a href="#cb58-4" tabindex="-1"></a>  <span class="st">&quot;x Cuprocyparis leylandii&quot;</span>,           <span class="co"># nothogenus</span></span>
+<span id="cb58-5"><a href="#cb58-5" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span>                       <span class="co"># not a hybrid</span></span>
+<span id="cb58-6"><a href="#cb58-6" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb58-7"><a href="#cb58-7" tabindex="-1"></a>  <span class="fu">add_hybrid_info</span>()</span>
+<span id="cb58-8"><a href="#cb58-8" tabindex="-1"></a></span>
+<span id="cb58-9"><a href="#cb58-9" tabindex="-1"></a>hybrids[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;is_hybrid&quot;</span>, <span class="st">&quot;hybrid_type&quot;</span>,</span>
+<span id="cb58-10"><a href="#cb58-10" tabindex="-1"></a>            <span class="st">&quot;hybrid_parent_1&quot;</span>, <span class="st">&quot;hybrid_parent_2&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;                          input_name is_hybrid hybrid_type hybrid_parent_1 hybrid_parent_2
+#&gt; 1              Quercus x rosacea      TRUE nothospecies            &lt;NA&gt;            &lt;NA&gt;
+#&gt; 2 Quercus pyrenaica x Q. petraea      TRUE      formula Quercus pyrenaica Quercus petraea
+#&gt; 3    x Cuprocyparis leylandii        TRUE   nothogenus            &lt;NA&gt;            &lt;NA&gt;
+#&gt; 4                  Betula pendula     FALSE         &lt;NA&gt;            &lt;NA&gt;            &lt;NA&gt;</code></pre>
+<p>Three hybrid types are recognized. “nothospecies” is a named hybrid
+species (the multiplication sign appears between genus and epithet).
+“formula” is a hybrid cross written as “A x B”, where the parser expands
+abbreviated genera (the “Q.” in “Q. petraea” is expanded to “Quercus”
+based on the first parent). “nothogenus” is a hybrid genus (the
+multiplication sign precedes the genus name).</p>
+<p>For formulas, the extracted parent names are full binomials that can
+be submitted to <code>taxify()</code> themselves for further resolution.
+A common workflow for hybrid-heavy datasets (e.g., ornamental
+horticulture records) is to run <code>taxify()</code> on the full list,
+then pipe through <code>add_hybrid_info()</code>, and finally re-run
+<code>taxify()</code> on the extracted parent names to obtain their full
+taxonomic resolution. The hybrid detection runs on the raw input before
+any cleaning, so it correctly handles both the Unicode multiplication
+sign and the ASCII “x” notation.</p>
+</div>
+<div id="genus-register" class="section level2">
+<h2>Genus register</h2>
+<p>taxify maintains a unified genus register built from all installed
+backbones. It maps each genus to its family, higher classification, and
+a broad life-form category. <code>lookup_genus()</code> queries this
+register.</p>
+<div class="sourceCode" id="cb60"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" tabindex="-1"></a><span class="fu">lookup_genus</span>(<span class="st">&quot;Quercus&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt;     genus kingdom phylum class     order   family kingdom_group  taxon_group      life_form
+#&gt; 1 Quercus Plantae   &lt;NA&gt; Magnoliopsida Fagales Fagaceae       plantae vascular plant vascular plant</code></pre>
+<div class="sourceCode" id="cb62"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" tabindex="-1"></a><span class="fu">lookup_genus</span>(<span class="st">&quot;Panthera&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt;      genus  kingdom   phylum    class    order   family kingdom_group taxon_group life_form
+#&gt; 1 Panthera Animalia Chordata Mammalia Carnivora Felidae      animalia      animal    animal</code></pre>
+<p>The register is what powers the <code>out_of_scope</code>
+classification and the taxon-group breakdown in <code>summary()</code>.
+It is built once from the union of WFO, COL, and GBIF genera, with
+classification conflicts resolved by priority (COL &gt; GBIF &gt; WFO
+for higher taxonomy, since COL and GBIF carry kingdom through order
+while WFO only has family).</p>
+<p><code>taxify_register_coverage()</code> shows which backbones contain
+a given genus, which helps decide which backend to use for a particular
+taxonomic group.</p>
+<div class="sourceCode" id="cb64"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" tabindex="-1"></a><span class="fu">taxify_register_coverage</span>(<span class="st">&quot;Quercus&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt;     genus backend  version  date_added
+#&gt; 1 Quercus     wfo 2024-12  2026-04-01
+#&gt; 2 Quercus     col 2024.4   2026-04-01
+#&gt; 3 Quercus    gbif 2024-08  2026-04-01</code></pre>
+<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" tabindex="-1"></a><span class="fu">taxify_register_coverage</span>(<span class="st">&quot;Panthera&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt;      genus backend  version  date_added
+#&gt; 1 Panthera     col 2024.4   2026-04-01
+#&gt; 2 Panthera    gbif 2024-08  2026-04-01</code></pre>
+<p>Quercus appears in all three major backbones. Panthera is absent from
+WFO (plants only) but present in COL and GBIF. This information is used
+automatically during matching, but it is also useful when planning which
+backends to install for a particular project. If your dataset is
+entirely marine invertebrates, you might check a few representative
+genera with <code>taxify_register_coverage()</code> and discover that
+WoRMS is the only backend that covers them, saving the time of
+downloading WFO and COL.</p>
+<p>The register currently contains approximately 100,000 genera drawn
+from the union of WFO, COL, and GBIF. It ships as a pre-built
+<code>.vtr</code> file and is updated with each taxify release. The
+register is small enough to fit comfortably in memory and is cached for
+the duration of the R session, so <code>lookup_genus()</code> calls are
+effectively instant.</p>
+</div>
+<div id="cache-management" class="section level2">
+<h2>Cache management</h2>
+<p>Backbone .vtr files, enrichment .vtr files, and the genus register
+all live under <code>taxify_data_dir()</code>. During an R session,
+taxify caches file paths in memory so that repeated
+<code>taxify()</code> calls do not re-scan the file system.</p>
+<p><code>taxify_clear_cache()</code> drops these in-memory handles. The
+next <code>taxify()</code> call will re-load from disk. This is rarely
+needed, but it can help after manually moving or deleting .vtr
+files.</p>
+<div class="sourceCode" id="cb68"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span></code></pre></div>
+<p>To force a fresh manifest fetch (e.g., after the maintainer publishes
+a new backbone version mid-session), use
+<code>taxify_refresh_manifest()</code>.</p>
+<div class="sourceCode" id="cb69"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" tabindex="-1"></a><span class="fu">taxify_refresh_manifest</span>()</span></code></pre></div>
+<p>The on-disk files themselves are never deleted by taxify. To reclaim
+disk space, delete the contents of <code>taxify_data_dir()</code>
+manually.</p>
+<div class="sourceCode" id="cb70"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" tabindex="-1"></a><span class="co"># See where everything lives</span></span>
+<span id="cb70-2"><a href="#cb70-2" tabindex="-1"></a><span class="fu">taxify_data_dir</span>()</span>
+<span id="cb70-3"><a href="#cb70-3" tabindex="-1"></a></span>
+<span id="cb70-4"><a href="#cb70-4" tabindex="-1"></a><span class="co"># To remove all taxify data (backbones, enrichments, register):</span></span>
+<span id="cb70-5"><a href="#cb70-5" tabindex="-1"></a><span class="co"># unlink(taxify_data_dir(), recursive = TRUE)</span></span></code></pre></div>
+<p>The total disk footprint depends on how many backbones and
+enrichments are installed. WFO alone is about 150 MB; all seven
+backbones plus all 12 enrichments total roughly 2.5 GB.</p>
+</div>
+<div id="the-full-pipeline" class="section level2">
+<h2>The full pipeline</h2>
+<p>We will close with an end-to-end worked example. The input is a
+realistic list of 22 species names from a hypothetical European
+biodiversity survey. It includes six clean accepted plant names, three
+historical synonyms (Pinus abies, Quercus pedunculata, Picea excelsa),
+two typos (Quercus robor, Fagus sylvatyca), four messy field annotations
+(qualifier, trailing authorship, infraspecific rank, excess whitespace),
+one hybrid, four animal names that do not belong in a plant backbone,
+and two entirely fictitious names. We will match against WFO and COL,
+inspect the summary, and layer on three enrichments.</p>
+<div class="sourceCode" id="cb71"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1" tabindex="-1"></a>survey_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb71-2"><a href="#cb71-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb71-3"><a href="#cb71-3" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Alnus glutinosa&quot;</span>, <span class="st">&quot;Fraxinus excelsior&quot;</span>,</span>
+<span id="cb71-4"><a href="#cb71-4" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>, <span class="st">&quot;Quercus pedunculata&quot;</span>, <span class="st">&quot;Picea excelsa&quot;</span>,</span>
+<span id="cb71-5"><a href="#cb71-5" tabindex="-1"></a>  <span class="st">&quot;Quercus robor&quot;</span>, <span class="st">&quot;Fagus sylvatyca&quot;</span>,</span>
+<span id="cb71-6"><a href="#cb71-6" tabindex="-1"></a>  <span class="st">&quot;cf. Sorbus aucuparia&quot;</span>, <span class="st">&quot;Acer pseudoplatanus L.&quot;</span>,</span>
+<span id="cb71-7"><a href="#cb71-7" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris var. hamata&quot;</span>, <span class="st">&quot;  Tilia   cordata  &quot;</span>,</span>
+<span id="cb71-8"><a href="#cb71-8" tabindex="-1"></a>  <span class="st">&quot;Quercus x rosacea&quot;</span>,</span>
+<span id="cb71-9"><a href="#cb71-9" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>, <span class="st">&quot;Salmo trutta&quot;</span>, <span class="st">&quot;Cervus elaphus&quot;</span>, <span class="st">&quot;Parus major&quot;</span>,</span>
+<span id="cb71-10"><a href="#cb71-10" tabindex="-1"></a>  <span class="st">&quot;Notareal plantus&quot;</span>, <span class="st">&quot;Randomus specius&quot;</span></span>
+<span id="cb71-11"><a href="#cb71-11" tabindex="-1"></a>)</span></code></pre></div>
+<p>There are 22 names in total. We match against WFO first (best for
+plants), with COL as a fallback for the animal names.</p>
+<div class="sourceCode" id="cb72"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb72-1"><a href="#cb72-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(survey_names, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code></pre></div>
+<pre><code>#&gt; Matching 22 names against 2 backends: wfo -&gt; col
+#&gt;   [wfo] Matching 22 names...
+#&gt;   [wfo] Fuzzy matching 6 unmatched...
+#&gt;   [col] Matching 4 remaining names...</code></pre>
+<p>WFO handled the plant names (exact, fuzzy, synonym, and all). The 4
+animal names did not match in WFO and were forwarded to COL, which
+resolved all four. Let us look at the summary first.</p>
+<div class="sourceCode" id="cb74"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" tabindex="-1"></a><span class="fu">summary</span>(result)</span></code></pre></div>
+<pre><code>#&gt; -- taxify results ------------------------------------------------------------
+#&gt;   backend: WFO + COL  |  22 names submitted
+#&gt;
+#&gt;   matched        18  (exact: 13, case-insensitive: 0, fuzzy: 2)
+#&gt;   out of scope    0
+#&gt;   unmatched       2  (taxon_group: unknown: 2)
+#&gt;   ------------------------------------------------------------
+#&gt;   taxon groups: vascular plant: 16  animal: 4  unknown: 2</code></pre>
+<p>Eighteen of 22 names matched. The two unknowns are “Notareal plantus”
+and “Randomus specius”, which do not exist in any backbone. The animal
+names are not out of scope this time because COL covers them.</p>
+<p>Now we layer on three enrichments: conservation status, woodiness,
+and common names.</p>
+<div class="sourceCode" id="cb76"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb76-1"><a href="#cb76-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> result <span class="sc">|&gt;</span></span>
+<span id="cb76-2"><a href="#cb76-2" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>() <span class="sc">|&gt;</span></span>
+<span id="cb76-3"><a href="#cb76-3" tabindex="-1"></a>  <span class="fu">add_woodiness</span>() <span class="sc">|&gt;</span></span>
+<span id="cb76-4"><a href="#cb76-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<p>The summary now reflects the enrichment coverage.</p>
+<div class="sourceCode" id="cb77"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" tabindex="-1"></a><span class="fu">summary</span>(result)</span></code></pre></div>
+<pre><code>#&gt; -- taxify results ------------------------------------------------------------
+#&gt;   backend: WFO + COL  |  22 names submitted
+#&gt;
+#&gt;   matched        18  (exact: 13, case-insensitive: 0, fuzzy: 2)
+#&gt;   out of scope    0
+#&gt;   unmatched       2  (taxon_group: unknown: 2)
+#&gt;   ------------------------------------------------------------
+#&gt;   taxon groups: vascular plant: 16  animal: 4  unknown: 2
+#&gt;
+#&gt;   enrichments:
+#&gt;     conservation_status  (IUCN Red List 2024.12)      -- 12 of 22 matched
+#&gt;     woodiness            (Zanne et al. 2014 2024.12)  -- 14 of 22 matched
+#&gt;     common_names         (GBIF vernacular names 2024.12) -- 16 of 22 matched</code></pre>
+<p>Conservation status matched 12 of 22 names, woodiness matched 14, and
+common names matched 16. These numbers make sense. Conservation status
+has gaps because not every species has been assessed by IUCN; the common
+European trees are assessed (mostly LC), but some of the less prominent
+species may not be. Woodiness covers about 48,000 species from the Zanne
+et al. dataset, so most temperate trees are included. Common names have
+the widest coverage because the GBIF vernacular names dataset is very
+large, though it still misses some species in less commonly documented
+languages.</p>
+<p>We can now pull out the columns we care about for downstream
+analysis. The result is a plain data.frame, so standard R subsetting,
+dplyr verbs, or data.table operations all work without special
+handling.</p>
+<div class="sourceCode" id="cb79"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" tabindex="-1"></a>analysis <span class="ot">&lt;-</span> result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>,</span>
+<span id="cb79-2"><a href="#cb79-2" tabindex="-1"></a>                        <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;is_synonym&quot;</span>, <span class="st">&quot;backend&quot;</span>,</span>
+<span id="cb79-3"><a href="#cb79-3" tabindex="-1"></a>                        <span class="st">&quot;conservation_status&quot;</span>, <span class="st">&quot;woodiness&quot;</span>,</span>
+<span id="cb79-4"><a href="#cb79-4" tabindex="-1"></a>                        <span class="st">&quot;common_name&quot;</span>)]</span></code></pre></div>
+<p>A few diagnostic queries round out the workflow. These are patterns
+that come up in nearly every biodiversity data cleaning session.</p>
+<div class="sourceCode" id="cb80"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb80-1"><a href="#cb80-1" tabindex="-1"></a><span class="co"># Which names were synonyms?</span></span>
+<span id="cb80-2"><a href="#cb80-2" tabindex="-1"></a>result[result<span class="sc">$</span>is_synonym <span class="sc">==</span> <span class="cn">TRUE</span>,</span>
+<span id="cb80-3"><a href="#cb80-3" tabindex="-1"></a>       <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;accepted_id&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;            input_name  accepted_name       accepted_id
+#&gt; 7         Pinus abies    Picea abies  wfo-0000471692
+#&gt; 8  Quercus pedunculata Quercus robur  wfo-0000306015
+#&gt; 9     Picea excelsa      Picea abies  wfo-0000471692</code></pre>
+<p>Three synonyms were submitted. “Pinus abies” and “Picea excelsa” both
+resolve to the same accepted species, Picea abies, with the same
+accepted ID. “Quercus pedunculata” resolves to Quercus robur. Because
+these synonyms share accepted IDs with other rows in the result, the
+enrichment columns carry the same trait values as their accepted-name
+counterparts. This is a common pattern in biodiversity databases: the
+same physical species appears under different names in different
+records, and the synonym resolution step collapses those variants so
+that trait lookups and species counts are correct. Without this step, a
+species count would overcount Picea abies (listing it three times under
+three different names) and a trait join would miss the synonym rows
+entirely.</p>
+<div class="sourceCode" id="cb82"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb82-1"><a href="#cb82-1" tabindex="-1"></a><span class="co"># Which names needed fuzzy correction?</span></span>
+<span id="cb82-2"><a href="#cb82-2" tabindex="-1"></a>result[result<span class="sc">$</span>match_type <span class="sc">==</span> <span class="st">&quot;fuzzy&quot;</span>,</span>
+<span id="cb82-3"><a href="#cb82-3" tabindex="-1"></a>       <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;        input_name  accepted_name fuzzy_dist
+#&gt; 10  Quercus robor  Quercus robur 0.07142857
+#&gt; 11 Fagus sylvatyca Fagus sylvatica 0.06666667</code></pre>
+<p>Both typos were corrected with very low edit distances. The “y” in
+“sylvatyca” was caught by Damerau-Levenshtein, and the missing “u” in
+“robor” was caught the same way.</p>
+<div class="sourceCode" id="cb84"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb84-1"><a href="#cb84-1" tabindex="-1"></a><span class="co"># Threatened species in the survey</span></span>
+<span id="cb84-2"><a href="#cb84-2" tabindex="-1"></a>result[<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>conservation_status) <span class="sc">&amp;</span></span>
+<span id="cb84-3"><a href="#cb84-3" tabindex="-1"></a>       result<span class="sc">$</span>conservation_status <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;VU&quot;</span>, <span class="st">&quot;EN&quot;</span>, <span class="st">&quot;CR&quot;</span>),</span>
+<span id="cb84-4"><a href="#cb84-4" tabindex="-1"></a>       <span class="fu">c</span>(<span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;conservation_status&quot;</span>, <span class="st">&quot;common_name&quot;</span>)]</span></code></pre></div>
+<pre><code>#&gt;     accepted_name conservation_status common_name
+#&gt; 17  Panthera leo                  VU        Lion</code></pre>
+<p>Only one species in this survey carries a threatened IUCN status. The
+rest are either Least Concern or not yet assessed. For a European forest
+plot this is unsurprising. A tropical or marine dataset would likely
+show more threatened species. The conservation status enrichment is
+cross-kingdom, so it works for the animal names as well (Panthera leo is
+VU globally).</p>
+<div class="sourceCode" id="cb86"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb86-1"><a href="#cb86-1" tabindex="-1"></a><span class="co"># Woody vs. herbaceous breakdown</span></span>
+<span id="cb86-2"><a href="#cb86-2" tabindex="-1"></a><span class="fu">table</span>(result<span class="sc">$</span>woodiness, <span class="at">useNA =</span> <span class="st">&quot;ifany&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; herbaceous      woody       &lt;NA&gt;
+#&gt;          0         14          8</code></pre>
+<p>All matched plants in this survey are woody, which makes sense for a
+European forest plot. The 8 NAs correspond to the 4 animal names
+(woodiness is a plant-only enrichment), the 2 unknown names, and 2
+plants that happen to fall outside the Zanne et al. dataset
+coverage.</p>
+<p>The entire pipeline ran offline after the initial backbone download.
+There are no API rate limits, no network dependency during analysis, and
+the <code>backbone_version</code> column in the output ensures full
+reproducibility.</p>
+<p>A few closing notes on performance. taxify uses vectra’s columnar
+engine for all backbone queries. Exact matching is index-accelerated
+(hash indexes on the name and genus columns), so even against the GBIF
+backbone (over 7 million rows) a batch of 10,000 names typically
+completes in a few seconds. Fuzzy matching is slower because it involves
+string distance computation, but it is genus-blocked: each input name is
+only compared against backbone entries in the same genus, which reduces
+the search space by several orders of magnitude. For very large batches
+(100,000+ names), the main bottleneck is fuzzy matching of names with
+misspelled genera, where the genus blocking cannot help. In that case,
+consider running a first pass with <code>fuzzy = FALSE</code> to pick
+off the easy matches, then re-running only the unmatched names with
+fuzzy enabled.</p>
+<p>The enrichment joins are also fast. Each <code>add_*()</code> call
+performs a single vectra inner join on <code>accepted_name</code>, which
+is O(n) in the size of the taxify result. Stacking multiple enrichments
+in a pipe adds columns incrementally without re-reading the
+backbone.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Migrating from taxize, WorldFlora, and related tools</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Migrating from taxize, WorldFlora, and
+related tools</h1>
+
+
+
+<div id="the-taxonomic-resolution-landscape-in-r" class="section level2">
+<h2>The taxonomic-resolution landscape in R</h2>
+<p>The R ecosystem has a rich set of taxonomic name-resolution tools.
+Each takes a different design choice along three axes: where the data
+lives (local files or remote APIs), how many backbones are bundled, and
+what the package returns. The table below summarizes the options most
+likely to overlap with a taxify workflow.</p>
+<table>
+<colgroup>
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Package</th>
+<th>Source data</th>
+<th>Coverage</th>
+<th>Access</th>
+<th>Closest taxify analogue</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://docs.ropensci.org/taxize/">taxize</a></td>
+<td>~20 web services (NCBI, ITIS, GBIF, EOL, IUCN, WoRMS, Tropicos,
+…)</td>
+<td>All kingdoms</td>
+<td>Live API</td>
+<td><code>taxify(backend = c(...))</code> with the relevant local
+backbone(s)</td>
+</tr>
+<tr class="even">
+<td><a href="https://cran.r-project.org/package=WorldFlora">WorldFlora</a></td>
+<td>World Flora Online classification (<code>WFO.match</code>)</td>
+<td>Land plants (vascular + bryophytes)</td>
+<td>Local file</td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code></td>
+</tr>
+<tr class="odd">
+<td><a href="https://github.com/idiv-biodiversity/lcvplants">lcvplants</a></td>
+<td>Leipzig Catalogue of Vascular Plants</td>
+<td>Vascular plants</td>
+<td>Bundled in package</td>
+<td><code>taxify(backend = &quot;lcvp&quot;)</code></td>
+</tr>
+<tr class="even">
+<td><a href="https://matildabrown.github.io/rWCVP/">rWCVP</a></td>
+<td>World Checklist of Vascular Plants (Kew)</td>
+<td>Vascular plants</td>
+<td>Local snapshot</td>
+<td><code>taxify(backend = &quot;wcvp&quot;)</code></td>
+</tr>
+<tr class="odd">
+<td><a href="https://docs.ropensci.org/taxadb/">taxadb</a></td>
+<td>GBIF, ITIS, COL, NCBI, OTT, WFO snapshots</td>
+<td>All kingdoms</td>
+<td>Local DuckDB / MonetDB</td>
+<td><code>taxify(backend = c(...))</code></td>
+</tr>
+<tr class="even">
+<td><a href="https://cran.r-project.org/package=Taxonstand">Taxonstand</a></td>
+<td>The Plant List (retired by Kew in 2013, superseded by WCVP and
+WFO)</td>
+<td>Vascular plants</td>
+<td>Bundled in package</td>
+<td><code>taxify(backend = c(&quot;wcvp&quot;, &quot;wfo&quot;))</code></td>
+</tr>
+<tr class="odd">
+<td><a href="https://github.com/ecoinfor/U.Taxonstand">U.Taxonstand</a></td>
+<td>User-supplied or bundled checklists</td>
+<td>Configurable</td>
+<td>Local</td>
+<td><code>taxify(backend = ...)</code> plus <code>add_data()</code></td>
+</tr>
+<tr class="even">
+<td><a href="https://brunobrr.github.io/bdc/">bdc</a></td>
+<td>taxadb + GNR for the taxonomic step inside a larger
+biodiversity-cleaning workflow</td>
+<td>All kingdoms</td>
+<td>Local + API</td>
+<td><code>taxify()</code> for the matching step</td>
+</tr>
+<tr class="odd">
+<td><a href="https://cran.r-project.org/package=TNRS">TNRS</a></td>
+<td>TNRS web service (BIEN / iDigBio)</td>
+<td>Plants</td>
+<td>Live API</td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code> or similar</td>
+</tr>
+<tr class="even">
+<td><a href="https://docs.ropensci.org/rgbif/">rgbif</a>, <a href="https://docs.ropensci.org/worrms/">worrms</a>, <a href="https://docs.ropensci.org/ritis/">ritis</a></td>
+<td>GBIF / WoRMS / ITIS web APIs</td>
+<td>One backbone each</td>
+<td>Live API</td>
+<td><code>taxify(backend = &quot;gbif&quot; / &quot;worms&quot; / &quot;itis&quot;)</code></td>
+</tr>
+</tbody>
+</table>
+<p>If your workflow already uses one of these and you are happy with it,
+there is no urgent reason to switch.</p>
+<p>That said, there are situations where taxify offers a better fit:</p>
+<ul>
+<li><strong>Multiple backbones.</strong> taxify matches against seven
+backbones offline and can chain them in a single call:
+<code>taxify(names, backend = c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;))</code>.</li>
+<li><strong>Speed at scale.</strong> The matching engine is written in C
+with genus-blocked fuzzy joins. Ten thousand names resolve in
+seconds.</li>
+<li><strong>Enrichments.</strong> Results pipe directly into twelve
+published trait and status datasets (IUCN, GRIIS, WCVP, EIVE,
+EltonTraits, etc.) with a single <code>|&gt;</code> chain.</li>
+<li><strong>Reproducibility.</strong> Backbones are versioned files on
+disk. The <code>backbone_version</code> column records exactly which
+snapshot was used.</li>
+</ul>
+<p>This vignette maps the old APIs to their taxify equivalents, walks
+through three side-by-side examples, and is honest about what taxify
+does not cover.</p>
+</div>
+<div id="function-mapping-taxize-to-taxify" class="section level2">
+<h2>Function mapping: taxize to taxify</h2>
+<p>The table below maps the taxize name-resolution functions to their
+closest taxify equivalent.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>taxize function</th>
+<th>taxify equivalent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>gnr_resolve()</code></td>
+<td><code>taxify()</code></td>
+<td>Any backend; returns best match per name</td>
+</tr>
+<tr class="even">
+<td><code>classification()</code></td>
+<td><code>taxify()</code></td>
+<td><code>family</code>, <code>genus</code>, <code>rank</code> columns
+in the output; <code>add_col_info()</code> for full hierarchy</td>
+</tr>
+<tr class="odd">
+<td><code>synonyms()</code></td>
+<td><code>taxify()</code></td>
+<td><code>is_synonym</code> + <code>accepted_name</code> columns in the
+output</td>
+</tr>
+<tr class="even">
+<td><code>tax_name()</code></td>
+<td><code>taxify()</code></td>
+<td><code>family</code>, <code>genus</code>, <code>rank</code>
+columns</td>
+</tr>
+<tr class="odd">
+<td><code>sci2comm()</code></td>
+<td><code>add_common_names()</code></td>
+<td>Pipe enrichment; GBIF vernacular names by language</td>
+</tr>
+</tbody>
+</table>
+<p>taxize also has functions that serve a different purpose (fetching
+database IDs, enumerating child taxa, retrieving occurrence or sequence
+data). These are not name-resolution functions, so taxify does not cover
+them. The “What taxify does not do” section below points to the right
+packages for those tasks.</p>
+<p>The key structural difference: taxize returned results in varied
+formats depending on the function (<code>classification()</code> gave a
+nested list of data.frames, <code>synonyms()</code> another nested list,
+<code>get_tsn()</code> a character vector with attributes). taxify
+returns the same 16-column data.frame from every call. Synonym status,
+classification, and match quality are columns, not separate API
+calls.</p>
+</div>
+<div id="function-mapping-worldflora-to-taxify" class="section level2">
+<h2>Function mapping: WorldFlora to taxify</h2>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>WorldFlora function</th>
+<th>taxify equivalent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>WFO.match()</code></td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code></td>
+<td>Exact + fuzzy in one call</td>
+</tr>
+<tr class="even">
+<td><code>WFO.one()</code></td>
+<td><code>taxify()</code></td>
+<td>Best-match selection is automatic</td>
+</tr>
+<tr class="odd">
+<td><code>WFO.match.fuzzyjoin()</code></td>
+<td><code>taxify(fuzzy = TRUE)</code></td>
+<td>Enabled by default; genus-blocked Damerau-Levenshtein</td>
+</tr>
+<tr class="even">
+<td><code>WFO.synonyms()</code></td>
+<td><code>taxify()</code></td>
+<td><code>is_synonym</code>, <code>accepted_name</code>,
+<code>accepted_id</code> in output</td>
+</tr>
+</tbody>
+</table>
+<p>WorldFlora returns a wide data.frame with WFO-specific column names
+(<code>scientificName</code>, <code>taxonID</code>,
+<code>taxonomicStatus</code>, <code>acceptedNameUsageID</code>, plus
+authorship and bibliographic fields). taxify normalizes these into a
+backend-agnostic schema: <code>matched_name</code>,
+<code>taxon_id</code>, <code>accepted_name</code>,
+<code>accepted_id</code>, and so on. The WFO-specific columns are still
+accessible via <code>add_wfo_info()</code> when needed, but the default
+output is the same 16 columns whether the backend is WFO, COL, or
+GBIF.</p>
+<p>taxify also handles backbone management automatically: the first
+<code>taxify()</code> call downloads the backbone, subsequent calls
+reuse the local copy, and a once-per-session version check keeps it
+current.</p>
+</div>
+<div id="function-mapping-lcvplants-to-taxify" class="section level2">
+<h2>Function mapping: lcvplants to taxify</h2>
+<p><a href="https://github.com/idiv-biodiversity/lcvplants">lcvplants</a>
+wraps the Leipzig Catalogue of Vascular Plants and ships the LCVP table
+as bundled data. The package centres on <code>LCVP()</code> and
+<code>lcvp_search()</code>.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>lcvplants function</th>
+<th>taxify equivalent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>LCVP(splist)</code></td>
+<td><code>taxify(splist, backend = &quot;lcvp&quot;)</code></td>
+<td>Returns the standardized 16-column data.frame</td>
+</tr>
+<tr class="even">
+<td><code>lcvp_search()</code></td>
+<td><code>taxify()</code></td>
+<td>Search by name; same output schema</td>
+</tr>
+<tr class="odd">
+<td><code>lcvp_fuzzy_search()</code></td>
+<td><code>taxify(fuzzy = TRUE)</code></td>
+<td>Genus-blocked Damerau-Levenshtein; on by default</td>
+</tr>
+<tr class="even">
+<td><code>tab_lcvp</code> (data object)</td>
+<td><code>taxify_data_dir() / lcvp / latest / lcvp.vtr</code></td>
+<td>The LCVP snapshot is shipped as a <code>.vtr</code> file rather than
+an in-package data object</td>
+</tr>
+</tbody>
+</table>
+<p>The LCVP and WCVP backbones can be combined in a single fallback
+chain to arbitrate between the Leipzig and Kew vascular-plant
+authorities:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plant_names, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wcvp&quot;</span>, <span class="st">&quot;lcvp&quot;</span>, <span class="st">&quot;wfo&quot;</span>))</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+</div>
+<div id="function-mapping-rwcvp-to-taxify" class="section level2">
+<h2>Function mapping: rWCVP to taxify</h2>
+<p><a href="https://matildabrown.github.io/rWCVP/">rWCVP</a> is the Kew
+package for the World Checklist of Vascular Plants. Its name-resolution
+side centres on <code>wcvp_match_names()</code> and
+<code>wcvp_check_gbif()</code>; it also has a strong distribution-query
+side that taxify does not replace.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>rWCVP function</th>
+<th>taxify equivalent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>wcvp_match_names()</code></td>
+<td><code>taxify(backend = &quot;wcvp&quot;)</code></td>
+<td>Exact + fuzzy in one call</td>
+</tr>
+<tr class="even">
+<td><code>wcvp_check_gbif()</code></td>
+<td><code>taxify(backend = c(&quot;wcvp&quot;, &quot;gbif&quot;))</code></td>
+<td>Cascade WCVP first, GBIF as fallback</td>
+</tr>
+<tr class="odd">
+<td><code>wcvp_distribution()</code></td>
+<td><code>add_wcvp()</code></td>
+<td>Native range by TDWG region (the <code>add_wcvp()</code>
+enrichment)</td>
+</tr>
+<tr class="even">
+<td><code>wcvp_synonyms()</code></td>
+<td><code>taxify()</code></td>
+<td><code>is_synonym</code> and <code>accepted_name</code> columns in
+the output</td>
+</tr>
+<tr class="odd">
+<td><code>get_wcvp()</code></td>
+<td>automatic</td>
+<td>The backbone downloads on first
+<code>taxify(backend = &quot;wcvp&quot;)</code> call</td>
+</tr>
+</tbody>
+</table>
+<p>rWCVP’s distribution-query functions (<code>wcvp_occ_mat()</code>,
+<code>generate_checklist()</code>) operate on TDWG geography and are
+outside taxify’s scope. For native-range data joined to a name-resolved
+result, <code>add_wcvp()</code> covers the most common case; for full
+geographic queries, rWCVP remains the right tool.</p>
+</div>
+<div id="function-mapping-taxadb-to-taxify" class="section level2">
+<h2>Function mapping: taxadb to taxify</h2>
+<p><a href="https://docs.ropensci.org/taxadb/">taxadb</a> is the closest
+functional analogue to taxify. Both store backbone snapshots locally and
+avoid network calls at query time. The two packages differ in matching
+strategy and integration: taxadb returns a long-format table for
+exact-key joins, while taxify returns a flat one-row-per-input result
+with fuzzy matching, synonym resolution, and trait enrichment built
+in.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>taxadb function</th>
+<th>taxify equivalent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>td_create(&quot;itis&quot;)</code></td>
+<td>automatic</td>
+<td>First <code>taxify(backend = &quot;itis&quot;)</code> call downloads the
+<code>.vtr</code> snapshot</td>
+</tr>
+<tr class="even">
+<td><code>filter_name(names, &quot;itis&quot;)</code></td>
+<td><code>taxify(names, backend = &quot;itis&quot;)</code></td>
+<td>Exact match against the local snapshot</td>
+</tr>
+<tr class="odd">
+<td><code>filter_id(ids, &quot;itis&quot;)</code></td>
+<td>not exposed</td>
+<td>Use <code>vectra::tbl()</code> directly on the <code>.vtr</code> if
+needed</td>
+</tr>
+<tr class="even">
+<td><code>synonyms(names, &quot;itis&quot;)</code></td>
+<td><code>taxify()</code></td>
+<td><code>is_synonym</code>, <code>accepted_name</code>,
+<code>accepted_id</code> in the output</td>
+</tr>
+<tr class="odd">
+<td><code>clean_names()</code></td>
+<td>automatic</td>
+<td><code>taxify()</code> runs the cleaning pipeline (authorship,
+qualifiers, hybrid markers, orthography) before matching</td>
+</tr>
+<tr class="even">
+<td>(no fuzzy match)</td>
+<td><code>taxify(fuzzy = TRUE)</code></td>
+<td>Genus-blocked Damerau-Levenshtein, on by default</td>
+</tr>
+</tbody>
+</table>
+<p>The two largest practical differences:</p>
+<ul>
+<li><strong>Matching scope.</strong> taxadb is built around exact
+lookups against pre-cleaned input. taxify cleans the input automatically
+and runs fuzzy matching on names that do not match exactly, which
+catches typos, orthographic variants, and authorship strings without a
+separate preprocessing step.</li>
+<li><strong>Output shape.</strong> taxadb returns multiple rows per
+input when a name has multiple matches (you pick the row you want with
+<code>dplyr::filter</code>). taxify returns one row per input with a
+best-match selection rule (ACCEPTED over SYNONYM, species rank over
+higher ranks, lowest ID as tiebreaker), and reports the match type and
+fuzzy distance as columns.</li>
+</ul>
+<p>For workflows that already use taxadb’s column-oriented querying for
+custom analyses, taxadb’s approach is a clean fit. For workflows that
+need a single resolved name per input plus enrichment joins, taxify’s
+flat output is closer to the goal.</p>
+</div>
+<div id="function-mapping-taxonstand-to-taxify" class="section level2">
+<h2>Function mapping: Taxonstand to taxify</h2>
+<p><a href="https://cran.r-project.org/package=Taxonstand">Taxonstand</a> was
+built around The Plant List, which Kew retired in 2013 in favour of WCVP
+and WFO. The package still works, but the underlying taxonomy has not
+been updated since the retirement.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Taxonstand function</th>
+<th>taxify equivalent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>TPL(splist)</code></td>
+<td><code>taxify(splist, backend = c(&quot;wcvp&quot;, &quot;wfo&quot;))</code></td>
+<td>Replace TPL with its successors</td>
+</tr>
+<tr class="even">
+<td><code>TPLck()</code></td>
+<td><code>taxify()</code></td>
+<td>Single-name check; same output schema</td>
+</tr>
+</tbody>
+</table>
+<p>The simplest migration is to replace <code>backend = &quot;tpl&quot;</code>
+with <code>backend = c(&quot;wcvp&quot;, &quot;wfo&quot;)</code> (or
+<code>backend = c(&quot;lcvp&quot;, &quot;wcvp&quot;, &quot;wfo&quot;)</code> for triple-arbitration
+across the three large vascular-plant authorities).</p>
+</div>
+<div id="example-1-basic-name-resolution" class="section level2">
+<h2>Example 1: Basic name resolution</h2>
+<p>With taxize, name resolution typically meant several separate calls:
+<code>gnr_resolve()</code> for matching, <code>get_gbifid()</code> for
+IDs, <code>classification()</code> for hierarchy,
+<code>synonyms()</code> for synonym status.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># --- taxize ---</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">library</span>(taxize)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>           <span class="st">&quot;Panthera leo&quot;</span>, <span class="st">&quot;Salmo trutta&quot;</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>resolved  <span class="ot">&lt;-</span> <span class="fu">gnr_resolve</span>(names, <span class="at">best_match_only =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>gbif_ids  <span class="ot">&lt;-</span> <span class="fu">get_gbifid</span>(names)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>class_list <span class="ot">&lt;-</span> <span class="fu">classification</span>(gbif_ids, <span class="at">db =</span> <span class="st">&quot;gbif&quot;</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>syn_list   <span class="ot">&lt;-</span> <span class="fu">synonyms</span>(gbif_ids, <span class="at">db =</span> <span class="st">&quot;gbif&quot;</span>)</span></code></pre></div>
+<p>With taxify, all of that is one call:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># --- taxify ---</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>           <span class="st">&quot;Panthera leo&quot;</span>, <span class="st">&quot;Salmo trutta&quot;</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(names, <span class="at">backend =</span> <span class="st">&quot;gbif&quot;</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>result<span class="sc">$</span>accepted_name</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>result<span class="sc">$</span>family</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>result<span class="sc">$</span>genus</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>result<span class="sc">$</span>is_synonym</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>result<span class="sc">$</span>taxon_id        <span class="co"># GBIF usage key</span></span></code></pre></div>
+<p>The output is a data.frame with 16 columns and one row per input
+name.</p>
+</div>
+<div id="example-2-wfo-matching-with-fuzzy-synonyms" class="section level2">
+<h2>Example 2: WFO matching with fuzzy + synonyms</h2>
+<p>With WorldFlora, the typical workflow is: load the backbone, run
+exact matching, apply fuzzy matching separately, then pick the best
+match.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># --- WorldFlora ---</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">library</span>(WorldFlora)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>wfo_data <span class="ot">&lt;-</span> <span class="fu">read.delim</span>(<span class="st">&quot;classification.txt&quot;</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Quercus pedonculata&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>           <span class="st">&quot;Pinus silvestris&quot;</span>, <span class="st">&quot;Rosa canina&quot;</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>exact <span class="ot">&lt;-</span> <span class="fu">WFO.match</span>(names, <span class="at">WFO.data =</span> wfo_data)</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>fuzzy <span class="ot">&lt;-</span> <span class="fu">WFO.match.fuzzyjoin</span>(names, <span class="at">WFO.data =</span> wfo_data)</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>best  <span class="ot">&lt;-</span> <span class="fu">WFO.one</span>(fuzzy)</span></code></pre></div>
+<p>With taxify, exact matching, fuzzy matching, and synonym resolution
+happen in a single call:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># --- taxify ---</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Quercus pedonculata&quot;</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>           <span class="st">&quot;Pinus silvestris&quot;</span>, <span class="st">&quot;Rosa canina&quot;</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(names, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co"># Misspellings are caught by fuzzy matching:</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;matched_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#   input_name           matched_name        match_type fuzzy_dist</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co"># 1 Quercus robur        Quercus robur       exact              NA</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co"># 2 Quercus pedonculata  Quercus pedunculata fuzzy           0.053</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co"># 3 Pinus silvestris     Pinus sylvestris    fuzzy           0.063</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co"># 4 Rosa canina          Rosa canina         exact              NA</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co"># Synonyms resolved automatically:</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;is_synonym&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>)]</span></code></pre></div>
+<p><code>Quercus pedonculata</code> is both a misspelling and a synonym.
+taxify handles both: the fuzzy matcher corrects the spelling to
+<code>Quercus pedunculata</code>, and the synonym resolver maps it to
+<code>Quercus robur</code>.</p>
+</div>
+<div id="example-3-multi-backend-fallback-with-enrichments" class="section level2">
+<h2>Example 3: Multi-backend fallback with enrichments</h2>
+<p>taxify can chain multiple backbones in a single call. Unmatched names
+cascade to the next backbone automatically.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co"># Mixed kingdom input: plants, animals, fungi</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,         <span class="co"># plant (WFO primary)</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>,          <span class="co"># animal (not in WFO, picked up by GBIF)</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>,      <span class="co"># fungus (not in WFO, picked up by GBIF)</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>,          <span class="co"># fish (not in WFO, picked up by GBIF)</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="st">&quot;Arabidopsis thaliana&quot;</span>   <span class="co"># plant (in both WFO and GBIF)</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>)</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co"># WFO first (best for plants), GBIF as fallback (all kingdoms)</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(names, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;gbif&quot;</span>))</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co"># The backend column shows which database matched each name:</span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;backend&quot;</span>, <span class="st">&quot;family&quot;</span>)]</span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#   input_name            backend family</span></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co"># 1 Quercus robur         wfo     Fagaceae</span></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co"># 2 Panthera leo          gbif    Felidae</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a><span class="co"># 3 Amanita muscaria      gbif    Amanitaceae</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a><span class="co"># 4 Salmo trutta          gbif    Salmonidae</span></span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co"># 5 Arabidopsis thaliana  wfo     Brassicaceae</span></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a></span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a><span class="co"># Enrich with traits:</span></span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>result <span class="sc">|&gt;</span></span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>() <span class="sc">|&gt;</span></span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>  <span class="fu">add_woodiness</span>()</span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a><span class="co"># Or join custom data:</span></span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>my_traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a>  <span class="at">species =</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Panthera leo&quot;</span>),</span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a>  <span class="at">max_height_m =</span> <span class="fu">c</span>(<span class="dv">35</span>, <span class="cn">NA</span>),</span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a>  <span class="at">body_mass_kg =</span> <span class="fu">c</span>(<span class="cn">NA</span>, <span class="dv">190</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a>)</span>
+<span id="cb6-35"><a href="#cb6-35" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(my_traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>)</span></code></pre></div>
+</div>
+<div id="key-differences-at-a-glance" class="section level2">
+<h2>Key differences at a glance</h2>
+<p><strong>Offline matching.</strong> taxify downloads backbone files
+once and matches locally. After the initial download (typically 50–300
+MB depending on the backbone), no internet connection is needed.</p>
+<p><strong>Multi-backend.</strong> taxify supports seven backbones
+through a single function, with optional fallback chains that cascade
+unmatched names automatically.</p>
+<p><strong>Output format.</strong> taxify always returns a data.frame
+with 16 standardized columns, regardless of the backend:</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Type</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>input_name</code></td>
+<td>character</td>
+<td>Original name as submitted</td>
+</tr>
+<tr class="even">
+<td><code>matched_name</code></td>
+<td>character</td>
+<td>Closest match in the backbone</td>
+</tr>
+<tr class="odd">
+<td><code>accepted_name</code></td>
+<td>character</td>
+<td>Accepted name after synonym resolution</td>
+</tr>
+<tr class="even">
+<td><code>taxon_id</code></td>
+<td>character</td>
+<td>Backend-specific ID of the matched name</td>
+</tr>
+<tr class="odd">
+<td><code>accepted_id</code></td>
+<td>character</td>
+<td>ID of the accepted name</td>
+</tr>
+<tr class="even">
+<td><code>rank</code></td>
+<td>character</td>
+<td>Taxonomic rank (species, genus, family, etc.)</td>
+</tr>
+<tr class="odd">
+<td><code>family</code></td>
+<td>character</td>
+<td>Family name</td>
+</tr>
+<tr class="even">
+<td><code>genus</code></td>
+<td>character</td>
+<td>Genus name</td>
+</tr>
+<tr class="odd">
+<td><code>epithet</code></td>
+<td>character</td>
+<td>Specific epithet</td>
+</tr>
+<tr class="even">
+<td><code>authorship</code></td>
+<td>character</td>
+<td>Taxonomic authority</td>
+</tr>
+<tr class="odd">
+<td><code>is_synonym</code></td>
+<td>logical</td>
+<td>Was the matched name a synonym?</td>
+</tr>
+<tr class="even">
+<td><code>is_hybrid</code></td>
+<td>logical</td>
+<td>Hybrid marker detected in the input?</td>
+</tr>
+<tr class="odd">
+<td><code>match_type</code></td>
+<td>character</td>
+<td><code>&quot;exact&quot;</code>, <code>&quot;exact_ci&quot;</code>, <code>&quot;fuzzy&quot;</code>,
+or <code>&quot;none&quot;</code></td>
+</tr>
+<tr class="even">
+<td><code>fuzzy_dist</code></td>
+<td>numeric</td>
+<td>Normalized edit distance (NA if exact)</td>
+</tr>
+<tr class="odd">
+<td><code>backend</code></td>
+<td>character</td>
+<td>Which backend matched this name</td>
+</tr>
+<tr class="even">
+<td><code>backbone_version</code></td>
+<td>character</td>
+<td>Backend name, version, and download date</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Speed.</strong> taxify uses vectra’s C-level join engine with
+hash indexes and genus-blocked fuzzy joins, processing thousands of
+names per second.</p>
+<p><strong>Reproducibility.</strong> taxify pins backbone versions
+locally and records the version string in the
+<code>backbone_version</code> column of every result. The same backbone
+file produces the same output indefinitely. Version pinning is also
+available: <code>taxify_download_vtr(&quot;wfo&quot;, version = &quot;2024.06&quot;)</code>
+downloads a specific release.</p>
+</div>
+<div id="what-taxify-does-not-do" class="section level2">
+<h2>What taxify does not do</h2>
+<p>taxify is a name matcher. It resolves scientific names to accepted
+names, returns classification metadata, and joins enrichment layers.
+Several things that taxize or other packages handle are outside its
+scope.</p>
+<p><strong>Common-to-scientific name lookup.</strong> taxize had
+<code>comm2sci()</code> to go from “European robin” to <em>Erithacus
+rubecula</em>. taxify matches scientific names, not vernacular input.
+For that direction, the GBIF API (<code>rgbif::name_suggest()</code>)
+accepts common names and returns candidates.</p>
+<p><strong>Downstream taxa.</strong> taxize’s <code>downstream()</code>
+returned all children of a higher taxon (e.g., all species in a genus).
+taxify does not enumerate children. For tree-based queries, the rotl
+package provides access to the Open Tree of Life synthetic tree, and
+rgbif’s <code>name_usage()</code> can list children of a GBIF usage
+key.</p>
+<p><strong>Phylogenetic trees.</strong> For phylogenetic data, use rotl
+(Open Tree of Life) or phylomatic.</p>
+<p><strong>Occurrence data.</strong> For occurrence data, rgbif and
+spocc are the standard tools.</p>
+<p><strong>Sequence data.</strong> For sequence retrieval, the rentrez
+package handles GenBank/NCBI queries directly.</p>
+<p><strong>Real-time API lookups.</strong> By design, taxify queries
+local files. If a name was added to a backbone yesterday and taxify’s
+local copy is from last month, taxify will not find it until the
+backbone is updated. For workflows where freshness matters more than
+reproducibility, a direct API client (rgbif, worrms, ritis) may be the
+better fit.</p>
+</div>
+<div id="when-the-other-packages-are-the-better-choice" class="section level2">
+<h2>When the other packages are the better choice</h2>
+<p>taxify is one tool among several. A few situations where the related
+packages remain the right answer:</p>
+<ul>
+<li><p><strong>Distribution and range queries.</strong> rWCVP exposes
+WCVP’s TDWG-region geography directly through
+<code>wcvp_distribution()</code>, <code>wcvp_occ_mat()</code>, and
+<code>generate_checklist()</code>. taxify covers name-resolution and the
+most common native-range join through <code>add_wcvp()</code>, but full
+geographic queries belong in rWCVP.</p></li>
+<li><p><strong>Live API access to upstream databases.</strong> taxize,
+rgbif, worrms, ritis, and TNRS query their backends in real time. If you
+need a name added to a backbone yesterday, or you want the latest
+annotation for a single taxon, these packages return that immediately.
+taxify works against the snapshot on disk and only sees changes when the
+backbone is updated.</p></li>
+<li><p><strong>Common-to-scientific lookups.</strong> taxize had
+<code>comm2sci()</code> to go from “European robin” to <em>Erithacus
+rubecula</em>. taxify matches scientific names, not vernacular input.
+For that direction, <code>rgbif::name_suggest()</code> accepts common
+names and returns candidates.</p></li>
+<li><p><strong>Downstream taxa enumeration.</strong> If the goal is to
+list all species in a family or all subspecies of a species, taxify does
+not provide that query. Use
+<code>rgbif::name_usage(key, data = &quot;children&quot;)</code> or
+<code>rotl::tol_subtree()</code>.</p></li>
+<li><p><strong>Wider biodiversity-data cleaning.</strong> <a href="https://brunobrr.github.io/bdc/">bdc</a> wraps the entire
+data-cleaning workflow (coordinate cleaning, dataset merging, taxonomic
+harmonization, occurrence flagging). taxify can replace its taxonomic
+step alone if you prefer offline backbones over taxadb + GNR, but the
+rest of bdc’s pipeline is outside taxify’s scope.</p></li>
+<li><p><strong>Interactive, per-name resolution with manual
+disambiguation.</strong> taxize had interactive modes where the user
+could pick among multiple candidates. taxify picks the best match
+automatically (accepted name over synonym, species rank over higher
+ranks, lowest ID as tiebreaker). If manual control over ambiguous
+matches is needed, direct API calls may be preferable.</p></li>
+<li><p><strong>Column-oriented querying of a backbone.</strong> taxadb
+stores backbones in DuckDB / MonetDB and exposes them through dplyr
+verbs, which is a natural fit if your analysis is itself a SQL-style
+transformation of the backbone. taxify exposes the underlying
+<code>.vtr</code> files through vectra for this kind of work, but
+taxadb’s dplyr surface is more ergonomic for custom queries.</p></li>
+</ul>
+</div>
+<div id="discovering-available-enrichments" class="section level2">
+<h2>Discovering available enrichments</h2>
+<p>taxify bundles 12 enrichment datasets that cover conservation status,
+invasive species, functional traits, morphological measurements, and
+vernacular names. These are joined to the taxify result by piping
+through <code>add_*()</code> functions.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># See all available enrichments and their metadata</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">list_enrichments</span>()</span></code></pre></div>
+<p>Each enrichment downloads automatically on first use and is cached
+locally, following the same pattern as backbones. The full list:
+<code>add_conservation_status()</code>,
+<code>add_invasive_status()</code>, <code>add_wcvp()</code>,
+<code>add_eive()</code>, <code>add_elton_traits()</code>,
+<code>add_avonet()</code>, <code>add_pantheria()</code>,
+<code>add_amphibio()</code>, <code>add_common_names()</code>,
+<code>add_woodiness()</code>, <code>add_diaz_traits()</code>, and
+<code>add_leda()</code>.</p>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p>Migrating from taxize, WorldFlora, lcvplants, rWCVP, taxadb, or
+Taxonstand to taxify means replacing the package’s resolution call with
+<code>taxify(backend = ...)</code> and optional <code>add_*()</code>
+enrichment pipes. The output is a flat 16-column data.frame, not nested
+lists or long-format join tables, and matching runs offline against
+versioned backbone files so results do not change between sessions
+unless the user explicitly updates the backbone.</p>
+<p>For things taxify does not handle (distribution queries, downstream
+taxa, occurrence data, phylogenetic trees, sequence retrieval, live API
+freshness), the specialized packages (rWCVP, rgbif, rotl, spocc,
+rentrez, worrms, ritis) remain the right tools. taxify covers the
+name-matching step that comes before most of those.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

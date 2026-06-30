@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Choosing and combining backends</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Choosing and combining backends</h1>
+
+
+
+<p>taxify matches taxonomic names against locally stored Darwin Core
+backbone databases. Ten backends are available, each compiled from a
+different authoritative source. The backend we choose determines which
+names can be matched, what taxonomic opinion governs synonym resolution,
+and which extra metadata columns are available downstream. This vignette
+walks through the backends, explains how to combine them in fallback
+chains, and offers practical guidance on which combination to pick for a
+given project.</p>
+<div id="backend-overview" class="section level2">
+<h2>Backend overview</h2>
+<p>The table below summarizes the ten backends. “Approx. names” is the
+total number of name strings in the compiled backbone (accepted names
+plus synonyms); the actual species count is lower because each accepted
+species may have several synonym entries pointing to it.</p>
+<table>
+<colgroup>
+<col width="15%" />
+<col width="19%" />
+<col width="12%" />
+<col width="26%" />
+<col width="26%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Backend</th>
+<th align="left">Full name</th>
+<th align="left">Scope</th>
+<th align="left">Approx. names</th>
+<th align="left">Source format</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>wfo</code></td>
+<td align="left">World Flora Online</td>
+<td align="left">Vascular plants, bryophytes</td>
+<td align="left">~400k</td>
+<td align="left">Zenodo ZIP (classification.txt)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>col</code></td>
+<td align="left">Catalogue of Life</td>
+<td align="left">All kingdoms</td>
+<td align="left">~4.5M</td>
+<td align="left">ChecklistBank DwC-A (Taxon.tsv)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>gbif</code></td>
+<td align="left">GBIF Backbone Taxonomy</td>
+<td align="left">All kingdoms</td>
+<td align="left">~10M</td>
+<td align="left">GBIF simple.txt.gz (30 positional cols)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>itis</code></td>
+<td align="left">Integrated Taxonomic Information System</td>
+<td align="left">All kingdoms, US focus</td>
+<td align="left">~900k</td>
+<td align="left">SQLite dump from itis.gov</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>ncbi</code></td>
+<td align="left">NCBI Taxonomy</td>
+<td align="left">All life incl. viruses</td>
+<td align="left">~2.5M</td>
+<td align="left">Pipe-delimited .dmp files (taxdump)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>ott</code></td>
+<td align="left">Open Tree of Life</td>
+<td align="left">All life (synthetic)</td>
+<td align="left">~4M</td>
+<td align="left">Pipe-delimited taxonomy.tsv + synonyms.tsv</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>worms</code></td>
+<td align="left">World Register of Marine Species</td>
+<td align="left">Marine and brackish</td>
+<td align="left">~600k</td>
+<td align="left">ChecklistBank DwC-A</td>
+</tr>
+<tr class="even">
+<td align="left"><code>euromed</code></td>
+<td align="left">Euro+Med PlantBase</td>
+<td align="left">European/Mediterranean plants</td>
+<td align="left">~132k</td>
+<td align="left">Semicolon-delimited CSV</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>fungorum</code></td>
+<td align="left">Species Fungorum Plus</td>
+<td align="left">Fungi</td>
+<td align="left">~500k</td>
+<td align="left">ChecklistBank DwC-A</td>
+</tr>
+<tr class="even">
+<td align="left"><code>algaebase</code></td>
+<td align="left">AlgaeBase</td>
+<td align="left">Algae and cyanobacteria</td>
+<td align="left">~170k</td>
+<td align="left">ChecklistBank DwC-A (CC BY-NC)</td>
+</tr>
+</tbody>
+</table>
+<p>A few things stand out. WFO is the standard reference for plant
+taxonomy and the default backend in taxify. It is maintained by the
+World Flora Online consortium and receives regular updates. The backbone
+includes all taxonomic ranks from kingdom down to form, with full
+synonym resolution and authorship.</p>
+<p>COL and GBIF both cover all kingdoms, but they differ in curation
+strategy. COL is an expert-curated checklist assembled from over 160
+sector databases, each maintained by a taxonomic authority for its
+group. GBIF’s backbone is assembled algorithmically from COL, ITIS, and
+dozens of other sources, which gives it broader raw coverage (~10M names
+vs COL’s ~4.5M) at the cost of occasional inconsistencies where source
+databases disagree. In practice, COL tends to give cleaner synonym
+resolution; GBIF tends to match more names.</p>
+<p>ITIS was originally developed for North American fauna and remains
+particularly strong on freshwater invertebrates, insects, and US-listed
+species. Its coverage of non-American taxa is uneven. The ITIS backbone
+is distributed as a SQLite dump; building it from source requires the
+RSQLite package. Pre-built <code>.vtr</code> backbones avoid this
+dependency.</p>
+<p>NCBI Taxonomy is the gold standard for sequence-linked work. Every
+GenBank, RefSeq, and BOLD sequence is linked to an NCBI tax_id, making
+this backend essential for molecular ecology and metagenomics. It is
+also the only backend that covers bacteria, archaea, and viruses in
+meaningful depth. However, NCBI Taxonomy does not store authorship data,
+so the <code>authorship</code> column is always <code>NA</code> for
+NCBI-matched rows.</p>
+<p>OTT (Open Tree of Life) is a synthetic taxonomy that merges NCBI,
+GBIF, WoRMS, IRMNG, and several other sources into a single tree. It has
+the broadest coverage of any single source and provides cross-references
+to all of its constituent databases via the <code>sourceinfo</code>
+field. The trade-off is that synthetic taxonomies can carry conflicts
+and inconsistencies at the edges, where source databases disagree about
+the placement of a taxon.</p>
+<p>WoRMS is the authoritative source for marine species. It is curated
+by a network of over 300 taxonomic editors and covers marine, brackish,
+and some freshwater species. Beyond basic taxonomy, the WoRMS backbone
+stores habitat flags (marine, brackish, freshwater, terrestrial) and
+extinction status, some of which are accessible via the COL
+SpeciesProfile.</p>
+<p>Euro+Med PlantBase is the taxonomic reference for the flora of
+Europe, the Mediterranean, and the Caucasus. It covers all native and
+introduced vascular plants in its geographic scope (~49k accepted names,
+~83k synonyms). The backbone is built from the 2020 bulk download,
+updated via a PESI API delta refresh (April 2026) that resolved 1,014
+reclassifications and synonym changes cross-referenced against WFO and
+POWO. Euro+Med is particularly useful for European vegetation surveys
+and datasets aligned with the European Vegetation Archive (EVA). Its
+data is licensed CC BY-SA 3.0.</p>
+<p>Species Fungorum Plus is the specialist reference for fungal
+taxonomy, with ~500k names curated by the Royal Botanic Gardens, Kew. It
+covers Ascomycota, Basidiomycota, and other fungal phyla, including
+anamorphs and teleomorphs. For purely mycological datasets, it gives
+better synonym resolution than generalist databases.</p>
+<p>AlgaeBase covers micro- and macroalgae, cyanobacteria, and some
+protists. It is the only backend licensed CC BY-NC (non-commercial use
+only). All other backends are open-access. taxify prints a license
+notice during AlgaeBase download to make this visible.</p>
+</div>
+<div id="downloading-backbones" class="section level2">
+<h2>Downloading backbones</h2>
+<p>taxify auto-downloads backbones on first use. When we call
+<code>taxify(names, backend = &quot;wfo&quot;)</code> and no local WFO backbone
+exists, taxify fetches the pre-built <code>.vtr</code> file from Zenodo,
+writes it to <code>taxify_data_dir()</code>, and caches the path for the
+remainder of the R session. Subsequent calls, whether in the same
+session or future sessions, reuse the local copy without any network
+access.</p>
+<p>To download a backbone ahead of time (useful on a shared server or in
+a Docker image), use <code>taxify_download_vtr()</code>:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># Download one backbone</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">taxify_download_vtr</span>(<span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co"># Download several at once</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="fu">taxify_download_vtr</span>(<span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;worms&quot;</span>))</span></code></pre></div>
+<p>Pre-built <code>.vtr</code> files are hosted on Zenodo and typically
+range from 50 MB (AlgaeBase) to 400 MB (GBIF), depending on the backend.
+The files are compiled from the raw Darwin Core sources with precomputed
+matching keys, embedded synonym resolution, and genus-level indexes, so
+they are ready for querying the moment the download completes.</p>
+<p>taxify checks for backbone updates once per R session. The first
+<code>taxify()</code> call in a session fetches the manifest from
+GitHub, compares each requested backend’s local version against the
+latest available release, and downloads a new version only if one
+exists. If the network is unavailable, taxify falls back to the bundled
+manifest and uses whatever local copy is on disk. The version check is
+logged to the console so there are no silent updates.</p>
+<p>For backends with large source files, the build-from-source path also
+exists. <code>taxify_download(&quot;gbif&quot;)</code> downloads the raw 1.5 GB
+<code>simple.txt.gz</code> from GBIF, parses all 30 positional columns,
+denormalizes the family hierarchy via self-joins, and compiles the
+result into <code>.vtr</code> format. This is slower than downloading
+the pre-built file but produces the same output. The build-from-source
+path is mainly useful for CI pipelines or users who want to customize
+the compilation step.</p>
+<p>We can also pin a specific backbone version:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">taxify_download_vtr</span>(<span class="st">&quot;wfo&quot;</span>, <span class="at">version =</span> <span class="st">&quot;2024.01&quot;</span>)</span></code></pre></div>
+<p>Pinned versions are stored in their own directory
+(<code>taxify_data_dir()/wfo/2024.01/</code>) and are never overwritten
+by future updates. The “latest” slot
+(<code>taxify_data_dir()/wfo/latest/</code>) is always overwritten when
+a newer version becomes available. Pinning is useful for
+reproducibility: a project can lock a specific backbone version and
+produce identical results regardless of when the analysis is re-run.</p>
+</div>
+<div id="single-backend-matching" class="section level2">
+<h2>Single-backend matching</h2>
+<p>The simplest use case: match plant names against WFO.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="st">&quot;Quercus petraea&quot;</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span>,</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="st">&quot;Fagus sylvatica&quot;</span>,</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="st">&quot;Picea abies&quot;</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>Every row in the output has 16 columns regardless of which backend
+produced it: <code>input_name</code>, <code>matched_name</code>,
+<code>accepted_name</code>, <code>taxon_id</code>,
+<code>accepted_id</code>, <code>rank</code>, <code>family</code>,
+<code>genus</code>, <code>epithet</code>, <code>authorship</code>,
+<code>is_synonym</code>, <code>is_hybrid</code>,
+<code>match_type</code>, <code>fuzzy_dist</code>, <code>backend</code>,
+and <code>backbone_version</code>. The <code>backend</code> column
+records <code>&quot;wfo&quot;</code> for matched rows and <code>NA</code> for
+unmatched ones. The <code>backbone_version</code> column records the
+backend name, version, and download date (e.g.,
+<code>&quot;wfo:2024-12 (2026-04-01)&quot;</code>) so we can cite the exact data
+snapshot used.</p>
+<p>When a name matches a synonym, taxify automatically resolves it to
+the accepted name. The <code>matched_name</code> column shows the name
+string that actually matched in the backbone (which may be a synonym),
+while <code>accepted_name</code> shows the current accepted name after
+resolution. The <code>is_synonym</code> column is <code>TRUE</code> for
+resolved synonyms, <code>FALSE</code> for direct matches.</p>
+<p>Fuzzy matching is on by default with a normalized Damerau-Levenshtein
+threshold of 0.2, roughly one edit per five characters. This catches
+common typos like transposed letters or missing diacritics. We can
+tighten the threshold for stricter matching:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy_threshold =</span> <span class="fl">0.1</span>)</span></code></pre></div>
+<p>Or disable fuzzy matching entirely to only accept exact and
+case-insensitive matches:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+<p>Two alternative distance metrics are available via the
+<code>fuzzy_method</code> argument: <code>&quot;levenshtein&quot;</code> (standard
+Levenshtein, no transposition handling) and <code>&quot;jw&quot;</code>
+(Jaro-Winkler, better for names that differ mainly in their beginnings).
+The default <code>&quot;dl&quot;</code> (Damerau-Levenshtein) is a good
+all-rounder.</p>
+</div>
+<div id="backend-specific-output-differences" class="section level2">
+<h2>Backend-specific output differences</h2>
+<p>All ten backends produce the same 16-column output schema. This is a
+deliberate design choice: downstream code does not need to know which
+backend produced a match. That said, the content of those columns varies
+in ways worth knowing about.</p>
+<p><strong>Authorship.</strong> WFO’s <code>scientificName</code> is
+already canonical (no authorship appended), so the
+<code>authorship</code> column comes from a separate
+<code>scientificNameAuthorship</code> field. COL and WoRMS store the
+full <code>scientificName</code> with authorship included; taxify strips
+it at build time to produce the canonical name used for matching, and
+the stripped authorship is stored separately. NCBI and OTT have no
+authorship data at all, so the <code>authorship</code> column is always
+<code>NA</code> for those backends. GBIF and ITIS provide authorship.
+Euro+Med provides authorship from its <code>AuthorString</code> field.
+Species Fungorum and AlgaeBase provide authorship from their DwC-A
+archives.</p>
+<p><strong>Taxon IDs.</strong> Each backend uses a different identifier
+system. WFO IDs look like <code>&quot;wfo-0000000123&quot;</code>. COL IDs are
+opaque alphanumeric strings like <code>&quot;4LHBG&quot;</code>. GBIF uses integer
+keys (<code>&quot;2878688&quot;</code>). ITIS uses TSN integers
+(<code>&quot;183671&quot;</code>). NCBI uses NCBI Taxonomy IDs
+(<code>&quot;9606&quot;</code>). OTT uses OTT IDs (<code>&quot;770315&quot;</code>). WoRMS
+uses AphiaIDs extracted from LSIDs; during build time, taxify strips the
+<code>urn:lsid:marinespecies.org:taxname:</code> prefix and stores just
+the numeric ID. Euro+Med uses <code>TaxonUsageID</code> integers from
+the PlantBase export. Species Fungorum and AlgaeBase use ChecklistBank
+dataset-specific IDs. All IDs are stored as character strings in the
+<code>taxon_id</code> and <code>accepted_id</code> columns for
+consistency, but their format is backend-specific and meaningful only
+within that backend’s ecosystem. A <code>taxon_id</code> from WFO cannot
+be looked up in the COL database, and vice versa.</p>
+<p><strong>Classification depth.</strong> The base output always
+includes <code>family</code> and <code>genus</code>. WFO provides these
+directly from its classification file. COL stores the full Linnaean
+hierarchy (kingdom through order) in the Taxon.tsv, though these extra
+columns require <code>add_col_info()</code> to access. GBIF provides
+family through a denormalized <code>family_key</code> self-join at build
+time. ITIS, NCBI, and OTT resolve family and genus via parent-hierarchy
+walks during backbone compilation; the walk traverses up to 25 levels of
+the taxonomic tree. WoRMS has denormalized classification columns
+directly in its DwC-A. Euro+Med resolves family and genus via a
+hierarchy walk on <code>IsChildTaxonOfID</code>. The genus register
+(covered later in this vignette) fills in higher classification fields
+(<code>kingdom_group</code>, <code>taxon_group</code>,
+<code>life_form</code>) for all backends.</p>
+<p><strong>Synonym handling.</strong> The backends represent synonymy in
+very different ways internally. WFO and COL use the Darwin Core field
+<code>acceptedNameUsageID</code> to point from a synonym row to its
+accepted name. GBIF encodes synonyms via <code>parent_key</code>
+pointing to the accepted taxon. NCBI represents synonyms as alternative
+name strings for the same <code>tax_id</code>; during build, taxify
+emits these as separate rows with synthetic IDs of the form
+<code>&quot;123456_syn_1&quot;</code>, <code>&quot;123456_syn_2&quot;</code>, etc. OTT uses
+a separate <code>synonyms.tsv</code> file with explicit
+synonym-to-accepted mappings. All of these representations are
+normalized at build time into the same <code>is_synonym</code> +
+<code>accepted_name</code> + <code>accepted_id</code> schema, so the
+output looks the same regardless of source.</p>
+<p><strong>Synonym chains.</strong> Some backbones contain chained
+synonyms, where synonym A points to synonym B, which points to accepted
+name C. taxify resolves these chains at build time (up to 10 hops) so
+the <code>accepted_name</code> always points to the terminal accepted
+name. This happens transparently during backbone compilation and does
+not affect query-time performance.</p>
+</div>
+<div id="multi-backend-fallback-chains" class="section level2">
+<h2>Multi-backend fallback chains</h2>
+<p>When a species list spans multiple kingdoms, a single backend may not
+cover everything. A wetland monitoring dataset might contain vascular
+plants, invertebrates, amphibians, algae, and fungi. No single backend
+covers all of these equally well. taxify’s fallback chain handles this:
+we pass a vector of backend names, and names are matched against each
+backend in order. A name matched by an earlier backend is never
+re-matched by a later one; it is removed from the pool.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>mixed <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,       <span class="co"># plant</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>,        <span class="co"># animal</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>,    <span class="co"># fungus</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>,        <span class="co"># fish</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="st">&quot;Escherichia coli&quot;</span>     <span class="co"># bacterium</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>)</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(mixed, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>))</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>The console output during matching shows the chain in action:</p>
+<pre><code>Matching 5 names against 3 backends: wfo -&gt; col -&gt; gbif
+  [wfo] Matching 5 names...
+  [col] Matching 4 remaining names...
+  [gbif] Matching 1 remaining names...</code></pre>
+<p><code>&quot;Quercus robur&quot;</code> matches in WFO and is removed from the
+pool. The remaining four names go to COL. If any are still unmatched
+after COL (perhaps an obscure bacterial name), they go to GBIF. The
+process continues until all names have been tried against all backends
+or all names have matched.</p>
+<p>The order of backends in the vector matters. It determines which
+taxonomic opinion wins for each name. If <code>&quot;Quercus robur&quot;</code>
+exists in both WFO and COL, putting WFO first means WFO’s taxonomic
+opinion is used (its accepted name, family assignment, synonym
+resolution). Putting COL first would give COL’s opinion. For names that
+exist in multiple backends, the first backend in the chain always
+wins.</p>
+<p>This has practical consequences. If we put GBIF first, everything
+would match there (GBIF has ~10M names, the largest of any backend) and
+the curated opinions from WFO, COL, or WoRMS would never be consulted.
+For a plant-heavy list with some non-plant taxa mixed in,
+<code>c(&quot;wfo&quot;, &quot;col&quot;)</code> or <code>c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;)</code> is
+a sensible ordering: we get WFO’s curated plant taxonomy for plants, and
+COL or GBIF picks up the rest.</p>
+<p>If all names have been matched by earlier backends, later backends
+are skipped entirely with a message:</p>
+<pre><code>  [gbif] Skipped (all names matched)</code></pre>
+<p>Fuzzy matching runs independently within each backend in the chain. A
+name that fails exact matching in WFO gets fuzzy-matched against WFO. If
+it still fails, it moves to the next backend and gets exact-matched,
+then fuzzy-matched there. This means a misspelled plant name has the
+best chance of matching in WFO (the plant-specialist backend) before
+falling through to COL or GBIF.</p>
+<div id="worked-example-plants-only-with-wfo-vs-wfo-col" class="section level3">
+<h3>Worked example: plants-only with WFO vs WFO + COL</h3>
+<p>WFO focuses on accepted vascular plant and bryophyte names. Its
+coverage is excellent for current taxonomy, but names that appear only
+in older literature, belong to genera not yet integrated into WFO, or
+are nomenclaturally orphaned (no clear accepted name) may be absent. COL
+inherits WFO’s plant taxonomy as one of its sector databases but
+supplements it with names from other sources, including historical
+synonyms and cultivar names.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="st">&quot;Quercus petraea&quot;</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>  <span class="st">&quot;Coffea arabica&quot;</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>  <span class="st">&quot;Welwitschia mirabilis&quot;</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>  <span class="st">&quot;Lepidodendron aculeatum&quot;</span>,   <span class="co"># extinct lycopsid</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  <span class="st">&quot;Nothofagus cunninghamii&quot;</span>,</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  <span class="st">&quot;Dracaena draco&quot;</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>)</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co"># WFO alone</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>wfo_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="fu">table</span>(wfo_result<span class="sc">$</span>match_type)</span></code></pre></div>
+<p>If any names come back as <code>&quot;none&quot;</code>, we can add COL as a
+fallback:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># WFO first, COL as fallback</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>both_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">table</span>(both_result<span class="sc">$</span>match_type)</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>both_result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>The <code>backend</code> column now shows <code>&quot;wfo&quot;</code> for
+names matched by WFO and <code>&quot;col&quot;</code> for names that only COL
+could resolve. This tells us exactly where each match came from, which
+matters for reproducibility. In a paper’s methods section, we can state
+“plant names were resolved against WFO 2024-12, with unmatched names
+resolved against COL 2025.”</p>
+<p>The two-backend chain is especially valuable for large vegetation
+plot datasets. Most names resolve in WFO with its plant-optimized
+taxonomy, but the handful of edge cases (cultivars, historical names,
+genera recently moved between families) that fall through to COL would
+otherwise require manual resolution.</p>
+</div>
+<div id="worked-example-mixed-kingdom-list-with-col-gbif-worms" class="section level3">
+<h3>Worked example: mixed-kingdom list with COL + GBIF + WoRMS</h3>
+<p>An ecological monitoring dataset from a coastal estuary might contain
+vascular plants, invertebrates, fish, and marine algae. No single
+backend covers all of these well. COL has broad expert-curated coverage
+across kingdoms. GBIF fills gaps with its larger name pool. WoRMS
+provides an authoritative backstop for marine invertebrate synonymy,
+which can be slow to propagate to generalist databases.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>estuary_species <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  <span class="st">&quot;Zostera marina&quot;</span>,              <span class="co"># seagrass (plant)</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="st">&quot;Salicornia europaea&quot;</span>,         <span class="co"># glasswort (plant)</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="st">&quot;Carcinus maenas&quot;</span>,             <span class="co"># shore crab</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>  <span class="st">&quot;Mytilus edulis&quot;</span>,              <span class="co"># blue mussel</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  <span class="st">&quot;Platichthys flesus&quot;</span>,          <span class="co"># European flounder</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  <span class="st">&quot;Nereis diversicolor&quot;</span>,         <span class="co"># ragworm</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>  <span class="st">&quot;Fucus vesiculosus&quot;</span>,           <span class="co"># bladderwrack (brown alga)</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>  <span class="st">&quot;Littorina littorea&quot;</span>,          <span class="co"># common periwinkle</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>  <span class="st">&quot;Arenicola marina&quot;</span>,            <span class="co"># lugworm</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>  <span class="st">&quot;Cerastoderma edule&quot;</span>           <span class="co"># common cockle</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>)</span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(estuary_species, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>, <span class="st">&quot;worms&quot;</span>))</span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>COL is a good first choice here because it covers all kingdoms with
+expert curation. Most of these names will resolve there. GBIF catches
+anything COL might miss, including names from national checklists that
+have not yet been incorporated into COL. WoRMS serves as a final
+backstop specifically for marine taxa, covering invertebrate synonyms
+that may lag in generalist databases. The chain is ordered from highest
+curation to broadest coverage.</p>
+<p>If the list were predominantly marine with only a few terrestrial
+taxa, we might lead with WoRMS instead to ensure its authoritative
+marine taxonomy takes precedence:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(estuary_species, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;worms&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code></pre></div>
+</div>
+<div id="worked-example-fungi-with-species-fungorum-col-fallback" class="section level3">
+<h3>Worked example: fungi with Species Fungorum + COL fallback</h3>
+<p>Mycological datasets benefit from using Species Fungorum Plus as the
+primary backend. It is curated specifically for fungi, with ~500k names
+including anamorphs, teleomorphs, and the pleomorphic naming changes
+introduced by the 2011 Melbourne Code. Synonym coverage for fungal
+genera is better than in generalist databases, where fungal taxonomy is
+often a secondary concern.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>fungi <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="st">&quot;Boletus edulis&quot;</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="st">&quot;Cantharellus cibarius&quot;</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="st">&quot;Tuber melanosporum&quot;</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>  <span class="st">&quot;Saccharomyces cerevisiae&quot;</span>,</span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>  <span class="st">&quot;Aspergillus niger&quot;</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>  <span class="st">&quot;Penicillium chrysogenum&quot;</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>  <span class="st">&quot;Agaricus bisporus&quot;</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a>  <span class="st">&quot;Trametes versicolor&quot;</span>,</span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a>  <span class="st">&quot;Cordyceps militaris&quot;</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>)</span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(fungi, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;fungorum&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;is_synonym&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>Species Fungorum resolves the standard names. If any obscure,
+recently described, or historically orphaned species fall through, COL
+picks them up. For mixed datasets that include both fungi and plants, a
+three-backend chain works well:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>mixed <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,              <span class="co"># plant</span></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>,           <span class="co"># fungus</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>  <span class="st">&quot;Lactarius deliciosus&quot;</span>,       <span class="co"># fungus</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,           <span class="co"># plant</span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>  <span class="st">&quot;Russula emetica&quot;</span>             <span class="co"># fungus</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>)</span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(mixed, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;fungorum&quot;</span>, <span class="st">&quot;col&quot;</span>))</span></code></pre></div>
+<p>WFO handles plants, Species Fungorum handles fungi, and COL serves as
+a catch-all for anything that falls through both specialist backends.
+The genus register (see below) helps taxify skip backends that cannot
+possibly match a given name. When taxify encounters
+<code>&quot;Amanita muscaria&quot;</code> and the genus <code>Amanita</code> is
+not in WFO’s coverage table, the name is marked out-of-scope for WFO
+immediately and passed to the next backend without wasting time on fuzzy
+matching.</p>
+</div>
+<div id="worked-example-algae" class="section level3">
+<h3>Worked example: algae</h3>
+<p>For algal taxonomy, AlgaeBase is the specialist source. It covers
+micro- and macroalgae, cyanobacteria, and some protists. Its curation is
+particularly strong for freshwater and marine microalgae where
+generalist databases often have thin coverage and outdated synonymy.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>algae <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>  <span class="st">&quot;Chlamydomonas reinhardtii&quot;</span>,</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>  <span class="st">&quot;Chlorella vulgaris&quot;</span>,</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>  <span class="st">&quot;Ulva lactuca&quot;</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>  <span class="st">&quot;Fucus vesiculosus&quot;</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a>  <span class="st">&quot;Sargassum muticum&quot;</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a>)</span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(algae, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;algaebase&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>AlgaeBase is licensed CC BY-NC. taxify prints a license notice during
+download so users are aware of the restriction before incorporating the
+data into a workflow. For commercial applications, COL or WoRMS can
+serve as alternatives, though with less specialized algal coverage.</p>
+</div>
+<div id="worked-example-molecular-ecology-with-ncbi" class="section level3">
+<h3>Worked example: molecular ecology with NCBI</h3>
+<p>When reconciling species lists from metabarcoding or eDNA studies,
+names are often linked to NCBI accessions. Using the NCBI backend
+ensures that taxify’s accepted names align with the same taxonomy used
+in GenBank and BOLD.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>edna_hits <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>,</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>  <span class="st">&quot;Phoxinus phoxinus&quot;</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>  <span class="st">&quot;Anguilla anguilla&quot;</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>  <span class="st">&quot;Cottus gobio&quot;</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a>  <span class="st">&quot;Lampetra planeri&quot;</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a>  <span class="st">&quot;Chironomus riparius&quot;</span>,     <span class="co"># midge (insect)</span></span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>  <span class="st">&quot;Potamopyrgus antipodarum&quot;</span> <span class="co"># New Zealand mud snail</span></span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>)</span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(edna_hits, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;ncbi&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
+<span id="cb16-12"><a href="#cb16-12" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;taxon_id&quot;</span>, <span class="st">&quot;backend&quot;</span>)]</span></code></pre></div>
+<p>The <code>taxon_id</code> values for NCBI-matched rows are NCBI
+tax_ids, which can be used directly to link back to GenBank records or
+NCBI taxonomy pages. For names not found in NCBI (e.g., taxa without
+sequenced representatives), COL provides a fallback.</p>
+</div>
+</div>
+<div id="the-backend-column" class="section level2">
+<h2>The backend column</h2>
+<p>The <code>backend</code> column in taxify’s output is a plain
+character column. For single-backend calls, every matched row shows the
+same backend name. For multi-backend chains, the column records which
+backend produced each match. Unmatched rows have
+<code>backend = NA</code>.</p>
+<p>We can use this column to count how many names each backend
+resolved:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>))</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">table</span>(result<span class="sc">$</span>backend, <span class="at">useNA =</span> <span class="st">&quot;ifany&quot;</span>)</span></code></pre></div>
+<p>Or filter to rows matched by a specific backend:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>wfo_matches <span class="ot">&lt;-</span> result[result<span class="sc">$</span>backend <span class="sc">==</span> <span class="st">&quot;wfo&quot;</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>backend), ]</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>col_matches <span class="ot">&lt;-</span> result[result<span class="sc">$</span>backend <span class="sc">==</span> <span class="st">&quot;col&quot;</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>backend), ]</span></code></pre></div>
+<p>This is useful for quality control. If we expected a purely
+plant-based list but see many names matched by COL instead of WFO, that
+tells us the list contains names outside WFO’s scope (perhaps algae
+classified as plants in older literature, or animal-associated organisms
+like plant parasites).</p>
+<p>The <code>backbone_version</code> column gives the full provenance
+string for each row, combining the backend name, version, and download
+date. For a paper’s methods section, we can extract the unique versions
+used:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">unique</span>(result<span class="sc">$</span>backbone_version[<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>backbone_version)])</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="co"># e.g., c(&quot;wfo:2024-12 (2026-04-01)&quot;, &quot;col:2025 (2026-04-01)&quot;)</span></span></code></pre></div>
+<p>These provenance strings identify both the taxonomic source and the
+exact snapshot used, making results fully reproducible even if the
+backend releases a new version between when we run the analysis and when
+a reviewer checks it.</p>
+</div>
+<div id="backend-specific-extras" class="section level2">
+<h2>Backend-specific extras</h2>
+<p>Three backends have dedicated enrichment functions that join
+additional backend-specific columns to a taxify result. These functions
+only enrich rows that were matched by the corresponding backend; rows
+from other backends get <code>NA</code> in the new columns.</p>
+<div id="wfo-extras-add_wfo_info" class="section level3">
+<h3>WFO extras: <code>add_wfo_info()</code></h3>
+<p>Adds WFO-specific columns: <code>scientificNameID</code>,
+<code>parentNameUsageID</code>, <code>namePublishedIn</code>,
+<code>higherClassification</code>, <code>taxonRemarks</code>, and
+<code>infraspecificEpithet</code>. The <code>namePublishedIn</code>
+field is particularly useful for citing original descriptions, and
+<code>higherClassification</code> provides the full taxonomic hierarchy
+as a semicolon-separated string.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="fu">add_wfo_info</span>()</span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;namePublishedIn&quot;</span>)]</span></code></pre></div>
+</div>
+<div id="col-extras-add_col_info" class="section level3">
+<h3>COL extras: <code>add_col_info()</code></h3>
+<p>Adds COL classification columns (<code>kingdom</code>,
+<code>phylum</code>, <code>col_class</code>, <code>order</code>),
+nomenclatural metadata (<code>notho</code>,
+<code>nomenclaturalCode</code>, <code>nomenclaturalStatus</code>,
+<code>namePublishedIn</code>), <code>infraspecificEpithet</code>, and
+SpeciesProfile flags (<code>is_extinct</code>, <code>is_marine</code>,
+<code>is_freshwater</code>, <code>is_terrestrial</code>). The
+<code>class</code> column is renamed to <code>col_class</code> to avoid
+conflict with R’s <code>class()</code> function.</p>
+<p>The SpeciesProfile flags come from a separate file in the COL DwC-A
+archive. They are especially useful for filtering: we can, for instance,
+exclude extinct species from a contemporary biodiversity analysis, or
+separate marine from terrestrial taxa in an estuarine dataset.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backend =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>  <span class="fu">add_col_info</span>()</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="co"># Check which species are marine</span></span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a>result[result<span class="sc">$</span>is_marine <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>is_marine),</span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a>       <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;kingdom&quot;</span>, <span class="st">&quot;is_marine&quot;</span>)]</span></code></pre></div>
+</div>
+<div id="gbif-extras-add_gbif_info" class="section level3">
+<h3>GBIF extras: <code>add_gbif_info()</code></h3>
+<p>Adds GBIF-specific columns: <code>notho_type</code> (hybrid type),
+<code>nom_status</code> (nomenclatural status),
+<code>bracket_authorship</code> (basionym author),
+<code>bracket_year</code>, <code>gbif_year</code>,
+<code>name_published_in</code>, <code>origin</code> (how the name
+entered the GBIF backbone), and <code>infra_specific_epithet</code>. The
+<code>origin</code> field is useful for understanding provenance: values
+like <code>&quot;SOURCE&quot;</code>, <code>&quot;DENORMED_CLASSIFICATION&quot;</code>, or
+<code>&quot;VERBATIM_ACCEPTED&quot;</code> indicate how GBIF ingested the
+name.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backend =</span> <span class="st">&quot;gbif&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">add_gbif_info</span>()</span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;origin&quot;</span>, <span class="st">&quot;nom_status&quot;</span>)]</span></code></pre></div>
+</div>
+<div id="combining-extras-in-a-multi-backend-result" class="section level3">
+<h3>Combining extras in a multi-backend result</h3>
+<p>In a multi-backend result, we can pipe through multiple enrichment
+functions. Each one only touches rows from its own backend; the others
+are left alone.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>  <span class="fu">add_wfo_info</span>() <span class="sc">|&gt;</span></span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a>  <span class="fu">add_col_info</span>() <span class="sc">|&gt;</span></span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a>  <span class="fu">add_gbif_info</span>()</span></code></pre></div>
+<p>This produces a wide data.frame with the union of all extra columns.
+For a given row, only the columns from its backend are populated; the
+rest are <code>NA</code>. Whether this is useful depends on the
+analysis. For most workflows, the base 16 columns are sufficient, and
+backend-specific extras are only needed when we require nomenclatural
+details, habitat flags, or publication references that the standard
+output does not include.</p>
+</div>
+</div>
+<div id="the-genus-register" class="section level2">
+<h2>The genus register</h2>
+<p>taxify ships a unified genus register built from the union of genera
+across all eight pre-built backends (WFO, COL, GBIF, ITIS, NCBI, OTT,
+WoRMS, and Euro+Med). The register contains ~100k genera, each with its
+family, higher classification (kingdom through order, where available),
+and a <code>life_form</code> label (e.g., <code>&quot;vascular plant&quot;</code>,
+<code>&quot;animal&quot;</code>, <code>&quot;fungus&quot;</code>). The classification is
+resolved by priority: WoRMS &gt; COL &gt; GBIF &gt; Euro+Med &gt; ITIS
+&gt; NCBI &gt; OTT &gt; WFO. If COL and WFO disagree about which family
+a genus belongs to, COL’s assignment wins.</p>
+<p>The register serves two purposes in taxify’s matching pipeline.
+First, it provides <code>life_form</code>, <code>kingdom_group</code>,
+and <code>taxon_group</code> columns in taxify output for every matched
+name, regardless of which backend matched it. These columns make it
+possible to stratify results by broad taxonomic group without needing to
+look up each family manually.</p>
+<p>Second, the register enables out-of-scope detection. Before fuzzy
+matching begins, taxify checks whether an unmatched name’s genus is in
+the register. If the genus is known (it appears in the register) but not
+covered by any of the requested backends (it does not appear in the
+backend coverage table), taxify marks the name as
+<code>&quot;out_of_scope&quot;</code> immediately. This avoids wasting time on
+fuzzy matching against a backend that could never produce a match, and
+gives the user a more informative signal than a plain
+<code>&quot;none&quot;</code>.</p>
+<div id="looking-up-a-genus" class="section level3">
+<h3>Looking up a genus</h3>
+<p><code>lookup_genus()</code> returns the register row for a single
+genus. The register is loaded into memory on first call and cached for
+the session.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">lookup_genus</span>(<span class="st">&quot;Quercus&quot;</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="co">#   genus   kingdom phylum class   order   family   life_form</span></span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="co"># 1 Quercus Plantae ...    ...     Fagales Fagaceae vascular plant</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">lookup_genus</span>(<span class="st">&quot;Panthera&quot;</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="co">#   genus    kingdom  phylum   class    order     family  life_form</span></span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a><span class="co"># 1 Panthera Animalia Chordata Mammalia Carnivora Felidae animal</span></span></code></pre></div>
+</div>
+<div id="checking-backend-coverage" class="section level3">
+<h3>Checking backend coverage</h3>
+<p><code>taxify_register_coverage()</code> shows which backends contain
+a given genus and at what version. This is useful when diagnosing match
+failures: if the genus does not appear in the coverage table for the
+requested backend, the name is genuinely out of scope for that
+backend.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">taxify_register_coverage</span>(<span class="st">&quot;Quercus&quot;</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a><span class="co">#     genus   backend version date_added</span></span>
+<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a><span class="co"># 1 Quercus  col     2025    2026-04-01</span></span>
+<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="co"># 2 Quercus  gbif    current 2026-04-01</span></span>
+<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a><span class="co"># 3 Quercus  wfo     2024-12 2026-04-01</span></span></code></pre></div>
+<p>A genus covered by all three backends can be matched by any of them.
+A genus covered only by GBIF (perhaps a recently described bacterial
+genus) will not match against WFO or COL.</p>
+</div>
+<div id="out-of-scope-detection-in-practice" class="section level3">
+<h3>Out-of-scope detection in practice</h3>
+<p>When taxify encounters an unmatched name whose genus appears in the
+register but is not covered by any of the requested backends, it sets
+<code>match_type = &quot;out_of_scope&quot;</code> instead of <code>&quot;none&quot;</code>.
+This distinction carries information: an out-of-scope result means the
+name likely exists in a different backend rather than being a
+misspelling or invalid name.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="co"># Trying to match a marine invertebrate against WFO (plants only)</span></span>
+<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="st">&quot;Carcinus maenas&quot;</span>, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a>result<span class="sc">$</span>match_type</span>
+<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a><span class="co"># [1] &quot;out_of_scope&quot;</span></span>
+<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a></span>
+<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a>result<span class="sc">$</span>life_form</span>
+<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a><span class="co"># [1] &quot;animal&quot;</span></span></code></pre></div>
+<p>The <code>life_form</code> column tells us the genus belongs to
+animals, confirming that WFO is the wrong backend for this name. In a
+pipeline, we can filter for <code>&quot;out_of_scope&quot;</code> rows and re-run
+them against a broader backend. Or, more practically, we include the
+right backends in the fallback chain from the start, and the
+out-of-scope mechanism saves time by skipping the fuzzy matching step
+for names that cannot possibly match.</p>
+<p>The taxify result’s <code>print()</code> method includes a tally of
+out-of-scope names broken down by <code>taxon_group</code>, making it
+easy to see at a glance what kinds of organisms were outside the
+requested backend’s scope.</p>
+</div>
+</div>
+<div id="practical-guidance-choosing-backends" class="section level2">
+<h2>Practical guidance: choosing backends</h2>
+<p>The right backend depends on the taxonomic scope of the data. Here is
+a decision tree organized by the most common use cases.</p>
+<p><strong>Pure vascular plant lists.</strong> Use
+<code>backend = &quot;wfo&quot;</code>. WFO is the standard reference,
+well-curated, and updated regularly. If some names fall through (e.g.,
+horticultural cultivars, nomenclaturally complex genera, or names from
+older floras that use outdated synonymy), add COL:
+<code>backend = c(&quot;wfo&quot;, &quot;col&quot;)</code>.</p>
+<p><strong>European vegetation data.</strong> Use
+<code>backend = c(&quot;euromed&quot;, &quot;wfo&quot;)</code>. Euro+Med PlantBase is the
+taxonomic reference used by EVA and covers all native and introduced
+vascular plants of Europe, the Mediterranean, and the Caucasus. Leading
+with Euro+Med ensures European synonym resolution follows Euro+Med’s
+taxonomic opinion, with WFO as fallback for non-European taxa or names
+outside Euro+Med’s scope. Note that Euro+Med data is CC BY-SA 3.0.</p>
+<p><strong>Pure marine/aquatic lists.</strong> Use
+<code>backend = &quot;worms&quot;</code>. WoRMS is the authoritative source for
+marine taxonomy, curated by domain experts, and includes habitat and
+extinction flags. For estuarine or transitional lists that include some
+terrestrial taxa, add COL: <code>backend = c(&quot;worms&quot;, &quot;col&quot;)</code>.</p>
+<p><strong>Pure fungal lists.</strong> Use
+<code>backend = &quot;fungorum&quot;</code>. Species Fungorum Plus is the
+specialist reference for fungi. Add COL as fallback for obscure or
+recently described species:
+<code>backend = c(&quot;fungorum&quot;, &quot;col&quot;)</code>.</p>
+<p><strong>Pure algal lists.</strong> Use
+<code>backend = &quot;algaebase&quot;</code>. Add COL or WoRMS as fallback:
+<code>backend = c(&quot;algaebase&quot;, &quot;col&quot;)</code>. Remember AlgaeBase is CC
+BY-NC.</p>
+<p><strong>Mixed-kingdom ecological datasets.</strong> Use
+<code>backend = c(&quot;col&quot;, &quot;gbif&quot;)</code>, or lead with a specialist
+backend for the dominant taxon group. For a plant-dominated dataset with
+some animals and fungi: <code>backend = c(&quot;wfo&quot;, &quot;col&quot;)</code>. For a
+marine biodiversity survey:
+<code>backend = c(&quot;worms&quot;, &quot;col&quot;, &quot;gbif&quot;)</code>. For a forest inventory
+that includes trees, fungi, insects, and epiphytes:
+<code>backend = c(&quot;wfo&quot;, &quot;fungorum&quot;, &quot;col&quot;)</code>.</p>
+<p><strong>Molecular/sequence-linked work.</strong> Use
+<code>backend = &quot;ncbi&quot;</code>. NCBI Taxonomy is the reference for
+GenBank, BOLD, and other sequence databases. It covers bacteria,
+archaea, and viruses that other backends lack. For mixed molecular and
+ecological work: <code>backend = c(&quot;ncbi&quot;, &quot;col&quot;)</code>.</p>
+<p><strong>Phylogenetic studies.</strong> Use
+<code>backend = &quot;ott&quot;</code>. OTT is the backbone of the Open Tree of
+Life and merges multiple source taxonomies. Its cross-references to
+NCBI, GBIF, WoRMS, and IRMNG make it a good bridge between different
+identifier systems.</p>
+<p><strong>Maximum coverage / catch-all.</strong> Use
+<code>backend = c(&quot;col&quot;, &quot;gbif&quot;)</code>. COL provides expert-curated
+taxonomy for ~4.5M names. GBIF’s backbone adds ~10M names from
+additional sources. Together they cover virtually all described species
+with a nomenclatural record. This combination is a reasonable default
+when the taxonomic composition of the dataset is unknown.</p>
+<p><strong>General rule.</strong> Specialist backends first, generalist
+backends second. Lead with the backend whose taxonomic opinion we trust
+most for the dominant taxon group, and add broader backends as fallbacks
+for the remainder. The <code>backend</code> column in the output lets us
+audit exactly which taxonomic opinion was applied to each name.</p>
+<div id="performance-considerations" class="section level3">
+<h3>Performance considerations</h3>
+<p>Backend size affects download time and, to a lesser extent, matching
+speed. WFO (~400k names) matches faster than GBIF (~10M names) for the
+same query. However, taxify uses index-accelerated genus-blocked joins
+at the C level (via vectra), so even GBIF matching is fast for typical
+species lists. A list of 5,000 names resolves against GBIF in under a
+second on modern hardware. The performance difference only becomes
+noticeable at scale (100k+ names) or with heavy fuzzy matching against a
+large backbone.</p>
+<p>For large lists with a multi-backend chain, putting the most likely
+backend first saves time. Names matched by the first backend skip all
+later backends entirely. If 90% of a list is plants,
+<code>c(&quot;wfo&quot;, &quot;col&quot;)</code> is faster than <code>c(&quot;col&quot;, &quot;wfo&quot;)</code>
+because WFO is smaller and resolves most names on the first pass. The
+remaining 10% of names go to COL, which is larger but only processes the
+small residual.</p>
+<p>Fuzzy matching is the most expensive step. It runs a genus-blocked
+fuzzy join with multi-threaded string distance computation. For names
+with misspelled genera (where genus blocking cannot help), taxify falls
+back to a 2-character prefix block that catches most genus-level typos
+while keeping the search space manageable.</p>
+</div>
+<div id="reproducibility" class="section level3">
+<h3>Reproducibility</h3>
+<p>The <code>backbone_version</code> column encodes the exact data
+snapshot used. For a published analysis, we recommend recording these
+strings in the methods section or supplementary material. taxify pins
+the backbone version at download time and does not update mid-session.
+Version checks happen once per R session, and any update is logged to
+the console with the old and new version numbers.</p>
+<p>To lock a specific backbone version for a project:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="fu">taxify_download_vtr</span>(<span class="st">&quot;wfo&quot;</span>, <span class="at">version =</span> <span class="st">&quot;2024.01&quot;</span>)</span></code></pre></div>
+<p>Pinned versions live in their own directories and are never
+overwritten. The “latest” slot continues to track new releases
+independently. A project that needs exact reproducibility can pin all
+backends at specific versions and never use the “latest” slot. A project
+that prefers to stay current can rely on the default “latest” behavior
+and cite the <code>backbone_version</code> strings from the output.</p>
+<p>The manifest, which maps backend names to their download URLs and
+latest versions, is cached per session and can be refreshed with
+<code>taxify_refresh_manifest()</code>. For offline use, taxify falls
+back to the bundled manifest shipped with the package.</p>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Hybrid name detection and parsing</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Hybrid name detection and parsing</h1>
+
+
+
+<div id="hybrid-names-in-taxonomy" class="section level2">
+<h2>Hybrid names in taxonomy</h2>
+<p>Botanical nomenclature uses a dedicated marker for hybrids: the
+multiplication sign (×, U+00D7). This marker appears in three distinct
+positions, each signalling a different kind of hybrid.</p>
+<p>A <strong>nothogenus</strong> places the marker before the genus
+name, signalling an intergeneric hybrid (a cross between species in two
+different genera). Leyland cypress is a well-known example:</p>
+<blockquote>
+<p>×Cupressocyparis leylandii</p>
+</blockquote>
+<p>A <strong>nothospecies</strong> places the marker before the specific
+epithet, with the genus the same on both sides of the cross:</p>
+<blockquote>
+<p>Mentha ×piperita</p>
+</blockquote>
+<p>Peppermint (<em>Mentha ×piperita</em>, a cross of <em>M.
+aquatica</em> and <em>M. spicata</em>) is the classic case. The third
+form, a <strong>hybrid formula</strong>, names both parent species
+explicitly, joined by the multiplication sign:</p>
+<blockquote>
+<p>Salix alba × Salix fragilis</p>
+</blockquote>
+<p>In real-world data, the multiplication sign is frequently replaced by
+a lowercase or uppercase “x”. Herbarium databases, spreadsheet exports,
+and OCR outputs rarely preserve the Unicode character. taxify accepts
+all three forms (<code>×</code>, <code>x</code>, <code>X</code>) and
+normalizes them internally. The detection logic distinguishes a
+standalone “x” used as a hybrid marker from an “x” that is part of a
+word (e.g., the genus <em>Saxifraga</em>) by requiring whitespace
+boundaries around the letter.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
+</div>
+<div id="how-taxify-detects-hybrids" class="section level2">
+<h2>How taxify detects hybrids</h2>
+<p>Detection happens early in the pipeline, during name cleaning and
+before any backbone matching. When <code>taxify()</code> receives an
+input vector, each name passes through <code>clean_names()</code>, which
+calls the internal <code>detect_hybrid()</code> function. The function
+tokenizes the name, looks for the hybrid marker in specific positions,
+and classifies the result as nothogenus, nothospecies, formula, or
+non-hybrid.</p>
+<p>The output of <code>taxify()</code> includes an
+<code>is_hybrid</code> column (logical) that records whether a hybrid
+marker was found in the original input. This column is always present
+regardless of whether the name ultimately matched a backbone record. The
+finer classification into nothogenus, nothospecies, or formula is not
+exposed directly in the main output; it becomes available through
+<code>add_hybrid_info()</code>, which we cover below after looking at
+how matched hybrids behave in the result table.</p>
+<p>After detection, the hybrid marker is stripped from the name before
+matching. For a nothospecies like “Mentha ×piperita”, the cleaned form
+becomes “Mentha piperita”. For a hybrid formula like “Salix alba × Salix
+fragilis”, only the first parent binomial (“Salix alba”) is retained as
+the cleaned name, since formulas are not single taxon names and cannot
+match a backbone record directly.</p>
+<p>For nothospecies, taxify also constructs a secondary search form with
+the multiplication sign reinserted (“Mentha × piperita”) and attempts to
+match that against the backbone. Some backbones store nothospecies with
+the × character in the canonical name, so this secondary attempt can
+recover matches that the stripped form misses.</p>
+</div>
+<div id="worked-example-matching-a-mixed-species-list" class="section level2">
+<h2>Worked example: matching a mixed species list</h2>
+<p>Consider a list that includes ordinary species, a nothospecies, a
+nothogenus, and a hybrid formula. We pass them all to
+<code>taxify()</code> in a single call.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Mentha x piperita&quot;</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="st">&quot;x Cupressocyparis leylandii&quot;</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="st">&quot;Salix alba x Salix fragilis&quot;</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="st">&quot;Platanus x hispanica&quot;</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(names, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;is_hybrid&quot;</span>, <span class="st">&quot;match_type&quot;</span>)]</span></code></pre></div>
+<p>The expected output looks roughly like this:</p>
+<table>
+<colgroup>
+<col width="39%" />
+<col width="30%" />
+<col width="14%" />
+<col width="15%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">input_name</th>
+<th align="left">accepted_name</th>
+<th align="left">is_hybrid</th>
+<th align="left">match_type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Quercus robur</td>
+<td align="left">Quercus robur</td>
+<td align="left">FALSE</td>
+<td align="left">exact</td>
+</tr>
+<tr class="even">
+<td align="left">Mentha x piperita</td>
+<td align="left">Mentha × piperita</td>
+<td align="left">TRUE</td>
+<td align="left">exact</td>
+</tr>
+<tr class="odd">
+<td align="left">x Cupressocyparis leylandii</td>
+<td align="left">NA</td>
+<td align="left">TRUE</td>
+<td align="left">none</td>
+</tr>
+<tr class="even">
+<td align="left">Salix alba x Salix fragilis</td>
+<td align="left">Salix alba</td>
+<td align="left">TRUE</td>
+<td align="left">exact</td>
+</tr>
+<tr class="odd">
+<td align="left">Platanus x hispanica</td>
+<td align="left">Platanus × hispanica</td>
+<td align="left">TRUE</td>
+<td align="left">exact</td>
+</tr>
+</tbody>
+</table>
+<p>Several things are visible here. The two nothospecies (Mentha,
+Platanus) matched successfully because WFO stores these as accepted
+names with the × character in the canonical name. The nothogenus
+×Cupressocyparis returned no match because intergeneric hybrid genera
+are less commonly included in backbone databases. The hybrid formula
+matched only the first parent (Salix alba), since the formula itself is
+not a single taxon name.</p>
+<p>The <code>is_hybrid</code> column is TRUE for all four hybrid inputs,
+regardless of whether the name matched. This column records a property
+of the input, not of the match result.</p>
+</div>
+<div id="extracting-hybrid-details-with-add_hybrid_info" class="section level2">
+<h2>Extracting hybrid details with add_hybrid_info()</h2>
+<p>The <code>add_hybrid_info()</code> function takes a
+<code>taxify()</code> result and parses the <code>input_name</code>
+column to extract structured hybrid information. It adds three
+columns:</p>
+<ul>
+<li><p><code>hybrid_parent_1</code>: the first parent binomial (for
+formulas) or NA</p></li>
+<li><p><code>hybrid_parent_2</code>: the second parent binomial (for
+formulas, with abbreviated genera expanded) or NA</p></li>
+<li><p><code>hybrid_type</code>: one of <code>&quot;nothogenus&quot;</code>,
+<code>&quot;nothospecies&quot;</code>, <code>&quot;formula&quot;</code>, or NA for
+non-hybrids</p></li>
+</ul>
+<p>For nothogenus and nothospecies names, both parent columns are NA
+because the input names only the hybrid itself, not its parents. The
+parent species of Mentha ×piperita (Mentha aquatica and Mentha spicata)
+are not encoded in the name string. Only hybrid formulas carry both
+parent names explicitly.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_hybrid_info</span>()</span></code></pre></div>
+<p>The three new columns for our five-name example:</p>
+<table>
+<colgroup>
+<col width="36%" />
+<col width="18%" />
+<col width="21%" />
+<col width="23%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">input_name</th>
+<th align="left">hybrid_type</th>
+<th align="left">hybrid_parent_1</th>
+<th align="left">hybrid_parent_2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Quercus robur</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">Mentha x piperita</td>
+<td align="left">nothospecies</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+</tr>
+<tr class="odd">
+<td align="left">x Cupressocyparis leylandii</td>
+<td align="left">nothogenus</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">Salix alba x Salix fragilis</td>
+<td align="left">formula</td>
+<td align="left">Salix alba</td>
+<td align="left">Salix fragilis</td>
+</tr>
+<tr class="odd">
+<td align="left">Platanus x hispanica</td>
+<td align="left">nothospecies</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="worked-example-parsing-hybrid-formulas" class="section level2">
+<h2>Worked example: parsing hybrid formulas</h2>
+<p>Hybrid formulas appear in botanical and horticultural datasets more
+often than one might expect. Field botanists record them when the
+parentage of a specimen is known or suspected. The formulas vary in
+notation: some spell out both genera in full, others abbreviate the
+second genus.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>formulas <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="st">&quot;Salix alba x Salix fragilis&quot;</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="st">&quot;Quercus pyrenaica x Q. petraea&quot;</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="st">&quot;Populus nigra x Populus deltoides&quot;</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="st">&quot;Rosa canina x R. gallica&quot;</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>formula_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(formulas, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>formula_result <span class="ot">&lt;-</span> formula_result <span class="sc">|&gt;</span> <span class="fu">add_hybrid_info</span>()</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>formula_result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;hybrid_type&quot;</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>                    <span class="st">&quot;hybrid_parent_1&quot;</span>, <span class="st">&quot;hybrid_parent_2&quot;</span>)]</span></code></pre></div>
+<table>
+<colgroup>
+<col width="40%" />
+<col width="14%" />
+<col width="22%" />
+<col width="23%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">input_name</th>
+<th align="left">hybrid_type</th>
+<th align="left">hybrid_parent_1</th>
+<th align="left">hybrid_parent_2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Salix alba x Salix fragilis</td>
+<td align="left">formula</td>
+<td align="left">Salix alba</td>
+<td align="left">Salix fragilis</td>
+</tr>
+<tr class="even">
+<td align="left">Quercus pyrenaica x Q. petraea</td>
+<td align="left">formula</td>
+<td align="left">Quercus pyrenaica</td>
+<td align="left">Quercus petraea</td>
+</tr>
+<tr class="odd">
+<td align="left">Populus nigra x Populus deltoides</td>
+<td align="left">formula</td>
+<td align="left">Populus nigra</td>
+<td align="left">Populus deltoides</td>
+</tr>
+<tr class="even">
+<td align="left">Rosa canina x R. gallica</td>
+<td align="left">formula</td>
+<td align="left">Rosa canina</td>
+<td align="left">Rosa gallica</td>
+</tr>
+</tbody>
+</table>
+<p>The genus abbreviation “Q.” in the second example was expanded to
+“Quercus” automatically. taxify infers the full genus from the first
+parent in the formula. The same expansion happened for “R.” to “Rosa” in
+the fourth row. This expansion is purely textual: the first token of the
+first parent is used as the genus for the second parent whenever the
+second parent’s genus field matches the pattern of a single capital
+letter followed by a period.</p>
+</div>
+<div id="what-matches-and-what-does-not" class="section level2">
+<h2>What matches and what does not</h2>
+<p>The three hybrid types have different matching profiles against
+backbone databases.</p>
+<p><strong>Nothospecies</strong> are the best-supported form. WFO and
+COL both store many nothospecies as accepted names, with the × character
+as part of the canonical name. Mentha ×piperita, Platanus ×hispanica,
+and Narcissus ×medioluteus are examples that appear in both backbones.
+taxify’s matching logic handles the marker correctly: it first tries the
+stripped form (“Mentha piperita”) and then the form with the ×
+reinserted (“Mentha × piperita”). At least one of these typically
+matches.</p>
+<p><strong>Nothogenera</strong> have lower coverage. Intergeneric
+hybrids like ×Cupressocyparis, ×Triticosecale, and ×Festulolium exist in
+some backbones but are absent from others. WFO includes several
+nothogenera relevant to agriculture and horticulture. COL’s coverage
+varies by taxonomic group. When a nothogenus does not match, the output
+row will have <code>match_type = &quot;none&quot;</code> and
+<code>accepted_name = NA</code>, but <code>is_hybrid</code> will still
+be TRUE.</p>
+<p><strong>Hybrid formulas</strong> will not match a backbone record
+directly, because the formula is not a taxon name. taxify extracts the
+first parent binomial as the cleaned name for matching, so the result
+row reflects the match status of the first parent. To resolve both
+parents, match them separately.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Match both parents of a hybrid formula separately</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>parents <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Salix alba&quot;</span>, <span class="st">&quot;Salix fragilis&quot;</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>parent_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(parents, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span></code></pre></div>
+<p>This approach gives a full match result (accepted name, synonym
+status, authorship) for each parent individually. In a dataset with many
+hybrid formulas, we can extract the parent columns from
+<code>add_hybrid_info()</code> and feed them back through
+<code>taxify()</code> as a batch.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Batch-resolve all hybrid formula parents</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>info <span class="ot">&lt;-</span> result <span class="sc">|&gt;</span> <span class="fu">add_hybrid_info</span>()</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>formula_rows <span class="ot">&lt;-</span> info[info<span class="sc">$</span>hybrid_type <span class="sc">==</span> <span class="st">&quot;formula&quot;</span> <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(info<span class="sc">$</span>hybrid_type), ]</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>all_parents <span class="ot">&lt;-</span> <span class="fu">unique</span>(<span class="fu">na.omit</span>(<span class="fu">c</span>(</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  formula_rows<span class="sc">$</span>hybrid_parent_1,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  formula_rows<span class="sc">$</span>hybrid_parent_2</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>)))</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>parent_matches <span class="ot">&lt;-</span> <span class="fu">taxify</span>(all_parents, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span></code></pre></div>
+</div>
+<div id="the-multiplication-sign-and-its-substitutes" class="section level2">
+<h2>The multiplication sign and its substitutes</h2>
+<p>The Unicode multiplication sign (U+00D7) is the correct character for
+hybrid notation under the International Code of Nomenclature. In
+practice, data arrive with three common representations:</p>
+<ol style="list-style-type: decimal">
+<li><p>The Unicode character itself: <code>×</code> (common in
+well-curated databases)</p></li>
+<li><p>A lowercase <code>x</code> surrounded by spaces (common in
+spreadsheets and field data)</p></li>
+<li><p>An uppercase <code>X</code> surrounded by spaces (less common,
+but occurs in older databases and OCR output)</p></li>
+</ol>
+<p>taxify normalizes all three forms internally. The
+<code>detect_hybrid()</code> function replaces every occurrence of
+U+00D7 with a space-padded “x” and then works with a uniform token
+stream, so the downstream logic only needs to handle one representation.
+The space-boundary requirement prevents false positives: “Saxifraga”
+does not trigger hybrid detection because the “x” sits within a word
+rather than standing alone between tokens.</p>
+<p>A subtlety arises with mojibake. When UTF-8 text containing the ×
+character is read with a Latin-1 or Windows-1252 encoding, the two-byte
+sequence can be misinterpreted as “0c3097” or “0c3014”. The name
+cleaning pipeline detects and repairs both of these common misreadings
+before hybrid detection runs, so names corrupted by encoding errors are
+still handled correctly.</p>
+</div>
+<div id="practical-notes" class="section level2">
+<h2>Practical notes</h2>
+<p><strong>Which backbones have the most hybrids.</strong> WFO has the
+broadest coverage of plant nothospecies and nothogenera, reflecting its
+focus on the world flora. COL includes hybrids across all kingdoms but
+coverage is uneven. GBIF aggregates data from many sources and includes
+hybrid names where the contributing checklists provide them. ITIS, NCBI,
+and OTT have minimal hybrid coverage.</p>
+<p><strong>Hybrid detection is input-side only.</strong> taxify detects
+hybrids in the names that you supply. It does not scan the backbone for
+hybrid records. If a backbone stores “Mentha × piperita” as an accepted
+name, taxify will match your input against it, but the backbone record’s
+own hybrid status is not exposed as a separate field. The
+<code>is_hybrid</code> column reflects your input, not the backbone.</p>
+<p><strong>Formulas with infraspecific ranks.</strong> The parser
+expects binomials (genus plus epithet) on both sides of the × marker.
+Formulas that include subspecies or variety ranks (e.g., “Salix alba
+var. vitellina × Salix fragilis”) will still be detected as formulas,
+but the parent extraction may include the rank and infraspecific epithet
+as part of the parent name. This is generally the desired behavior,
+since the full trinomial identifies the parent more precisely than the
+binomial alone.</p>
+<p><strong>Authorship in hybrid names.</strong> Hybrid names sometimes
+carry authorship strings (e.g., “Mentha ×piperita L.”). The name
+cleaning pipeline strips authorship before matching, so the presence of
+an author string does not interfere with hybrid detection or
+matching.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Authorship is stripped; hybrid detection still works</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Mentha x piperita L.&quot;</span>, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span></code></pre></div>
+<p><strong>Adding hybrid info is lightweight.</strong>
+<code>add_hybrid_info()</code> operates entirely on the
+<code>input_name</code> column via string parsing. It does not re-query
+any backbone or access any files on disk. On a result with 10,000 rows,
+the function completes in milliseconds.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
