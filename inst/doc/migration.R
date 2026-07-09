@@ -44,9 +44,8 @@ knitr::opts_chunk$set(
 # 
 # names <- c("Quercus robur", "Quercus pedonculata",
 #            "Pinus silvestris", "Rosa canina")
-# exact <- WFO.match(names, WFO.data = wfo_data)
-# fuzzy <- WFO.match.fuzzyjoin(names, WFO.data = wfo_data)
-# best  <- WFO.one(fuzzy)
+# matched <- WFO.match.fuzzyjoin(names, WFO.data = wfo_data)
+# best    <- WFO.one(matched)
 
 ## ----taxify-fuzzy-------------------------------------------------------------
 # # --- taxify ---
@@ -94,8 +93,8 @@ knitr::opts_chunk$set(
 # 
 # # Enrich with traits:
 # result |>
-#   add_conservation_status() |>
-#   add_woodiness()
+#   add_iucn() |>
+#   add_zanne()
 # 
 # # Or join custom data:
 # my_traits <- data.frame(

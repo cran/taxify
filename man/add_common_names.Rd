@@ -4,7 +4,7 @@
 \alias{add_common_names}
 \title{Add common (vernacular) names}
 \usage{
-add_common_names(x, lang = "en", verbose = TRUE)
+add_common_names(x, lang = "en", cols = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{A data.frame returned by \code{\link[=taxify]{taxify()}}.}
@@ -12,6 +12,10 @@ add_common_names(x, lang = "en", verbose = TRUE)
 \item{lang}{Character. ISO 639-1 language code (e.g., \code{"en"}, \code{"de"},
 \code{"fr"}), or \code{NA} to return names without a language tag (NCBI/OTT
 sources). Default \code{"en"}.}
+
+\item{cols}{Which columns to attach. \code{NULL} (the default) attaches the
+curated set; a character vector of column names attaches just those, and
+\code{"all"} attaches every column the source carries (see \code{\link[=enrichment_cols]{enrichment_cols()}}).}
 
 \item{verbose}{Logical. Default \code{TRUE}.}
 }

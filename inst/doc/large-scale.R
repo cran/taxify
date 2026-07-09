@@ -175,8 +175,8 @@ knitr::opts_chunk$set(
 # 
 # # Now the analysis can run fully offline
 # result <- taxify(species_list, backend = c("wfo", "col"))
-# result <- add_conservation_status(result)
-# result <- add_woodiness(result)
+# result <- add_iucn(result)
+# result <- add_zanne(result)
 
 ## -----------------------------------------------------------------------------
 # list_enrichments()
@@ -194,8 +194,8 @@ knitr::opts_chunk$set(
 # for (i in seq_along(chunks)) {
 #   res <- taxify(chunks[[i]], backend = "wfo",
 #                 fuzzy = TRUE, verbose = FALSE)
-#   res <- add_conservation_status(res, verbose = FALSE)
-#   res <- add_woodiness(res, verbose = FALSE)
+#   res <- add_iucn(res, verbose = FALSE)
+#   res <- add_zanne(res, verbose = FALSE)
 #   saveRDS(res, sprintf("results/chunk_%04d.rds", i))
 # }
 

@@ -388,14 +388,16 @@ backbone(s)</td>
 <td>Leipzig Catalogue of Vascular Plants</td>
 <td>Vascular plants</td>
 <td>Bundled in package</td>
-<td><code>taxify(backend = &quot;lcvp&quot;)</code></td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code> (nearest vascular-plant
+backbone)</td>
 </tr>
 <tr class="even">
 <td><a href="https://matildabrown.github.io/rWCVP/">rWCVP</a></td>
 <td>World Checklist of Vascular Plants (Kew)</td>
 <td>Vascular plants</td>
 <td>Local snapshot</td>
-<td><code>taxify(backend = &quot;wcvp&quot;)</code></td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code> for names;
+<code>add_wcvp()</code> for native ranges</td>
 </tr>
 <tr class="odd">
 <td><a href="https://docs.ropensci.org/taxadb/">taxadb</a></td>
@@ -410,7 +412,7 @@ backbone(s)</td>
 WFO)</td>
 <td>Vascular plants</td>
 <td>Bundled in package</td>
-<td><code>taxify(backend = c(&quot;wcvp&quot;, &quot;wfo&quot;))</code></td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code></td>
 </tr>
 <tr class="odd">
 <td><a href="https://github.com/ecoinfor/U.Taxonstand">U.Taxonstand</a></td>
@@ -447,14 +449,14 @@ biodiversity-cleaning workflow</td>
 there is no urgent reason to switch.</p>
 <p>That said, there are situations where taxify offers a better fit:</p>
 <ul>
-<li><strong>Multiple backbones.</strong> taxify matches against seven
+<li><strong>Multiple backbones.</strong> taxify matches against thirteen
 backbones offline and can chain them in a single call:
 <code>taxify(names, backend = c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;))</code>.</li>
 <li><strong>Speed at scale.</strong> The matching engine is written in C
 with genus-blocked fuzzy joins. Ten thousand names resolve in
 seconds.</li>
-<li><strong>Enrichments.</strong> Results pipe directly into twelve
-published trait and status datasets (IUCN, GRIIS, WCVP, EIVE,
+<li><strong>Enrichments.</strong> Results pipe directly into more than
+eighty published trait and status datasets (IUCN, GRIIS, WCVP, EIVE,
 EltonTraits, etc.) with a single <code>|&gt;</code> chain.</li>
 <li><strong>Reproducibility.</strong> Backbones are versioned files on
 disk. The <code>backbone_version</code> column records exactly which
@@ -489,23 +491,28 @@ closest taxify equivalent.</p>
 </tr>
 <tr class="even">
 <td><code>classification()</code></td>
-<td><code>taxify()</code></td>
-<td><code>family</code>, <code>genus</code>, <code>rank</code> columns
-in the output; <code>add_col_info()</code> for full hierarchy</td>
+<td><code>taxify()</code> + <code>add_classification()</code></td>
+<td><code>family</code>, <code>genus</code>, <code>rank</code> in the
+core output; <code>add_classification()</code> fills kingdom / phylum /
+class / order</td>
 </tr>
 <tr class="odd">
 <td><code>synonyms()</code></td>
-<td><code>taxify()</code></td>
-<td><code>is_synonym</code> + <code>accepted_name</code> columns in the
-output</td>
+<td><code>synonyms()</code></td>
+<td>Lists every synonym that resolves to a name’s accepted taxon</td>
 </tr>
 <tr class="even">
+<td><code>children()</code> / <code>downstream()</code></td>
+<td><code>children()</code></td>
+<td>Lists the accepted taxa within a genus or family</td>
+</tr>
+<tr class="odd">
 <td><code>tax_name()</code></td>
 <td><code>taxify()</code></td>
 <td><code>family</code>, <code>genus</code>, <code>rank</code>
 columns</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>sci2comm()</code></td>
 <td><code>add_common_names()</code></td>
 <td>Pipe enrichment; GBIF vernacular names by language</td>
@@ -513,10 +520,10 @@ columns</td>
 </tbody>
 </table>
 <p>taxize also has functions that serve a different purpose (fetching
-database IDs, enumerating child taxa, retrieving occurrence or sequence
-data). These are not name-resolution functions, so taxify does not cover
-them. The “What taxify does not do” section below points to the right
-packages for those tasks.</p>
+database IDs, retrieving occurrence or sequence data). These are not
+name-resolution functions, so taxify does not cover them. The “What
+taxify does not do” section below points to the right packages for those
+tasks.</p>
 <p>The key structural difference: taxize returned results in varied
 formats depending on the function (<code>classification()</code> gave a
 nested list of data.frames, <code>synonyms()</code> another nested list,
@@ -544,23 +551,32 @@ calls.</p>
 <tr class="odd">
 <td><code>WFO.match()</code></td>
 <td><code>taxify(backend = &quot;wfo&quot;)</code></td>
-<td>Exact + fuzzy in one call</td>
+<td>Both do exact + fuzzy in one call. <code>WFO.match()</code> returns
+several candidate rows per input name</td>
 </tr>
 <tr class="even">
 <td><code>WFO.one()</code></td>
 <td><code>taxify()</code></td>
-<td>Best-match selection is automatic</td>
+<td>The selection step. <code>WFO.one()</code> collapses
+<code>WFO.match()</code>’s candidate rows to one best match per input;
+<code>taxify()</code> returns one best-match row directly, so the two
+steps are one call</td>
 </tr>
 <tr class="odd">
 <td><code>WFO.match.fuzzyjoin()</code></td>
-<td><code>taxify(fuzzy = TRUE)</code></td>
-<td>Enabled by default; genus-blocked Damerau-Levenshtein</td>
+<td><code>taxify(backend = &quot;wfo&quot;)</code></td>
+<td>Same matching as <code>WFO.match()</code>, faster
+<code>fuzzyjoin</code>-based engine; taxify is fast by default, so there
+is no separate call</td>
 </tr>
 <tr class="even">
-<td><code>WFO.synonyms()</code></td>
-<td><code>taxify()</code></td>
-<td><code>is_synonym</code>, <code>accepted_name</code>,
-<code>accepted_id</code> in output</td>
+<td><code>WFO.synonyms(accepted)</code></td>
+<td>–</td>
+<td>Reverse direction: <code>WFO.synonyms()</code> expands an accepted
+name to its synonyms (one-to-many). taxify resolves the other way,
+synonym to accepted (<code>is_synonym</code>,
+<code>accepted_name</code>, <code>accepted_id</code>), so there is no
+direct equivalent</td>
 </tr>
 </tbody>
 </table>
@@ -835,9 +851,10 @@ name.</p>
 </div>
 <div id="example-2-wfo-matching-with-fuzzy-synonyms" class="section level2">
 <h2>Example 2: WFO matching with fuzzy + synonyms</h2>
-<p>With WorldFlora, the typical workflow is: load the backbone, run
-exact matching, apply fuzzy matching separately, then pick the best
-match.</p>
+<p>With WorldFlora, the typical workflow is: load the backbone, run the
+match (exact and fuzzy together, here with the faster
+<code>fuzzyjoin</code> engine), then collapse the candidate rows to one
+best match per input.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># --- WorldFlora ---</span></span>
 <span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">library</span>(WorldFlora)</span>
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
@@ -845,9 +862,8 @@ match.</p>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a></span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Quercus pedonculata&quot;</span>,</span>
 <span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>           <span class="st">&quot;Pinus silvestris&quot;</span>, <span class="st">&quot;Rosa canina&quot;</span>)</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>exact <span class="ot">&lt;-</span> <span class="fu">WFO.match</span>(names, <span class="at">WFO.data =</span> wfo_data)</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>fuzzy <span class="ot">&lt;-</span> <span class="fu">WFO.match.fuzzyjoin</span>(names, <span class="at">WFO.data =</span> wfo_data)</span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>best  <span class="ot">&lt;-</span> <span class="fu">WFO.one</span>(fuzzy)</span></code></pre></div>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>matched <span class="ot">&lt;-</span> <span class="fu">WFO.match.fuzzyjoin</span>(names, <span class="at">WFO.data =</span> wfo_data)</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>best    <span class="ot">&lt;-</span> <span class="fu">WFO.one</span>(matched)</span></code></pre></div>
 <p>With taxify, exact matching, fuzzy matching, and synonym resolution
 happen in a single call:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># --- taxify ---</span></span>
@@ -902,8 +918,8 @@ cascade to the next backbone automatically.</p>
 <span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a></span>
 <span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a><span class="co"># Enrich with traits:</span></span>
 <span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>result <span class="sc">|&gt;</span></span>
-<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>() <span class="sc">|&gt;</span></span>
-<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>  <span class="fu">add_woodiness</span>()</span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>  <span class="fu">add_zanne</span>()</span>
 <span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a></span>
 <span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a><span class="co"># Or join custom data:</span></span>
 <span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>my_traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
@@ -1116,13 +1132,12 @@ through <code>add_*()</code> functions.</p>
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">list_enrichments</span>()</span></code></pre></div>
 <p>Each enrichment downloads automatically on first use and is cached
 locally, following the same pattern as backbones. The full list:
-<code>add_conservation_status()</code>,
-<code>add_invasive_status()</code>, <code>add_wcvp()</code>,
-<code>add_eive()</code>, <code>add_elton_traits()</code>,
-<code>add_avonet()</code>, <code>add_pantheria()</code>,
-<code>add_amphibio()</code>, <code>add_common_names()</code>,
-<code>add_woodiness()</code>, <code>add_diaz_traits()</code>, and
-<code>add_leda()</code>.</p>
+<code>add_iucn()</code>, <code>add_griis()</code>,
+<code>add_wcvp()</code>, <code>add_eive()</code>,
+<code>add_elton_traits()</code>, <code>add_avonet()</code>,
+<code>add_pantheria()</code>, <code>add_amphibio()</code>,
+<code>add_common_names()</code>, <code>add_zanne()</code>,
+<code>add_diaz_traits()</code>, and <code>add_leda()</code>.</p>
 </div>
 <div id="summary" class="section level2">
 <h2>Summary</h2>

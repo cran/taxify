@@ -4,12 +4,13 @@
 #' [taxify()] result by looking up `accepted_name`.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
 #'   \item{body_size_mm}{Maximum body size in mm (snout-vent length).}
-#'   \item{age_maturity_d}{Age at maturity in days.}
-#'   \item{longevity_d}{Maximum longevity in days.}
+#'   \item{age_maturity_y}{Age at maturity in years.}
+#'   \item{longevity_yr}{Maximum longevity in years.}
 #'   \item{litter_size}{Clutch/litter size.}
 #'   \item{reproductive_output}{Reproductive output per year.}
 #'   \item{offspring_size_mm}{Offspring size in mm.}
@@ -43,11 +44,11 @@
 #' options(old)
 #'
 #' @export
-add_amphibio <- function(x, verbose = TRUE) {
+add_amphibio <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     body_size_mm        = "body_size_mm",
-    age_maturity_d      = "age_maturity_d",
-    longevity_d         = "longevity_d",
+    age_maturity_y      = "age_maturity_y",
+    longevity_yr        = "longevity_yr",
     litter_size         = "litter_size",
     reproductive_output = "reproductive_output",
     offspring_size_mm   = "offspring_size_mm",
@@ -59,27 +60,12 @@ add_amphibio <- function(x, verbose = TRUE) {
     diurnal             = "diurnal",
     nocturnal_amphibio  = "nocturnal_amphibio"
   )
-  na_types <- list(
-    body_size_mm        = NA_real_,
-    age_maturity_d      = NA_real_,
-    longevity_d         = NA_real_,
-    litter_size         = NA_real_,
-    reproductive_output = NA_real_,
-    offspring_size_mm   = NA_real_,
-    direct_development  = NA_integer_,
-    larval              = NA_integer_,
-    aquatic             = NA_integer_,
-    fossorial           = NA_integer_,
-    arboreal            = NA_integer_,
-    diurnal             = NA_integer_,
-    nocturnal_amphibio  = NA_integer_
-  )
   enrich_simple(
     x,
     enrichment_name = "amphibio",
     col_map         = col_map,
     source_label    = "AmphiBIO",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

@@ -6,6 +6,7 @@
 #' seed, leaf, and clonality traits.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -50,7 +51,7 @@
 #' options(old)
 #'
 #' @export
-add_leda <- function(x, verbose = TRUE) {
+add_leda <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     raunkiaer_life_form  = "raunkiaer_life_form",
     raunkiaer_variable   = "raunkiaer_variable",
@@ -63,24 +64,12 @@ add_leda <- function(x, verbose = TRUE) {
     clonal_growth        = "clonal_growth",
     buoyancy             = "buoyancy"
   )
-  na_types <- list(
-    raunkiaer_life_form  = NA_character_,
-    raunkiaer_variable   = NA_integer_,
-    dispersal_type       = NA_character_,
-    terminal_velocity_ms = NA_real_,
-    seed_mass_mg         = NA_real_,
-    canopy_height_m      = NA_real_,
-    leaf_mass_mg         = NA_real_,
-    sla_mm2_mg           = NA_real_,
-    clonal_growth        = NA_integer_,
-    buoyancy             = NA_character_
-  )
   enrich_simple(
     x,
     enrichment_name = "leda",
     col_map         = col_map,
     source_label    = "LEDA Traitbase",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

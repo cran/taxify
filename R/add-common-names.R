@@ -7,6 +7,9 @@
 #' @param lang Character. ISO 639-1 language code (e.g., `"en"`, `"de"`,
 #'   `"fr"`), or `NA` to return names without a language tag (NCBI/OTT
 #'   sources). Default `"en"`.
+#' @param cols Which columns to attach. `NULL` (the default) attaches the
+#'   curated set; a character vector of column names attaches just those, and
+#'   `"all"` attaches every column the source carries (see [enrichment_cols()]).
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with an additional column:
 #' \describe{
@@ -40,7 +43,7 @@
 #' options(old)
 #'
 #' @export
-add_common_names <- function(x, lang = "en", verbose = TRUE) {
+add_common_names <- function(x, lang = "en", cols = NULL, verbose = TRUE) {
   enrich_by_group(
     x,
     enrichment_name = "common_names",
@@ -48,6 +51,7 @@ add_common_names <- function(x, lang = "en", verbose = TRUE) {
     groups          = lang,
     value_cols      = c(common_name = "common_name"),
     source_label    = "vernacular names",
+    cols            = cols,
     verbose         = verbose
   )
 }

@@ -4,6 +4,7 @@
 #' and activity data to a [taxify()] result by looking up `accepted_name`.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -25,6 +26,11 @@
 #'   \item{foraging_aerial}{Percentage of foraging: aerial.}
 #'   \item{elton_body_mass_g}{Body mass in grams.}
 #'   \item{nocturnal}{Nocturnal activity (0 = diurnal, 1 = nocturnal).}
+#'   \item{diet_guild}{Dominant diet guild derived from the ten diet-fraction
+#'     columns (fractions summed within guild, the guild reaching 50 percent
+#'     wins, otherwise omnivore): carnivore, herbivore, omnivore, invertivore,
+#'     frugivore, granivore, nectarivore, scavenger. Also reachable across
+#'     sources via \code{add_trait(x, "diet_guild")}.}
 #' }
 #'
 #' @details
@@ -45,7 +51,7 @@
 #' options(old)
 #'
 #' @export
-add_elton_traits <- function(x, verbose = TRUE) {
+add_elton_traits <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     diet_inv           = "diet_inv",
     diet_vend          = "diet_vend",
@@ -64,18 +70,15 @@ add_elton_traits <- function(x, verbose = TRUE) {
     foraging_canopy    = "foraging_canopy",
     foraging_aerial    = "foraging_aerial",
     elton_body_mass_g  = "body_mass_g",
-    nocturnal          = "nocturnal"
-  )
-  na_types <- stats::setNames(
-    rep(list(NA_real_), length(col_map)),
-    names(col_map)
+    nocturnal          = "nocturnal",
+    diet_guild         = "diet_guild"
   )
   enrich_simple(
     x,
     enrichment_name = "elton_traits",
     col_map         = col_map,
     source_label    = "EltonTraits 1.0",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

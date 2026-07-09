@@ -1,0 +1,42 @@
+#' Add European pollinator traits (EuPollTrait)
+#'
+#' Joins European bee and hoverfly morphological, biogeographic and ecological
+#' traits to a [taxify()] result by `accepted_name`.
+#'
+#' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
+#' @param verbose Logical. Default `TRUE`.
+#' @return The same data.frame with `eupolltrait_` columns: numeric `itd_mm`,
+#'   `tongue_length_mm`, `species_temperature_index`,
+#'   `species_continentality_index`, `area_of_occupancy`, `extent_of_occurrence`;
+#'   categorical `sociality`, `nest`, `larval_nutrition`, `body_length_category`.
+#'
+#' @details Source: EuPollTrait (Milicic et al. 2025, Zenodo, CC-BY 4.0).
+#'
+#' @references
+#' Milicic M et al. (2025) EuPollTrait: a trait database for European bees and
+#' hoverflies. Zenodo. \doi{10.5281/zenodo.18032357}
+#'
+#' @examples
+#' \donttest{
+#' taxify("Bombus terrestris", backend = "gbif") |>
+#'   add_eupolltrait()
+#' }
+#'
+#' @export
+add_eupolltrait <- function(x, cols = NULL, verbose = TRUE) {
+  num_cols <- c("itd_mm", "tongue_length_mm", "species_temperature_index",
+                "species_continentality_index", "area_of_occupancy",
+                "extent_of_occurrence")
+  cat_cols <- c("sociality", "nest", "larval_nutrition", "body_length_category")
+  all_cols <- c(num_cols, cat_cols)
+  col_map <- stats::setNames(all_cols, paste0("eupolltrait_", all_cols))
+  enrich_simple(
+    x,
+    enrichment_name = "eupolltrait",
+    col_map         = col_map,
+    source_label    = "EuPollTrait",
+    cols            = cols,
+    verbose         = verbose
+  )
+}

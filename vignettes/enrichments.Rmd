@@ -1,4 +1,4 @@
----
+﻿---
 title: "Enriching results with trait and status data"
 output: rmarkdown::html_vignette
 vignette: >
@@ -26,17 +26,18 @@ incompatible formats. Manually aligning names between a taxonomic backbone
 and a trait database can consume hours even for moderately sized species
 lists.
 
-taxify ships with 22 enrichment layers that attach published trait and
-status datasets to a `taxify()` result in a single pipe call. Each
+taxify ships with more than sixty enrichment layers that attach published
+trait and status datasets to a `taxify()` result in a single pipe call. Each
 enrichment is backed by a pre-built `.vtr` file that downloads automatically
 on first use and caches locally for all subsequent sessions. The enrichment
 system handles the name alignment problem at build time, so the join at
 analysis time is a simple, fast, exact-match operation.
 
-This vignette covers the mechanics of how enrichments work, walks through
-each of the 18 layers with worked examples, and discusses practical
+This vignette covers the mechanics of how enrichments work, walks through a
+representative set of layers with worked examples, and discusses practical
 strategies for combining enrichments, interpreting coverage gaps, and
-choosing the right layers for a given taxon group. We also discuss the
+choosing the right layers for a given taxon group. `list_enrichments()` prints
+the full current set with versions and coverage. We also discuss the
 `add_data()` function for joining custom datasets that go beyond the
 built-in enrichments.
 
@@ -105,7 +106,7 @@ the trait data duplicated. The final `.vtr` is then deduplicated by
 
 In practice, backends agree on more than 90% of names, so this expansion
 is modest (typically 1.1–1.5x the original row count). The result is that
-`add_conservation_status()` works identically whether the upstream
+`add_iucn()` works identically whether the upstream
 `taxify()` call used WFO, COL, or GBIF. We do not have to pick enrichments
 based on which backbone we used, and we do not have to worry about
 backbone-specific name variants falling through the cracks.
@@ -206,7 +207,7 @@ list_enrichments()
 
 The `static` column is worth paying attention to. Static enrichments
 (woodiness, PanTHERIA, AmphiBIO, EltonTraits, LEDA, Diaz traits,
-FungalTraits, FUNGuild, AlgaeTraits, FISHMORPH, Meiri lizard traits,
+FungalTraits, FUNGuild, AlgaeTraits, FISHMORPH, ReptTraits,
 LepTraits, AnimalTraits, NW European Arthropods) are based on published,
 version-locked datasets that have a single definitive release.
 These never trigger version checks, so they add zero network overhead to
@@ -231,6 +232,71 @@ nocturnality columns. The `source_url` column points to the original data
 source (Zenodo, Figshare, Dryad, GBIF, etc.) for reference and citation.
 
 
+## One trait across sources: `add_trait()`
+
+The `add_*()` doors each join a single dataset. When a trait is carried by more
+than one source, `add_trait()` gathers them: name the trait and it pulls every
+source that provides it, reconciling their vocabularies and units into shared
+columns. `list_traits()` shows what is available.
+
+```{r list-traits}
+list_traits()
+#>          trait              label        kind   unit n_sources    sources
+#> 1    woodiness          Woodiness categorical   <NA>         2 zanne, gift
+#> 2 plant_height       Plant height     numeric      m         2  diaz, gift
+#> 3    seed_mass          Seed mass     numeric     mg         2  diaz, gift
+#> 4          sla Specific leaf area     numeric mm2/mg         2  leda, gift
+```
+
+By default (`mode = "coalesce"`) `add_trait()` returns one value per row plus the
+columns that document it: `<trait>_unit`, `<trait>_sources`, and `<trait>_n`.
+Numeric traits are returned in one canonical unit regardless of how each source
+stores them. GIFT records seed mass in grams and Diaz et al. in milligrams;
+`add_trait("seed_mass")` reconciles both to milligrams and reports the median:
+
+```{r add-trait-coalesce}
+taxify("Abies alba") |>
+  add_trait("seed_mass")
+#> # accepted_name  ... seed_mass seed_mass_unit seed_mass_sources seed_mass_n
+#> # Abies alba     ...   67.9748             mg        diaz,gift            2
+```
+
+To inspect the sources individually, `mode = "wide"` gives each its own column,
+`<trait>_<source>`. Woodiness comes from both Zanne et al. and GIFT, harmonized
+to one vocabulary (`woody` / `non-woody` / `variable`):
+
+```{r add-trait-wide}
+taxify("Abies alba") |>
+  add_trait("woodiness", mode = "wide")
+#> # accepted_name  ... woodiness_zanne woodiness_gift
+#> # Abies alba     ...           woody          woody
+```
+
+When a trait's sources measure it by different methods, `add_trait()` does not
+average them. It reports the most complete source and adds a `<trait>_caution`
+column explaining the difference. Root diameter, for example, is fine-root in
+GRooT but a maximum (including coarse roots) in AusTraits, so the two are not
+blended into a value matching neither.
+
+`trait_info()` lists a trait's sources, units, the harmonization applied to each,
+and any method caution:
+
+```{r trait-info}
+trait_info("seed_mass")
+#> Seed mass (numeric, mg)  |  default priority: diaz > gift
+#>   source  enrichment       column                   note caution
+#> 1   diaz diaz_traits seed_mass_mg            Milligrams.      NA
+#> 2   gift        gift gift_seed_mass_mean GIFT grams -> mg.    NA
+```
+
+Restrict to particular sources with `sources =`, set the reducer with
+`combine =`, and set the source order with `priority =`.
+
+Enrichment doors are named after their source (`add_zanne()`, `add_iucn()`,
+`add_griis()`, `add_fishmorph()`, `add_gift()`); trait names belong to
+`add_trait()`.
+
+
 ## Pre-downloading enrichments
 
 For workflows that run on computing clusters, in Docker containers, or in
@@ -252,7 +318,7 @@ taxify_download_enrichment(c(
   "elton_traits", "avonet", "pantheria", "amphibio",
   "common_names", "woodiness", "diaz_traits", "leda",
   "fungal_traits", "funguild", "algae_traits",
-  "fish_traits", "fishbase", "lizard_traits", "anage", "glonaf",
+  "fish_traits", "fishbase", "repttraits", "anage", "glonaf",
   "leptraits", "animaltraits", "arthropod_traits", "alien_first_records",
   "baseflor", "ecoflora", "floraweb"
 ))
@@ -313,7 +379,7 @@ plants <- taxify(c(
   "Festuca rubra", "Salix caprea", "Cornus sanguinea"
 ))
 
-plants |> add_woodiness()
+plants |> add_zanne()
 #>               input_name       accepted_name woodiness
 #> 1          Quercus robur       Quercus robur     woody
 #> 2        Betula pendula      Betula pendula     woody
@@ -513,6 +579,92 @@ indicator values are also available through `add_pignatti()`, which reads the
 copy bundled in the TR8 package on demand; those values come from a copyrighted
 publication and are not redistributed by taxify.
 
+#### Mycorrhizal type (FungalRoot, Soudzilovskaia et al. 2020)
+
+Most vascular plants form a symbiosis with root fungi, and the *type* of that
+symbiosis is one of the most informative functional traits a plant carries: it
+governs how the plant acquires nutrients and which soil fungi it depends on.
+`add_fungalroot()` attaches the mycorrhizal type from FungalRoot, a global
+compilation of more than 36,000 plant-by-site observations published on GBIF.
+
+Unlike the enrichments above, FungalRoot joins on `genus`, not `accepted_name`.
+Mycorrhizal type is conserved at the genus level (the resolution FungalRoot
+itself recommends for inference), so the value is a per-genus majority consensus
+and every species in a covered genus inherits it, whether or not that exact
+binomial was observed.
+
+```{r fungalroot}
+taxify(c("Quercus robur", "Pinus sylvestris", "Trifolium pratense",
+         "Vaccinium myrtillus", "Brassica oleracea")) |>
+  add_fungalroot()
+#>          input_name     genus mycorrhizal_type mycorrhizal_status mycorrhizal_records
+#> 1       Quercus robur   Quercus              EcM        mycorrhizal                 163
+#> 2    Pinus sylvestris     Pinus              EcM        mycorrhizal                 500
+#> 3  Trifolium pratense Trifolium               AM        mycorrhizal                 193
+#> 4 Vaccinium myrtillus Vaccinium              ErM        mycorrhizal                 227
+#> 5   Brassica oleracea  Brassica               NM    non-mycorrhizal                  59
+```
+
+Three columns are added:
+
+- `mycorrhizal_type`: the genus-level consensus type. `AM` (arbuscular, by far
+  the most common, formed by most herbs and many trees), `EcM` (ecto, typical of
+  oaks, pines, birches, and other temperate forest trees), `ErM` (ericoid,
+  confined to the Ericaceae), `OM` (orchid), `NM` (non-mycorrhizal, e.g. the
+  Brassicaceae and many Cyperaceae), the dual types `EcM-AM` / `ErM-EcM` /
+  `ErM-AM`, plus `Other` and `uncertain`.
+- `mycorrhizal_status`: a coarse roll-up of the type, one of `"mycorrhizal"`,
+  `"non-mycorrhizal"`, or `"uncertain"`.
+- `mycorrhizal_records`: how many FungalRoot observations support the genus-level
+  consensus, so a one-record genus can be told apart from a well-sampled one.
+
+Because the join is on genus, a plant whose genus is not in FungalRoot returns
+`NA`, and a genus circumscribed differently across backbones may not line up.
+Coverage is plant genera only (about 4,000 genera). The dataset is distributed
+under CC BY-NC 4.0; the per-genus consensus is computed by taxify from the
+per-observation labels, not FungalRoot's own published genus assignment.
+
+#### Global traits (GIFT, on demand)
+
+GIFT, the Global Inventory of Floras and Traits (Weigelt et al. 2020), aggregates
+published plant trait records worldwide into one value per species. `add_gift()`
+attaches the traits you ask for, named `gift_<trait>`. Called with no `cols`
+argument it uses a convenient default set of well-populated ones: woodiness,
+growth form, life cycle, Raunkiaer life form, climbing, epiphytic, parasitic and
+aquatic habit, maximum plant height, photosynthetic pathway, mean seed mass,
+dispersal syndrome, flowering start and end month, deciduousness, and mean
+specific leaf area.
+
+```{r gift, eval=FALSE}
+taxify(c("Abies alba", "Quercus robur")) |>
+  add_gift()
+```
+
+Browse the available columns with `gift_traits()` and request any of them by
+name, or pass `cols = "all"`:
+
+```{r gift-select, eval=FALSE}
+gift_traits()                                   # available trait columns
+
+taxify(c("Abies alba", "Quercus robur")) |>
+  add_gift(cols = c("plant_height_max", "sla_mean", "woodiness_1"))
+```
+
+GIFT's API exposes only the subset of its data it is licensed to redistribute
+(CC BY 4.0; references whose underlying source is restricted are excluded).
+taxifydb fetches that subset once at build time and it ships as a pre-built
+`.vtr`, so `add_gift()` joins it offline, with no runtime API calls. Cite GIFT
+and, where applicable, the underlying references (`GIFT::GIFT_references()`).
+
+GIFT trait values are aggregated from many source references, each under its own
+licence, and are served from a live API rather than an openly-licensed bulk
+dump, so taxify does not redistribute them. `add_gift()` fetches them on demand
+through the suggested GIFT package: the full trait table is downloaded once per
+session and cached, and the values are joined to your result by accepted name.
+The first call needs internet access, and you are responsible for citing GIFT
+and the underlying references (`GIFT::GIFT_references()`) when you use the
+values.
+
 ### Conservation status (IUCN Red List)
 
 The conservation status enrichment is the only enrichment that spans all
@@ -528,7 +680,7 @@ species <- taxify(c(
   "Passer domesticus", "Quercus robur"
 ))
 
-species |> add_conservation_status()
+species |> add_iucn()
 #>            input_name conservation_status
 #> 1     Panthera tigris                  EN
 #> 2 Ailuropoda melanoleuca               VU
@@ -805,6 +957,7 @@ The nine trait columns capture complementary facets of fungal ecology:
 - `growth_form`: the vegetative morphology (agaricoid, boletoid,
   polyporoid, corticioid, clavarioid, gasteroid, etc.).
 - `fruitbody_type`: the reproductive structure type.
+
 - `decay_substrate`: the primary substrate for saprotrophic genera (wood,
   litter, dung, soil).
 - `plant_pathogenic_capacity`: a coarse classification of pathogenic
@@ -921,6 +1074,7 @@ All eight columns are prefixed with `algae_` to clearly distinguish them
 from terrestrial plant traits:
 
 - `algae_body_size_cm`: maximum thallus length in centimetres.
+
 - `algae_growth_form`: the morphological category (filamentous, foliose,
   corticated, leathery, calcareous, crustose, etc.).
 - `algae_calcification`: whether the species produces calcium carbonate
@@ -934,6 +1088,7 @@ from terrestrial plant traits:
 - `algae_wave_exposure`: the preferred wave exposure regime (sheltered,
   moderately exposed, exposed).
 - `algae_environment`: the salinity regime (marine, brackish, freshwater).
+
 - `algae_substrate`: the preferred substrate type (rock, sand, epiphytic,
   free-living).
 
@@ -976,7 +1131,7 @@ freshwater_fish <- taxify(c(
   "Perca fluviatilis", "Silurus glanis"
 ))
 
-freshwater_fish |> add_fish_traits()
+freshwater_fish |> add_fishmorph()
 #>        input_name fish_body_elongation fish_eye_size fish_oral_gape_position fish_body_lateral_shape ...
 #> 1    Salmo trutta                 0.22          0.08                    0.42                    0.18 ...
 #> 2    Esox lucius                  0.18          0.06                    0.50                    0.15 ...
@@ -996,6 +1151,7 @@ morphological ratios normalized by body length. The 10 traits are:
 - `fish_oral_gape_position`: the vertical position of the mouth, from
   ventral (benthic feeders) to dorsal (surface feeders).
 - `fish_body_lateral_shape`: the lateral compression of the body.
+
 - `fish_pectoral_fin_size`: pectoral fin area, associated with
   manoeuvrability and braking ability.
 - `fish_pectoral_fin_position`: the vertical insertion of the pectoral
@@ -1006,6 +1162,7 @@ morphological ratios normalized by body length. The 10 traits are:
   values (forked tails) indicate cruising swimmers; low values (rounded
   tails) indicate ambush predators or benthic species.
 - `fish_fin_surface_ratio`: total fin area relative to body area.
+
 - `fish_max_body_length_cm`: the maximum recorded standard length in
   centimetres.
 
@@ -1051,7 +1208,9 @@ fish |> add_fishbase()
 The eight columns are all prefixed with `fb_`:
 
 - `fb_body_length_cm`: maximum total length in centimetres.
+
 - `fb_body_mass_g`: maximum recorded body mass in grams.
+
 - `fb_trophic_level`: the trophic level (continuous, typically 2.0-5.0).
   Herbivorous fish sit near 2.0, planktivores around 3.0, piscivores
   around 4.0-4.5, and apex predators above 4.5.
@@ -1085,72 +1244,73 @@ updated periodically.
 
 ### Reptile enrichments
 
-#### Meiri lizard traits (Meiri 2018)
+#### ReptTraits (Oskyrko et al. 2024)
 
-The Meiri lizard trait database covers ~6,600 lizard species (Squamata,
-excluding snakes and amphisbaenians) with 10 life-history, morphological,
-and ecological traits. Lizards are the most species-rich group of
-non-avian reptiles, and this dataset provides the most comprehensive
-species-level trait compilation available for the group.
+ReptTraits covers 12,060 reptile species across all reptile groups: snakes,
+lizards, amphisbaenians, turtles, crocodiles, and the tuatara. It is built
+on the Reptile Database taxonomy, so it joins cleanly against the
+`reptiledb` backbone. Alongside body-size and life-history traits it carries
+a per-species distribution signal: biogeographic realm, elevation range, and
+mean climate.
 
-```{r lizard-traits}
-lizards <- taxify(c(
-  "Pogona vitticeps", "Lacerta agilis", "Iguana iguana",
-  "Varanus komodoensis", "Gekko gecko"
-))
+```{r repttraits}
+reptiles <- taxify(c(
+  "Pogona vitticeps", "Python regius", "Chelonia mydas",
+  "Naja naja", "Crocodylus niloticus"
+), backend = "reptiledb")
 
-lizards |> add_lizard_traits()
-#>            input_name lizard_body_mass_g lizard_svl_mm lizard_tail_length_mm lizard_clutch_size ...
-#> 1    Pogona vitticeps             350.0         230.0                 250.0               18.0 ...
-#> 2      Lacerta agilis              10.0          70.0                 100.0                8.0 ...
-#> 3       Iguana iguana            4000.0         450.0                 700.0               35.0 ...
-#> 4 Varanus komodoensis           70000.0        1500.0                1400.0               18.0 ...
-#> 5         Gekko gecko              60.0         140.0                 130.0                2.0 ...
+reptiles |> add_repttraits()
+#>             input_name biogeographic_realm habitat_type elevation_max_m body_mass_g  svl_mm reproductive_mode ...
+#> 1     Pogona vitticeps     Australo-Pacific      Desert/...             612       575.4   250         oviparous ...
+#> 2        Python regius          Afrotropic         Forest            1200      1610.6  1125         oviparous ...
+#> 3       Chelonia mydas              Marine       Wetlands              NA    230000.0  1500         oviparous ...
+#> 4            Naja naja            Oriental         Forest            1009      1683.5  1570         oviparous ...
+#> 5 Crocodylus niloticus          Afrotropic       Wetlands              NA    750000.0    NA         oviparous ...
 ```
 
-All columns are prefixed with `lizard_`:
+The distribution and environment columns are the per-species range signal:
 
-- `lizard_body_mass_g`: adult body mass in grams.
-- `lizard_svl_mm`: snout-vent length in millimetres, the standard body
-  size measurement for reptiles (excluding the tail, which is frequently
-  lost and regenerated).
-- `lizard_tail_length_mm`: tail length in millimetres.
-- `lizard_clutch_size`: the mean number of eggs per clutch (or neonates
-  per litter for viviparous species).
-- `lizard_clutch_frequency`: the number of clutches produced per year.
-- `lizard_longevity_yr`: maximum recorded longevity in years.
-- `lizard_diet`: the primary diet category (insectivore, herbivore,
-  omnivore, carnivore).
-- `lizard_habitat`: the primary habitat type (terrestrial, arboreal,
-  fossorial, saxicolous, semi-aquatic).
-- `lizard_activity_time`: the primary activity period (diurnal, nocturnal,
-  crepuscular, cathemeral).
-- `lizard_foraging_mode`: the foraging strategy (sit-and-wait, active
-  foraging, mixed). This trait is tightly linked to metabolic rate and
-  energy budgets: active foragers have higher metabolic rates and larger
-  home ranges, while sit-and-wait predators invest less energy in
-  locomotion but rely on crypsis and ambush efficiency.
+- `biogeographic_realm`: the main biogeographic realm (Neotropic, Oriental,
+  Australo-Pacific, Afrotropic, Palearctic, Nearctic, Saharo-Sindian,
+  Madagascan, or Marine).
+- `microhabitat`: microhabitat use (terrestrial, saxicolous, arboreal,
+  fossorial, aquatic, and combinations).
+- `habitat_type`: broad habitat type(s) (forest, desert, grassland,
+  shrubland, savanna, wetlands).
+- `elevation_min_m`, `elevation_max_m`: recorded elevation range in metres.
 
-The body mass range spans four orders of magnitude, from sub-gram geckos
-to the 70 kg Komodo Dragon (*Varanus komodoensis*). This allometric range
-drives strong scaling relationships: metabolic rate, home range size, and
-prey size all scale predictably with body mass in lizards. The SVL
-measurement is preferred over total length because tail autotomy (voluntary
-tail shedding) makes total length unreliable; SVL provides a stable,
-comparable measure of body size across species and individuals.
+- `mean_annual_temp_c`: mean annual temperature across the range, degrees
+  Celsius.
+- `insular_endemic`: whether the species is insular/endemic.
 
-The combination of clutch size, clutch frequency, and longevity captures
-the fast-slow life-history continuum. Small geckos with clutches of 1-2
-eggs but multiple clutches per year represent a different strategy from
-large iguanas with single large clutches per season. This life-history
-variation is directly relevant to population viability analysis and
-conservation planning for reptile species.
+This realm-level range is coarse. It is a useful filter for "where does this
+species broadly occur", but it is not a fine-grained (TDWG-level) range like
+the plant ranges that drive the `region` constraint in `taxify()`.
 
-The dataset covers lizards globally. Snakes and turtles are not included;
-they receive `NA` in all columns. It is licensed under CC BY 4.0 and
-published in *Global Ecology and Biogeography*. The reference is Meiri
-(2018), *Global Ecology and Biogeography* 27:1168-1172. The dataset is
-classified as static in the taxify manifest.
+The morphology and life-history columns follow:
+
+- `body_mass_g`: maximum body mass in grams.
+
+- `svl_mm`: maximum snout-vent length (straight carapace length for
+  turtles) in millimetres.
+- `total_length_mm`: maximum total length in millimetres.
+
+- `longevity_yr`: maximum recorded longevity in years.
+
+- `diet`: diet category (carnivorous, herbivorous, omnivorous).
+
+- `reproductive_mode`: oviparous, viviparous, or ovoviviparous.
+
+- `clutch_size`: mean clutch or litter size.
+
+- `active_time`: activity period (diurnal, nocturnal, cathemeral).
+
+- `foraging_mode`: foraging strategy (active, ambush, mixed).
+
+Species absent from ReptTraits receive `NA` in all columns. It is licensed
+under CC BY 4.0 and published in *Scientific Data*. The reference is Oskyrko,
+Mi, Meiri & Du (2024), *Scientific Data* 11:243. The dataset is classified
+as static in the taxify manifest.
 
 
 ### Vertebrate enrichments (cross-class)
@@ -1338,7 +1498,7 @@ plants <- taxify(c(
   "Reynoutria japonica", "Solidago canadensis"
 ))
 
-plants |> add_invasive_status(country = "AT")
+plants |> add_griis(country = "AT")
 #>            input_name invasive_status
 #> 1 Robinia pseudoacacia        invasive
 #> 2  Ailanthus altissima        invasive
@@ -1361,7 +1521,7 @@ When comparing invasive status across countries, pass a vector of codes.
 Each output column is suffixed with the corresponding country code.
 
 ```{r invasive-multi}
-plants |> add_invasive_status(country = c("AT", "DE", "GB"))
+plants |> add_griis(country = c("AT", "DE", "GB"))
 #>            input_name invasive_status_AT invasive_status_DE invasive_status_GB
 #> 1 Robinia pseudoacacia         invasive           invasive           invasive
 #> 2  Ailanthus altissima         invasive           invasive         introduced
@@ -1377,7 +1537,7 @@ columns. The example below finds species classified as invasive in Austria
 but not (yet) classified as invasive in Germany:
 
 ```{r invasive-filter}
-result <- plants |> add_invasive_status(country = c("AT", "DE"))
+result <- plants |> add_griis(country = c("AT", "DE"))
 # Species invasive in Austria but not in Germany
 result[result$invasive_status_AT == "invasive" &
        result$invasive_status_DE != "invasive", ]
@@ -1395,7 +1555,7 @@ in the GRIIS dataset (196 countries). This produces a wide data.frame with
 exercises where the complete geographic profile of each species matters.
 
 ```{r invasive-all}
-plants |> add_invasive_status(country = "all")
+plants |> add_griis(country = "all")
 # Adds invasive_status_AD, invasive_status_AE, ..., invasive_status_ZW
 ```
 
@@ -1414,7 +1574,7 @@ or territory. Unlike GRIIS (which records current status), this enrichment
 provides a historical timeline of alien species arrivals. The dataset
 covers all taxa (plants, animals, fungi) with ~77,000 species-country
 combinations across 241 countries. The `country` argument takes ISO 3166-1
-alpha-2 codes, same as `add_invasive_status()`.
+alpha-2 codes, same as `add_griis()`.
 
 #### Single country
 
@@ -1492,7 +1652,7 @@ records. It can reshape `invasive_status`, `native_status`, or
 
 ```{r taxify-long-griis}
 aliens |>
-  add_invasive_status(country = c("AT", "DE")) |>
+  add_griis(country = c("AT", "DE")) |>
   taxify_long()
 ```
 
@@ -1503,7 +1663,7 @@ combinations are padded with `NA`:
 
 ```{r taxify-long-combined}
 aliens |>
-  add_invasive_status(country = c("AT", "DE")) |>
+  add_griis(country = c("AT", "DE")) |>
   add_alien_first_records(country = c("AT", "DE", "CH")) |>
   taxify_long()
 ```
@@ -1691,8 +1851,8 @@ plant_result <- taxify(c(
   "Quercus robur", "Fagus sylvatica", "Picea abies",
   "Arrhenatherum elatius", "Festuca rubra", "Plantago lanceolata"
 )) |>
-  add_conservation_status() |>
-  add_woodiness() |>
+  add_iucn() |>
+  add_zanne() |>
   add_eive() |>
   add_diaz_traits()
 ```
@@ -1715,7 +1875,7 @@ bird_result <- taxify(c(
   "Parus major", "Cyanistes caeruleus", "Erithacus rubecula",
   "Turdus merula", "Falco peregrinus"
 )) |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_avonet() |>
   add_elton_traits() |>
   add_common_names()
@@ -1734,7 +1894,7 @@ mammal_result <- taxify(c(
   "Vulpes vulpes", "Canis lupus", "Ursus arctos",
   "Lutra lutra", "Lynx lynx"
 )) |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_pantheria() |>
   add_elton_traits() |>
   add_common_names(lang = "de")
@@ -1753,7 +1913,7 @@ FungalTraits with guild classifications from FUNGuild:
 fungal_result <- taxify(c(
   "Amanita muscaria", "Boletus edulis", "Trametes versicolor"
 )) |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_fungal_traits() |>
   add_funguild()
 ```
@@ -1774,8 +1934,8 @@ enrichments:
 fish_result <- taxify(c(
   "Salmo trutta", "Esox lucius", "Gadus morhua"
 )) |>
-  add_conservation_status() |>
-  add_fish_traits() |>
+  add_iucn() |>
+  add_fishmorph() |>
   add_fishbase()
 ```
 
@@ -1807,7 +1967,7 @@ gives a complete record of which data was used to produce the results.
 
 Not all species appear in all enrichments. Each dataset has a taxonomic
 scope (plants, birds, mammals, amphibians, vertebrates, butterflies,
-arthropods, fungi, algae, fish, lizards, or cross-taxon) and a geographic
+arthropods, fungi, algae, fish, reptiles, or cross-taxon) and a geographic
 scope (global, European, NW European). When
 an enrichment has no
 data for a species, the corresponding columns contain `NA`. Understanding
@@ -1825,7 +1985,7 @@ mixed <- taxify(c(
 ))
 
 mixed |>
-  add_woodiness() |>
+  add_zanne() |>
   add_avonet() |>
   add_pantheria() |>
   add_amphibio() |>
@@ -1873,7 +2033,7 @@ slightly different sets of names).
 | algae_traits | macroalgae | European | 1,745 |
 | fish_traits | freshwater fish | global | 8,300 |
 | fishbase | all fish | global | 35,000 |
-| lizard_traits | lizards | global | 6,600 |
+| repttraits | reptiles | global | 12,060 |
 | anage | vertebrates | global | 4,700 |
 | animaltraits | cross-taxon (arthropods+) | global | 2,000 |
 | leptraits | butterflies | global | 12,400 |
@@ -1935,7 +2095,7 @@ reports the number of matched rows per enrichment. We can also compute it
 directly:
 
 ```{r coverage-check}
-result <- taxify(species_list) |> add_woodiness()
+result <- taxify(species_list) |> add_zanne()
 # Fraction of matched species with woodiness data
 mean(!is.na(result$woodiness[!is.na(result$accepted_name)]))
 ```
@@ -1952,8 +2112,8 @@ a compact overview of the entire analysis pipeline.
 
 ```{r summary-enrichments}
 result <- taxify(c("Quercus robur", "Fagus sylvatica", "Pinus sylvestris")) |>
-  add_conservation_status() |>
-  add_woodiness() |>
+  add_iucn() |>
+  add_zanne() |>
   add_eive()
 
 summary(result)
@@ -2007,8 +2167,9 @@ range, and vernacular names.
 
 ```{r guide-euro-plants}
 result <- taxify(species_list, backend = "wfo") |>
-  add_conservation_status() |>
-  add_woodiness() |>
+  add_iucn() |>
+  add_zanne() |>
+  add_fungalroot() |>
   add_eive() |>
   add_diaz_traits() |>
   add_leda() |>
@@ -2039,17 +2200,18 @@ enrichments.
 
 ```{r guide-global-plants}
 result <- taxify(species_list, backend = "wfo") |>
-  add_conservation_status() |>
-  add_woodiness() |>
+  add_iucn() |>
+  add_zanne() |>
+  add_fungalroot() |>
   add_diaz_traits() |>
   add_wcvp(region = c("NAM", "SAM", "AFR")) |>
   add_common_names()
 ```
 
-Woodiness and Diaz traits both have global coverage, so they contribute
-useful data regardless of the geographic origin of the species list. WCVP
-can be queried for any TDWG region, providing native range information for
-the continents relevant to the study.
+Woodiness, Diaz traits, and FungalRoot mycorrhizal type all have global
+coverage, so they contribute useful data regardless of the geographic origin
+of the species list. WCVP can be queried for any TDWG region, providing native
+range information for the continents relevant to the study.
 
 ### Birds
 
@@ -2060,7 +2222,7 @@ and movement ecology.
 
 ```{r guide-birds}
 result <- taxify(species_list, backend = "col") |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_avonet() |>
   add_elton_traits() |>
   add_common_names()
@@ -2082,7 +2244,7 @@ which can serve as a cross-validation of the mass data.
 
 ```{r guide-mammals}
 result <- taxify(species_list, backend = "col") |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_pantheria() |>
   add_elton_traits() |>
   add_common_names()
@@ -2101,7 +2263,7 @@ with conservation status and common names.
 
 ```{r guide-amphibians}
 result <- taxify(species_list, backend = "col") |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_amphibio() |>
   add_common_names()
 ```
@@ -2123,8 +2285,8 @@ cover both freshwater and marine species.
 
 ```{r guide-fish}
 result <- taxify(species_list, backend = "worms") |>
-  add_conservation_status() |>
-  add_fish_traits() |>
+  add_iucn() |>
+  add_fishmorph() |>
   add_fishbase() |>
   add_common_names()
 ```
@@ -2137,23 +2299,22 @@ vulnerability. For marine fish studies, only FishBase will contribute data
 from FishBase is particularly useful alongside IUCN conservation status for
 prioritizing species in fisheries management and marine spatial planning.
 
-### Reptiles (lizards)
+### Reptiles
 
-Lizards are covered by the Meiri lizard traits enrichment, which provides
-life-history and ecological traits for ~6,600 species. Combined with
-conservation status, it gives a functional profile suitable for reptile
+Reptiles are covered by the `reptiledb` backbone (the Reptile Database) and
+the ReptTraits enrichment, which provides life-history, morphological, and
+distribution traits for 12,060 species across all reptile groups. Combined
+with conservation status, it gives a functional profile suitable for reptile
 community analyses and conservation assessments.
 
-```{r guide-lizards}
-result <- taxify(species_list, backend = "col") |>
-  add_conservation_status() |>
-  add_lizard_traits() |>
+```{r guide-reptiles}
+result <- taxify(species_list, backend = "reptiledb") |>
+  add_iucn() |>
+  add_repttraits() |>
   add_common_names()
 ```
 
-Snakes and turtles are not covered by the lizard enrichment. For those
-groups, the `add_data()` function can join custom trait datasets. For
-cross-class longevity and metabolic comparisons, `add_anage()` covers
+For cross-class longevity and metabolic comparisons, `add_anage()` covers
 reptiles alongside mammals, birds, amphibians, and fish.
 
 ### Butterflies
@@ -2165,7 +2326,7 @@ NW European Arthropod traits for additional life-history variables.
 
 ```{r guide-butterflies}
 result <- taxify(species_list, backend = "col") |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_leptraits() |>
   add_common_names()
 ```
@@ -2179,7 +2340,7 @@ LepTraits for additional butterfly-specific traits.
 
 ```{r guide-arthropods}
 result <- taxify(species_list, backend = c("col", "gbif")) |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_arthropod_traits() |>
   add_animaltraits() |>
   add_common_names()
@@ -2197,7 +2358,7 @@ and GBIF backends provide fungal taxonomy.
 
 ```{r guide-fungi}
 result <- taxify(species_list, backend = "col") |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_fungal_traits() |>
   add_funguild() |>
   add_common_names()
@@ -2219,7 +2380,7 @@ is recommended for marine algae taxonomy.
 
 ```{r guide-algae}
 result <- taxify(species_list, backend = "worms") |>
-  add_conservation_status() |>
+  add_iucn() |>
   add_algae_traits() |>
   add_common_names()
 ```
@@ -2241,8 +2402,8 @@ accept `NA` values where taxonomic scope does not overlap:
 
 ```{r guide-mixed-all}
 result <- taxify(species_list) |>
-  add_conservation_status() |>
-  add_woodiness() |>
+  add_iucn() |>
+  add_zanne() |>
   add_avonet() |>
   add_pantheria() |>
   add_amphibio() |>
@@ -2264,7 +2425,7 @@ plants  <- result[result$kingdom == "Plantae", ]
 birds   <- result[result$family %in% bird_families, ]
 mammals <- result[result$family %in% mammal_families, ]
 
-plants  <- plants |> add_woodiness() |> add_eive()
+plants  <- plants |> add_zanne() |> add_eive()
 birds   <- birds |> add_avonet() |> add_elton_traits()
 mammals <- mammals |> add_pantheria() |> add_elton_traits()
 ```
@@ -2281,7 +2442,7 @@ that expect a complete trait matrix, the second approach typically produces
 better inputs because it avoids rows with structurally missing values
 (values that are missing by design, not by data limitation).
 
-A middle ground is to apply `add_conservation_status()` and
+A middle ground is to apply `add_iucn()` and
 `add_common_names()` to the full dataset (since both cover all taxon
 groups), then split by group for the taxon-specific enrichments. This
 gives us conservation data and vernacular names for every species in a
@@ -2372,7 +2533,7 @@ or corrected.
 The licenses of the source datasets range from CC0 (EltonTraits, PanTHERIA,
 woodiness, common names, LepTraits, AnimalTraits) to CC BY 4.0 (EIVE,
 AmphiBIO, AVONET, GRIIS, GloNAF, FungalTraits, AlgaeTraits, FISHMORPH,
-Meiri lizard traits), CC BY (AnAge), CC BY-NC (NW European Arthropods),
+ReptTraits), CC BY (AnAge), CC BY-NC (NW European Arthropods),
 CC BY 3.0 (Diaz traits), and CC BY-NC 3.0 (FishBase). LEDA and WCVP have
 their own terms published on their respective websites. The taxify package itself does not redistribute
 these datasets in their original form; the `.vtr` files are built from
@@ -2385,7 +2546,7 @@ A minimal methods paragraph citing enrichments might read:
 
 > Taxonomic names were resolved against the WFO backbone (v2024.12) using
 > taxify (v0.x.x). Conservation status was obtained from the IUCN Red List
-> (v2025.1) via `add_conservation_status()`. Woodiness classification
+> (v2025.1) via `add_iucn()`. Woodiness classification
 > followed Zanne et al. (2014). Ecological indicator values were sourced
 > from EIVE 1.0 (Dengler et al. 2023). All enrichment versions are
 > recorded in the taxify result metadata and available via `summary()`.

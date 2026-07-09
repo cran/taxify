@@ -4,10 +4,12 @@
 \alias{add_fishbase}
 \title{Add fish traits (FishBase)}
 \usage{
-add_fishbase(x, verbose = TRUE)
+add_fishbase(x, cols = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{A data.frame returned by \code{\link[=taxify]{taxify()}}.}
+
+\item{cols}{Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.}
 
 \item{verbose}{Logical. Default \code{TRUE}.}
 }
@@ -30,7 +32,7 @@ Joins FishBase morphological and ecological traits to a \code{\link[=taxify]{tax
 by looking up \code{accepted_name}.
 }
 \details{
-Source: FishBase via rfishbase (Froese & Pauly, CC BY-NC 3.0).
+Source: FishBase via rfishbase (Froese & Pauly, CC BY-NC 4.0).
 Coverage: ~35k fish species. Fishes only.
 
 The build-from-source fallback requires the \pkg{rfishbase} package

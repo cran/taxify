@@ -52,6 +52,28 @@ test_that("cite() prints enrichment citations", {
   expect_true(any(grepl("EIVE|eive", out)))
 })
 
+test_that("cite() drops sources that matched no rows (n_matched == 0)", {
+  # A source queried but joining nothing (e.g. a bird trait on a plant, or an
+  # add_trait() source with no data) should not be cited.
+  joined  <- mock_enrichment(name = "eive", source = "EIVE")
+  unjoined <- mock_enrichment(name = "avonet", source = "AVONET")
+  unjoined$n_matched <- 0L
+  result <- mock_taxify_result(enrichments = list(joined, unjoined))
+  out <- capture.output(cite(result))
+  expect_true(any(grepl("EIVE|eive", out)))
+  expect_false(any(grepl("AVONET|avonet", out)))
+})
+
+test_that("cite() deduplicates a source registered more than once", {
+  # e.g. add_zanne() plus add_trait('woodiness') both register the same source.
+  e1 <- mock_enrichment(name = "eive", source = "EIVE")
+  e2 <- mock_enrichment(name = "eive", source = "EIVE")
+  result <- mock_taxify_result(enrichments = list(e1, e2))
+  out <- capture.output(cite(result))
+  n_eive <- sum(grepl("EIVE|eive", out))
+  expect_equal(n_eive, 1L)
+})
+
 test_that("cite() returns x invisibly", {
   result <- mock_taxify_result()
   ret <- withVisible(capture.output(val <- cite(result)))
@@ -146,4 +168,38 @@ test_that("format_bibtex_entry produces valid misc entry", {
   bib <- format_bibtex_entry(cit)
   expect_true(grepl("^@misc\\{wfo2024,", bib))
   expect_true(grepl("url = \\{http", bib))
+})
+
+
+# ---- clean_citation() / empty-field robustness ----
+
+# A manifest doi/url with no value arrives from jsonlite as a JSON null or {},
+# both read as a zero-length list. These slip past `%||%` and used to break
+# is.na()/nzchar() in the formatters.
+empty_field <- setNames(list(), character(0))  # the {} shape
+
+test_that("clean_citation drops empty {} / null fields", {
+  cit <- list(key = "x", type = "misc", authors = "A", year = "1998",
+              title = "T", doi = empty_field, url = NULL)
+  cleaned <- clean_citation(cit)
+  expect_false("doi" %in% names(cleaned))
+  expect_false("url" %in% names(cleaned))
+  expect_identical(cleaned$title, "T")
+})
+
+test_that("clean_citation keeps real scalar fields", {
+  cit <- list(key = "k", type = "article", authors = "A", year = "2023",
+              title = "T", doi = "10.3897/VCS.98324")
+  cleaned <- clean_citation(cit)
+  expect_identical(cleaned$doi, "10.3897/VCS.98324")
+})
+
+test_that("formatters do not error on a {} doi field", {
+  cit <- list(key = "julve1998", type = "misc", authors = "Julve P",
+              year = "1998", title = "baseflor", doi = empty_field)
+  cleaned <- clean_citation(cit)
+  expect_no_error(txt <- format_citation_text(cleaned))
+  expect_false(grepl("doi:", txt))
+  expect_no_error(bib <- format_bibtex_entry(cleaned))
+  expect_false(grepl("doi =", bib))
 })

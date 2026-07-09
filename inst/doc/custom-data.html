@@ -712,8 +712,8 @@ the built-in enrichment functions. Custom data and pre-built enrichments
 use the same <code>accepted_id</code> join key, so they can be stacked
 in any order.</p>
 <div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">add_conservation_status</span>() <span class="sc">|&gt;</span></span>
-<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>  <span class="fu">add_woodiness</span>() <span class="sc">|&gt;</span></span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
 <span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>  <span class="fu">add_data</span>(traits, <span class="at">species_col =</span> <span class="st">&quot;taxon&quot;</span>)</span></code></pre></div>
 <p>Each step appends columns to the result. The final data.frame
 contains the core <code>taxify()</code> output, IUCN conservation

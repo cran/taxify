@@ -4,10 +4,12 @@
 \alias{add_amphibio}
 \title{Add amphibian life-history traits (AmphiBIO)}
 \usage{
-add_amphibio(x, verbose = TRUE)
+add_amphibio(x, cols = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{A data.frame returned by \code{\link[=taxify]{taxify()}}.}
+
+\item{cols}{Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.}
 
 \item{verbose}{Logical. Default \code{TRUE}.}
 }
@@ -15,8 +17,8 @@ add_amphibio(x, verbose = TRUE)
 The same data.frame with additional columns:
 \describe{
 \item{body_size_mm}{Maximum body size in mm (snout-vent length).}
-\item{age_maturity_d}{Age at maturity in days.}
-\item{longevity_d}{Maximum longevity in days.}
+\item{age_maturity_y}{Age at maturity in years.}
+\item{longevity_yr}{Maximum longevity in years.}
 \item{litter_size}{Clutch/litter size.}
 \item{reproductive_output}{Reproductive output per year.}
 \item{offspring_size_mm}{Offspring size in mm.}

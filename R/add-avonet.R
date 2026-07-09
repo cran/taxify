@@ -4,6 +4,9 @@
 #' and migration to a [taxify()] result by looking up `accepted_name`.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach. `NULL` (the default) attaches the
+#'   curated set; a character vector of column names attaches just those, and
+#'   `"all"` attaches every column the source carries (see [enrichment_cols()]).
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -39,7 +42,7 @@
 #' options(old)
 #'
 #' @export
-add_avonet <- function(x, verbose = TRUE) {
+add_avonet <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     beak_length       = "beak_length",
     beak_depth        = "beak_depth",
@@ -53,21 +56,12 @@ add_avonet <- function(x, verbose = TRUE) {
     trophic_niche     = "trophic_niche",
     migration         = "migration"
   )
-  na_types <- list(
-    beak_length       = NA_real_,
-    beak_depth        = NA_real_,
-    wing_length       = NA_real_,
-    tail_length       = NA_real_,
-    tarsus_length     = NA_real_,
-    avonet_body_mass_g = NA_real_,
-    hand_wing_index   = NA_real_
-  )
   enrich_simple(
     x,
     enrichment_name = "avonet",
     col_map         = col_map,
     source_label    = "AVONET",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

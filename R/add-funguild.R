@@ -6,6 +6,7 @@
 #' for unmatched species.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -41,23 +42,19 @@
 #' options(old)
 #'
 #' @export
-add_funguild <- function(x, verbose = TRUE) {
+add_funguild <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     trophic_mode        = "trophic_mode",
     guild               = "guild",
     funguild_growth_form = "growth_morphology",
     confidence_ranking  = "confidence_ranking"
   )
-  na_types <- stats::setNames(
-    rep(list(NA_character_), length(col_map)),
-    names(col_map)
-  )
   enrich_simple(
     x,
     enrichment_name = "funguild",
     col_map         = col_map,
     source_label    = "FUNGuild",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

@@ -1,7 +1,12 @@
 # taxify
 
-*the species names never quite match*
+*offline taxonomic name resolution*
 
+[![CRAN status](https://www.r-pkg.org/badges/version/taxify)](https://CRAN.R-project.org/package=taxify)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/grand-total/taxify)](https://cran.r-project.org/package=taxify)
+[![Monthly downloads](https://cranlogs.r-pkg.org/badges/taxify)](https://cran.r-project.org/package=taxify)
+[![R-CMD-check](https://github.com/gcol33/taxify/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/gcol33/taxify/actions/workflows/R-CMD-check.yml)
+[![Codecov test coverage](https://codecov.io/gh/gcol33/taxify/graph/badge.svg)](https://app.codecov.io/gh/gcol33/taxify)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Offline taxonomic name matching against local Darwin Core backbones, with matching done in C.**
@@ -38,9 +43,9 @@ The closest local analogue is [taxadb](https://docs.ropensci.org/taxadb/), which
 backbone snapshots on disk; the [migration vignette](https://gillescolling.com/taxify/articles/migration.html)
 walks through the differences in matching strategy, output schema, and enrichment.
 
-## Ten backbones, one call
+## Thirteen backbones, one call
 
-`taxify` ships ten backbones as compressed `.vtr` files, downloaded once and matched
+`taxify` ships thirteen backbones as compressed `.vtr` files, downloaded once and matched
 locally. Pass several and they form a fallback chain: a name unmatched by the first
 backbone cascades to the next.
 
@@ -64,6 +69,9 @@ taxify(
 | [Euro+Med](https://europlusmed.org/) | European/Mediterranean plants | ~132k |
 | [Species Fungorum](https://www.speciesfungorum.org/) | Fungi | ~329k |
 | [AlgaeBase](https://www.algaebase.org/) | Algae | ~172k |
+| [FishBase](https://www.fishbase.org/) | Fishes | ~100k |
+| [SeaLifeBase](https://www.sealifebase.org/) | Non-fish marine/aquatic | ~134k |
+| [Reptile Database](http://www.reptile-database.org/) | Reptiles | ~50k |
 
 ## Names are cleaned before matching
 
@@ -94,10 +102,12 @@ against the local snapshot in C avoids the per-name cost of the CSV-into-RAM app
 
 ## What you get back
 
-`taxify()` returns one row per input name with a fixed 16-column schema: the matched and
-accepted names, IDs, rank, family, genus, epithet, authorship, synonym and hybrid flags,
-the match type (`exact`, `exact_ci`, `fuzzy`, or `none`), the fuzzy distance, the backend,
-and the backbone version used. `summary()` prints a compact digest of how the batch resolved.
+`taxify()` returns one row per input name with a fixed schema: the matched and accepted
+names with their IDs and authorship, rank, family, genus, epithet, synonym / hybrid /
+ambiguity flags, any taxonomic qualifier, the match type (`exact`, `exact_ci`, `fuzzy`,
+`abbrev`, `out_of_scope`, or `none`), the fuzzy distance, a coarse kingdom / taxon-group
+label, the backend, and the backbone version used. `summary()` prints a compact digest of
+how the batch resolved.
 
 ```r
 result <- taxify(c("Quercus robur", "Pinus abies", "Quercus robus", "Taraxacum officinale"))
@@ -105,31 +115,36 @@ summary(result)
 #> -- taxify results ----------------------------------------------------
 #>   backend: WFO  |  4 names submitted
 #>
-#>   matched         4  (exact: 2, case-insensitive: 0, fuzzy: 2)
-#>   unmatched       0
+#>   matched         4  (exact: 2, case-insensitive: 0, fuzzy: 2, abbrev: 0)
+#>   --------------------------------------------------------------
+#>   taxon groups: vascular plant: 4
 ```
 
 ## Trait and status enrichment
 
-Twenty-seven enrichment layers join published trait and status data to your results through
+More than eighty enrichment layers join published trait and status data to your results through
 the backbone-resolved accepted name, so synonyms in either dataset land on the same key:
 
 ```r
 # plants
 taxify(plant_names) |>
-  add_conservation_status() |>   # IUCN Red List
-  add_invasive_status("AT") |>   # GRIIS
-  add_woodiness() |>             # Zanne et al.
+  add_iucn() |>                  # IUCN Red List
+  add_griis("AT") |>             # GRIIS
+  add_zanne() |>                 # Zanne et al. woodiness
   add_eive()                     # EIVE indicator values
 
 # fish
 taxify(fish_names, backend = "col") |>
   add_fishbase() |>              # FishBase morphology & ecology
-  add_fish_traits()              # FISHMORPH functional traits
+  add_fishmorph()                # FISHMORPH functional traits
+
+# one trait, gathered across every source that has it
+taxify(plant_names) |>
+  add_trait("seed_mass")         # Diaz + GIFT, harmonized to mg
 ```
 
 Sources span all kingdoms: IUCN, GRIIS, GBIF common names, WCVP, EIVE, Diaz et al., LEDA,
-FungalTraits, FUNGuild, AlgaeTraits, EltonTraits, AVONET, PanTHERIA, AmphiBIO, FISHMORPH,
+GIFT, FungalTraits, FUNGuild, AlgaeTraits, EltonTraits, AVONET, PanTHERIA, AmphiBIO, FISHMORPH,
 FishBase, AnAge, GloNAF, LepTraits, AnimalTraits, and regional plant-trait sets for France
 (Baseflor), Britain (Ecoflora), and Germany (FloraWeb), and more. The
 [enrichments vignette](https://gillescolling.com/taxify/articles/enrichments.html) lists
@@ -144,7 +159,36 @@ result |> add_data("TRY_traits.csv")
 result |> add_data("TRY_traits.csv", cols = c("LeafArea", "SLA", "PlantHeight"))
 ```
 
+## Check a list before you trust it
+
+`inspect()` returns only the names that look wrong, each labelled with what
+stands out and the name to use instead. It catches typos, retired synonyms,
+made-up genera, near-duplicate spellings, and the lone animal in a list of
+plants, and ranks them by whether they need a decision, a second look, or just
+optional cleanup.
+
+```r
+inspect(field_names)                  # offline register and list checks
+inspect(field_names, backbones = TRUE) # also typos, synonyms, ambiguity
+```
+
+For regional field lists, `region` steers a fuzzy correction toward species
+that actually occur where you work, so a misspelling resolves to the plant that
+grows there even when a one-letter neighbour from another continent sits just as
+close in spelling. Pass a region name, a TDWG code, or coordinates.
+
+```r
+taxify(field_names, region = "Belgium")
+taxify(field_names, coords = c(4.35, 50.85))
+```
+
 ## Installation
+
+```r
+install.packages("taxify")
+```
+
+Or the development version from GitHub:
 
 ```r
 install.packages("pak")
@@ -156,8 +200,10 @@ pak::pak("gcol33/taxify")          # vectra is installed automatically
 - [Getting started](https://gillescolling.com/taxify/articles/quickstart.html)
 - [Choosing and combining backends](https://gillescolling.com/taxify/articles/backends.html)
 - [Fuzzy matching](https://gillescolling.com/taxify/articles/fuzzy-matching.html)
+- [Constraining matches to a region](https://gillescolling.com/taxify/articles/regions.html)
 - [Enrichments](https://gillescolling.com/taxify/articles/enrichments.html)
 - [Custom data](https://gillescolling.com/taxify/articles/custom-data.html)
+- [Inspecting a name list](https://gillescolling.com/taxify/articles/inspecting-names.html)
 - [Hybrid names](https://gillescolling.com/taxify/articles/hybrid-names.html)
 - [Migrating from taxize, WorldFlora, and related tools](https://gillescolling.com/taxify/articles/migration.html)
 - [Large-scale workflows](https://gillescolling.com/taxify/articles/large-scale.html)

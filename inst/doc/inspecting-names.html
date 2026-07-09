@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Inspecting a name list with inspect()</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Inspecting a name list with inspect()</h1>
+
+
+
+<div id="the-problem" class="section level2">
+<h2>The problem</h2>
+<p>A field list reaches you as a column of strings, and some of those
+strings are wrong. A genus is misspelled, an animal is sitting in a list
+of plants, a synonym slipped in from an old data sheet, the same species
+appears under two spellings. <code>taxify()</code> will resolve what it
+can and mark the rest, but it returns a row for every name, matched or
+not, so the problems are spread through a wide table. Before committing
+a list to analysis it helps to see only the names that look off, each
+with a short note on why.</p>
+<p><code>inspect()</code> is that pass. It returns one row per anomalous
+name, ordered most-notable first, each labelled with what stands out
+and, where known, the name to use instead. Clean names are dropped, so a
+short report means a clean list.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
+</div>
+<div id="a-first-look-without-matching" class="section level2">
+<h2>A first look, without matching</h2>
+<p>By default <code>inspect()</code> does not match anything. On a plain
+character vector it runs the checks that need no backbone: it asks the
+genus register whether each genus is a real one, and it compares each
+name against the rest of the batch. Both are fast and offline.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>,         <span class="co"># an animal among plants</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="st">&quot;Bogusia fakensis&quot;</span>,     <span class="co"># not a real genus</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="st">&quot;Festuca rubra&quot;</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="st">&quot;Festuca rubra&quot;</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="st">&quot;Festuca rubraa&quot;</span>,       <span class="co"># one stray letter</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>           <span class="co"># a synonym of Picea abies</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="fu">inspect</span>(names)</span></code></pre></div>
+<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
+#&gt;   8 names inspected  |  3 with anomalies
+#&gt;   backbones: none (register + list checks only)
+#&gt;   unresolved: 1   review: 2
+#&gt;   ────────────────────────────────────────────────────────────
+#&gt;   [unresolved] Bogusia fakensis  -&gt;  ?               genus &#39;Bogusia&#39; is not in the taxonomic register
+#&gt;   [review    ] Festuca rubraa    -&gt;  Festuca rubra   near-duplicate of more frequent &#39;Festuca rubra&#39;
+#&gt;   [review    ] Panthera leo      -&gt;  ?               animalia outlier (list is mostly plantae)</code></pre>
+<p>Three names surface. <em>Bogusia fakensis</em> uses a genus no
+backbone recognises, so it reads as not a real name. <em>Festuca
+rubraa</em> is one letter off a spelling that appears twice in the same
+list, the mark of a typo of it. <em>Panthera leo</em> is the lone animal
+in a list of plants, the pattern a cross-kingdom homonym typo leaves
+behind.</p>
+<p>Two names slip past this first pass. <em>Quercus robber</em> needs a
+backbone to recognise as a typo of <em>Quercus robur</em>, and <em>Pinus
+abies</em> is a valid-looking binomial whose synonymy only a backbone
+knows. Those are the match-based checks, and they are opt-in.</p>
+</div>
+<div id="the-labels" class="section level2">
+<h2>The labels</h2>
+<p>Each flagged name carries one or more labels in its
+<code>anomalies</code> column. The list-only checks need no
+matching:</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Label</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>unknown</code></td>
+<td>The genus is not in the register, the union of every backbone’s
+genera. No backbone recognises it.</td>
+</tr>
+<tr class="even">
+<td><code>near_duplicate</code></td>
+<td>A near-twin of a more frequent name in the same list, so probably a
+misspelling of it. Caught from the list alone, even for names no
+backbone holds.</td>
+</tr>
+<tr class="odd">
+<td><code>outlier_group</code></td>
+<td>The name’s kingdom group is a tiny minority of an otherwise coherent
+list, typically a cross-kingdom homonym typo.</td>
+</tr>
+</tbody>
+</table>
+<p>The remaining labels read from a <code>taxify()</code> result and
+only appear once matching has run:</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Label</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>typo</code></td>
+<td>Resolved only after fuzzy correction. The input most likely contains
+a spelling error; <code>suggestion</code> holds the corrected name.</td>
+</tr>
+<tr class="even">
+<td><code>synonym</code></td>
+<td>The input is an outdated synonym; <code>suggestion</code> holds the
+current accepted name.</td>
+</tr>
+<tr class="odd">
+<td><code>case</code></td>
+<td>Resolved only after ignoring case.</td>
+</tr>
+<tr class="even">
+<td><code>ambiguous</code></td>
+<td>A homonym resolving to more than one accepted taxon.</td>
+</tr>
+<tr class="odd">
+<td><code>geographic</code></td>
+<td>The matched species is real but has no record in a declared region
+(vascular plants, via WCVP).</td>
+</tr>
+<tr class="even">
+<td><code>out_of_range</code></td>
+<td>No region declared, yet the species’ range falls outside the list’s
+main continents.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="tiers" class="section level2">
+<h2>Tiers</h2>
+<p>Every flagged row also gets a <code>tier</code>. The tier says what
+the name needs, not how serious the problem is:</p>
+<ul>
+<li><code>unresolved</code>: no usable name came back, so the row needs
+a decision before analysis. <code>unknown</code> lands here.</li>
+<li><code>review</code>: a name is there, but its identity is uncertain.
+The identity checks (<code>typo</code>, <code>near_duplicate</code>,
+<code>ambiguous</code>, <code>geographic</code>,
+<code>out_of_range</code>, <code>outlier_group</code>) land here.</li>
+<li><code>note</code>: the name is correct, the change is optional
+cleanup. <code>case</code> and <code>synonym</code> land here.</li>
+</ul>
+<p>An anomaly can be intended. A list may genuinely include one animal
+among plants, or deliberately keep a synonym. The tier is a triage hint,
+so read it as a place to start rather than a verdict.</p>
+</div>
+<div id="turning-on-matching" class="section level2">
+<h2>Turning on matching</h2>
+<p>To pick up typos, synonyms, and ambiguity, let <code>inspect()</code>
+match. The simplest route is <code>backbones = TRUE</code>, which runs
+the names through every installed backbone and records which ones it
+used in the report header.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
+#&gt;   8 names inspected  |  4 with anomalies
+#&gt;   backbones: WFO, GBIF
+#&gt;   unresolved: 1   review: 2   note: 1
+#&gt;   ────────────────────────────────────────────────────────────
+#&gt;   [unresolved] Bogusia fakensis  -&gt;  ?              genus &#39;Bogusia&#39; is not in the taxonomic register
+#&gt;   [review    ] Festuca rubraa    -&gt;  Festuca rubra  likely misspelling; near-duplicate of more frequent &#39;Festuca rubra&#39;
+#&gt;   [review    ] Panthera leo      -&gt;  Panthera leo   animalia outlier (list is mostly plantae)
+#&gt;   [note      ] Pinus abies       -&gt;  Picea abies    outdated synonym</code></pre>
+<p>Now <em>Pinus abies</em> is recognised as a synonym and resolved to
+<em>Picea abies</em>, and <em>Festuca rubraa</em> carries both its
+list-context label and the fuzzy <code>typo</code> label that confirms
+it. <em>Panthera leo</em> now matches in GBIF, so it is no longer a
+candidate typo, but it remains a kingdom-group outlier in a plant
+list.</p>
+<p>If you have already matched the list, inspect the result instead of
+asking <code>inspect()</code> to match again. This reuses the exact
+backend, region, and options of your original call.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">taxify</span>(names, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="fu">inspect</span>()</span></code></pre></div>
+<p>The two routes return the same kind of report. Pass
+<code>backbones = TRUE</code> when you want a quick standalone check;
+pipe a result in when matching is already part of the workflow.</p>
+</div>
+<div id="geographic-checks" class="section level2">
+<h2>Geographic checks</h2>
+<p>When a list is regionally coherent, a species whose range sits
+elsewhere is worth a second look. With a declared <code>region</code>,
+<code>inspect()</code> flags matched species that WCVP does not record
+there.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>alpine <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Gentiana lutea&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Banksia serrata&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="fu">inspect</span>(<span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
+#&gt;   3 names inspected  |  1 with anomalies
+#&gt;   backbones: WFO
+#&gt;   review: 1
+#&gt;   ────────────────────────────────────────────────────────────
+#&gt;   [review] Banksia serrata  -&gt;  Banksia serrata  outside region per WCVP</code></pre>
+<p><em>Banksia serrata</em> is a real, well-matched name, so nothing
+else flags it. It is the geographic context that makes it stand out: an
+Australian shrub in a European list. The same check accepts
+<code>coords</code> instead of a region name, and a <code>range</code>
+argument to count only native or only introduced records. The <a href="https://gillescolling.com/taxify/articles/regions.html">geographic
+constraints vignette</a> covers those inputs in full.</p>
+<p>Without a declared region, the <code>out_of_range</code> check does
+the comparison from the list itself: it finds the continents that hold
+the bulk of the matched species and flags any species occurring on none
+of them. A globally spread list needs too many continents to reach that
+bulk, fails the coherence test, and flags nothing, so the check stays
+quiet unless the list is regionally tight. Both geographic checks use
+WCVP, which covers vascular plants only.</p>
+</div>
+<div id="reporting-fewer-rows" class="section level2">
+<h2>Reporting fewer rows</h2>
+<p>On a long list even the <code>note</code> rows add up.
+<code>min_tier</code> raises the floor so the report keeps only what
+needs action.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># only names that need a decision or a second look</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>, <span class="at">min_tier =</span> <span class="st">&quot;review&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
+#&gt;   8 names inspected  |  3 with anomalies
+#&gt;   backbones: WFO, GBIF
+#&gt;   unresolved: 1   review: 2
+#&gt;   ────────────────────────────────────────────────────────────
+#&gt;   [unresolved] Bogusia fakensis  -&gt;  ?              genus &#39;Bogusia&#39; is not in the taxonomic register
+#&gt;   [review    ] Festuca rubraa    -&gt;  Festuca rubra  likely misspelling; near-duplicate of more frequent &#39;Festuca rubra&#39;
+#&gt;   [review    ] Panthera leo      -&gt;  Panthera leo   animalia outlier (list is mostly plantae)</code></pre>
+<p><code>min_tier = &quot;review&quot;</code> drops the <code>note</code>-tier
+synonym; <code>min_tier = &quot;unresolved&quot;</code> would leave only the
+unknown name.</p>
+</div>
+<div id="what-needs-a-batch-and-what-needs-the-register" class="section level2">
+<h2>What needs a batch, and what needs the register</h2>
+<p>The list-context labels (<code>near_duplicate</code>,
+<code>outlier_group</code>, <code>out_of_range</code>) weigh a name
+against the rest of the batch, so they cannot apply to a single name.
+<code>inspect()</code> on one name warns and reports only the per-name
+labels.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">inspect</span>(<span class="st">&quot;Quercus robber&quot;</span>, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="co">#&gt; Warning: list-context anomaly checks need a batch of names; with a single</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; name only the per-name checks run.</span></span></code></pre></div>
+<p>The register checks (<code>unknown</code>, and the register-derived
+<code>outlier_group</code>) need the genus register installed. Without
+it they are skipped, with a message at <code>verbose = TRUE</code>, and
+the rest of the checks still run.</p>
+</div>
+<div id="the-report-is-a-data.frame" class="section level2">
+<h2>The report is a data.frame</h2>
+<p>Printing is a convenience. The object underneath is an ordinary
+data.frame with columns <code>input_name</code>,
+<code>suggestion</code>, <code>anomalies</code>, <code>tier</code>,
+<code>reason</code>, <code>fuzzy_dist</code>, and <code>backend</code>,
+so the report drops straight into a cleaning script.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>report <span class="ot">&lt;-</span> <span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co"># the names that came back with a confident replacement</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>fixes <span class="ot">&lt;-</span> report[<span class="sc">!</span><span class="fu">is.na</span>(report<span class="sc">$</span>suggestion), <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;suggestion&quot;</span>)]</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>fixes</span></code></pre></div>
+<pre><code>#&gt;      input_name    suggestion
+#&gt; 1 Festuca rubraa Festuca rubra
+#&gt; 2    Pinus abies   Picea abies</code></pre>
+<p><code>tier</code> is an ordered factor (<code>note</code> &lt;
+<code>review</code> &lt; <code>unresolved</code>), so
+<code>report[report$tier &gt;= &quot;review&quot;, ]</code> keeps the rows worth a
+person’s time. A typical loop is to run <code>inspect()</code>, apply
+the confident <code>suggestion</code>s, decide the handful of
+<code>unresolved</code> names by hand, then re-run <code>taxify()</code>
+on the corrected list.</p>
+</div>
+<div id="where-to-go-next" class="section level2">
+<h2>Where to go next</h2>
+<ul>
+<li><p><a href="https://gillescolling.com/taxify/articles/regions.html">Geographic
+constraints</a> for the <code>region</code>, <code>coords</code>, and
+<code>range</code> arguments the geographic checks share with
+<code>taxify()</code>.</p></li>
+<li><p><a href="https://gillescolling.com/taxify/articles/fuzzy-matching.html">Fuzzy
+matching</a> for how the <code>typo</code> label is produced and
+tuned.</p></li>
+<li><p><a href="https://gillescolling.com/taxify/articles/quickstart.html">Getting
+started</a> for the matching pipeline <code>inspect()</code> sits on top
+of. ```</p></li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

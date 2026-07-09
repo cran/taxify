@@ -54,14 +54,83 @@ read_enrichment_meta <- function(vtr_path) {
 #' @param name Character. Enrichment identifier.
 #' @return Logical. TRUE means a newer version is available.
 #' @noRd
+# Content identity of a built .vtr: the md5 of the file, used to detect a
+# same-tag republish (rebuilt asset re-uploaded under an unchanged release tag).
+# tools::md5sum is base R, so this adds no dependency.
+content_id_of <- function(vtr_path) {
+  if (is.null(vtr_path) || !file.exists(vtr_path)) return(NA_character_)
+  unname(tools::md5sum(vtr_path))
+}
+
+# Adopt a content id into an existing cache's meta.json (idempotent metadata
+# upgrade for a legacy cache whose bytes already match the shipped asset), so
+# later sessions compare the stored id instead of re-hashing the file. Works
+# for enrichments and backbones alike -- both keep a meta.json beside the .vtr.
+write_content_id_meta <- function(vtr_path, content_id) {
+  meta_path <- file.path(dirname(vtr_path), "meta.json")
+  meta <- if (file.exists(meta_path)) {
+    tryCatch(jsonlite::read_json(meta_path, simplifyVector = TRUE),
+             error = function(e) list())
+  } else list()
+  meta$content_id <- content_id
+  tryCatch(
+    jsonlite::write_json(meta, meta_path, pretty = TRUE, auto_unbox = TRUE),
+    error = function(e) NULL
+  )
+  invisible(content_id)
+}
+
+# Shared refresh decision by content identity, used by both the enrichment and
+# backbone version checks. Returns TRUE/FALSE, or NA when no content id is
+# shipped (the caller then keeps its legacy behaviour). A legacy cache with no
+# stored id is hashed in place when `hash_missing = TRUE` and, if its bytes
+# already match the shipped id, the id is adopted via `adopt` so later sessions
+# skip the hash. Backbones pass `hash_missing = FALSE` to avoid rehashing a
+# multi-GB file: they compare only the id their downloaded meta already carries.
+reconcile_content_id <- function(vtr_path, local_cid, bundled_cid,
+                                 adopt = NULL, hash_missing = TRUE) {
+  if (is.null(bundled_cid)) return(NA)
+  if (is.null(local_cid)) {
+    if (!isTRUE(hash_missing)) return(NA)
+    local_cid <- content_id_of(vtr_path)
+    if (identical(as.character(local_cid), as.character(bundled_cid)) &&
+        !is.null(adopt)) {
+      adopt(local_cid)
+    }
+  }
+  !identical(as.character(local_cid), as.character(bundled_cid))
+}
+
 check_enrichment_version <- function(name) {
+  # Never refresh against the read-only example database (offline fixtures).
+  if (is_example_data_dir()) return(FALSE)
+
   vtr_path <- enrichment_vtr_path(name)
   meta <- read_enrichment_meta(vtr_path)
 
   if (is.null(meta)) return(TRUE)  # No local copy
 
-  # Static enrichments (version-locked datasets) never need updates
-  if (isTRUE(meta$static)) return(FALSE)
+  # Static enrichments never phone home, but a same-tag republish would leave
+  # the cache stale forever. Reconcile against the bundled manifest's content
+  # id (a hash of the built .vtr) entirely offline: a package update ships a
+  # changed content id for any rebuilt asset, which forces a one-time refresh.
+  # A legacy cache with no stored id is hashed in place, so an unchanged asset
+  # is adopted without any download. When the bundled manifest carries no
+  # content id (older manifest), the historical "never update" behaviour holds.
+  if (isTRUE(meta$static)) {
+    # Only reconcile caches the runtime actually downloaded (downloaded_at is
+    # written by download_enrichment). Bundled example data and staged test
+    # mocks lack it and are deliberately left untouched -- they are subsets or
+    # fixtures whose bytes intentionally differ from the released asset, and
+    # must never be silently replaced by a full download.
+    if (is.null(meta$downloaded_at)) return(FALSE)
+    entry <- tryCatch(resolve_enrichment_entry(local_manifest(), name),
+                      error = function(e) NULL)
+    s <- reconcile_content_id(
+      vtr_path, meta$content_id, entry$content_id,
+      adopt = function(cid) write_content_id_meta(vtr_path, cid))
+    return(if (is.na(s)) FALSE else s)
+  }
 
   manifest <- fetch_manifest()
   entry <- resolve_enrichment_entry(manifest, name)
@@ -83,7 +152,7 @@ check_enrichment_version <- function(name) {
 #' 5. Build from source (if enrichment is in the build registry)
 #' 6. Error with report link
 #'
-#' @param name Character. Enrichment identifier (e.g., "conservation_status").
+#' @param name Character. Enrichment identifier (e.g., "iucn").
 #' @param verbose Logical.
 #' @return Character. Path to the .vtr file, or NULL if all paths failed
 #'   (only when called with `allow_null = TRUE` internally).
@@ -250,11 +319,14 @@ download_enrichment <- function(name, version = "latest", verbose = TRUE) {
 
   file.rename(tmp_path, vtr_path)
 
-  # Write meta.json
+  # Write meta.json. The content id is the md5 of the freshly downloaded file,
+  # which matches the manifest's content_id and lets the static-cache gate
+  # detect a future same-tag republish offline.
   meta <- list(
     version       = actual_version,
     static        = isTRUE(entry$static),
     pinned        = (version != "latest"),
+    content_id    = content_id_of(vtr_path),
     downloaded_at = format(Sys.Date(), "%Y-%m-%d")
   )
   jsonlite::write_json(
@@ -296,7 +368,7 @@ resolve_enrichment_entry <- function(manifest, name) {
 #' Downloads pre-built enrichment `.vtr` files from the taxify manifest.
 #'
 #' @param enrichment Character. One or more enrichment names (e.g.,
-#'   `"conservation_status"`, `"griis"`, `"woodiness"`).
+#'   `"iucn"`, `"griis"`, `"zanne"`).
 #' @param version Character. `"latest"` (default) or a specific version string.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The path(s) to the downloaded `.vtr` file(s) (invisibly).
@@ -304,9 +376,9 @@ resolve_enrichment_entry <- function(manifest, name) {
 #' @details
 #' Available enrichments:
 #' \describe{
-#'   \item{conservation_status}{IUCN conservation status (LC/NT/VU/EN/CR/EW/EX)}
+#'   \item{iucn}{IUCN conservation status (LC/NT/VU/EN/CR/EW/EX)}
 #'   \item{griis}{GRIIS invasive species status by country}
-#'   \item{woodiness}{Zanne et al. 2014 woody/herbaceous classification}
+#'   \item{zanne}{Zanne et al. 2014 woody/herbaceous classification}
 #'   \item{wcvp}{WCVP native range by TDWG botanical region}
 #'   \item{eive}{EIVE 1.0 ecological indicator values (European plants)}
 #'   \item{diaz_traits}{Diaz et al. 2022 seed mass and plant height}
@@ -332,6 +404,67 @@ taxify_download_enrichment <- function(enrichment,
 # ---- Shared enrichment join helpers ----
 
 
+#' NA sentinel matching a column's storage type
+#'
+#' Returns the typed `NA` that keeps an output column the same type as its
+#' source column, so a door never has to hand-declare `na_types`.
+#'
+#' @param v A prototype value (one element of the source column).
+#' @return `NA_integer_`, `NA_real_`, `NA` (logical), or `NA_character_`.
+#' @noRd
+na_sentinel_for <- function(v) {
+  if (is.integer(v)) NA_integer_
+  else if (is.numeric(v)) NA_real_
+  else if (is.logical(v)) NA
+  else NA_character_
+}
+
+
+#' Build aggregate-aware candidate join keys for a species-level enrichment
+#'
+#' Encodes the trait-inheritance rule: traits flow down the hierarchy
+#' (aggregate -> species), never up. An aggregate-concept query takes only the
+#' aggregate key (`"<binomial> aggr."`); a species query takes its own name
+#' first, then the aggregate key as a fallback (case 3, inherit down). Aggregate
+#' markers are canonicalized so the keys line up with enrichment sources
+#' regardless of spelling.
+#'
+#' @param acc Character vector of accepted names (the join column).
+#' @param qualifier Character vector of canonical qualifiers from `taxify()`
+#'   (`NA` when absent — every row is then treated as a species query).
+#' @return A list with `primary` and `inherit` character vectors (same length
+#'   as `acc`); `inherit` is `NA` for aggregate queries.
+#' @noRd
+agg_join_keys <- function(acc, qualifier) {
+  if (is.null(qualifier)) qualifier <- rep(NA_character_, length(acc))
+  is_agg   <- !is.na(qualifier) & qualifier %in% .aggregate_tokens
+  binom    <- strip_agg_marker(acc)
+  agg_form <- ifelse(!is.na(binom), paste0(binom, " aggr."), NA_character_)
+  list(
+    primary = ifelse(is_agg, agg_form, canon_agg_marker(acc)),
+    inherit = ifelse(is_agg, NA_character_, agg_form)
+  )
+}
+
+
+#' Resolve aggregate-aware join keys against an enrichment key vector
+#'
+#' Picks the primary-key hit when present, else the downward-inheritance hit.
+#'
+#' @param keys List from `agg_join_keys()`.
+#' @param enr_key Character vector of canonicalized enrichment lookup keys.
+#' @return A list with `idx` (row index into `enr_key` per query row, `NA` for
+#'   no match) and `inherited` (logical; `TRUE` where the value came from the
+#'   aggregate fallback rather than an exact same-level hit).
+#' @noRd
+agg_select_idx <- function(keys, enr_key) {
+  idx_p <- match(keys$primary, enr_key)
+  idx_i <- match(keys$inherit, enr_key)
+  inherited <- is.na(idx_p) & !is.na(idx_i)
+  list(idx = ifelse(!is.na(idx_p), idx_p, idx_i), inherited = inherited)
+}
+
+
 #' In-memory enrichment join from a data.frame (emergency fallback)
 #'
 #' Joins an in-memory data.frame (from `enrichment_emergency_fallback()`) to
@@ -354,14 +487,19 @@ enrich_from_dataframe <- function(x, df, enrichment_name, col_map,
   col_map <- col_map[col_map %in% names(df)]
   if (length(col_map) == 0L) return(x)
 
-  # Initialize output columns
+  # Initialize output columns, typing each NA sentinel from its source column
+  # (numeric -> NA_real_, else NA_character_) unless na_types overrides it.
+  if (is.null(na_types)) na_types <- list()
   for (out_col in names(col_map)) {
-    na_val <- if (!is.null(na_types) && out_col %in% names(na_types)) {
-      na_types[[out_col]]
-    } else {
-      NA_character_
+    if (is.null(na_types[[out_col]])) {
+      src <- col_map[[out_col]]
+      na_types[[out_col]] <- if (src %in% names(df)) {
+        na_sentinel_for(df[[src]])
+      } else {
+        NA_character_
+      }
     }
-    x[[out_col]] <- na_val
+    x[[out_col]] <- na_types[[out_col]]
   }
 
   # License lookup is delegated to taxifydb; emergency fallback leaves it unset.
@@ -376,9 +514,23 @@ enrich_from_dataframe <- function(x, df, enrichment_name, col_map,
                                "emergency", 0L, license = lic))
   }
 
-  # Vectorized fill via match()
-  df <- df[!duplicated(df[[df_join_key]]), , drop = FALSE]
-  idx <- match(x[[join_col]], df[[df_join_key]])
+  # Resolve a per-row index into df (aggregate-aware for species-level joins)
+  if (join_col == "accepted_name") {
+    keys    <- agg_join_keys(x[[join_col]], x[["qualifier"]])
+    enr_key <- canon_agg_marker(df[[df_join_key]])
+    keep    <- !duplicated(enr_key)
+    df      <- df[keep, , drop = FALSE]
+    enr_key <- enr_key[keep]
+    sel <- agg_select_idx(keys, enr_key)
+    idx <- sel$idx
+    if (isTRUE(getOption("taxify.trait_provenance", FALSE))) {
+      x[[paste0(enrichment_name, "_inherited")]] <- sel$inherited
+    }
+  } else {
+    df  <- df[!duplicated(df[[df_join_key]]), , drop = FALSE]
+    idx <- match(x[[join_col]], df[[df_join_key]])
+  }
+
   matched <- which(!is.na(idx))
   for (out_col in names(col_map)) {
     src_col <- col_map[[out_col]]
@@ -425,18 +577,25 @@ enrich_from_dataframe_grouped <- function(x, df, enrichment_name, group_col,
     groups <- groups[!is.na(groups)]
   }
 
-  # Build output column names and initialize with correct NA types
+  # Build output column names, typing each NA sentinel from its source column
+  # in df (unless na_types overrides it), then initialize per group.
+  if (is.null(na_types)) na_types <- list()
+  for (base_col in names(value_cols)) {
+    if (is.null(na_types[[base_col]])) {
+      src <- value_cols[[base_col]]
+      na_types[[base_col]] <- if (src %in% names(df)) {
+        na_sentinel_for(df[[src]])
+      } else {
+        NA_character_
+      }
+    }
+  }
   out_cols <- character(0L)
   for (g in groups) {
     for (base_col in names(value_cols)) {
       out_col <- if (length(groups) == 1L) base_col else paste0(base_col, "_", g)
       out_cols <- c(out_cols, out_col)
-      na_val <- if (!is.null(na_types) && base_col %in% names(na_types)) {
-        na_types[[base_col]]
-      } else {
-        NA_character_
-      }
-      x[[out_col]] <- na_val
+      x[[out_col]] <- na_types[[base_col]]
     }
   }
 
@@ -554,8 +713,8 @@ try_emergency_fallback <- function(name, download_error = NULL, verbose = TRUE) 
 #' Simple name-based enrichment join
 #'
 #' Joins an enrichment .vtr on `accepted_name == canonical_name`. Used by
-#' enrichment functions that add columns without filtering (conservation_status,
-#' woodiness, indicator_values, etc.).
+#' enrichment functions that add columns without filtering (iucn,
+#' zanne, indicator_values, etc.).
 #'
 #' @param x A taxify_result data.frame.
 #' @param enrichment_name Character. Enrichment identifier for ensure/download.
@@ -569,12 +728,131 @@ try_emergency_fallback <- function(name, download_error = NULL, verbose = TRUE) 
 #' @param verbose Logical.
 #' @return The enriched data.frame.
 #' @noRd
+# Read the attachable trait columns of an enrichment .vtr: every column bar the
+# join keys, with its type ("numeric"/"character"). Optionally restrict to a
+# name prefix. Returns data.frame(column, type), or NULL if the enrichment is
+# unavailable (no download and no taxifydb to build it). Shared by add_gift(),
+# the enrichment_cols() browse, and any door offering a cols= selector.
+.enrichment_available_cols <- function(enrichment_name, prefix = NULL,
+                                       verbose = TRUE) {
+  vtr_path <- ensure_enrichment(enrichment_name, verbose = verbose)
+  if (is.null(vtr_path)) return(NULL)
+  head1 <- vectra::tbl(vtr_path) |> utils::head(1L) |> vectra::collect()
+  cols  <- setdiff(names(head1), c("canonical_name", "accepted_name", "genus"))
+  if (!is.null(prefix)) cols <- grep(paste0("^", prefix), cols, value = TRUE)
+  if (length(cols) == 0L) return(NULL)
+  types <- vapply(cols, function(cc)
+    if (is.numeric(head1[[cc]])) "numeric" else "character", character(1))
+  data.frame(column = cols, type = unname(types), stringsAsFactors = FALSE)
+}
+
+
+# Resolve a user `cols` selection to a subset of `col_map` (names = the output
+# columns a door attaches). NULL -> default_cols, or every column when no
+# default; "all" -> every column; a character vector -> those columns, tolerant
+# of a missing `prefix` (so gift's "plant_height_max" resolves to
+# "gift_plant_height_max"). Errors with a browse pointer on unknown names.
+.apply_col_selection <- function(col_map, cols, default_cols, prefix,
+                                 enrichment_name) {
+  out <- names(col_map)
+  if (is.null(cols)) {
+    sel <- if (is.null(default_cols)) out else intersect(default_cols, out)
+    return(col_map[sel])
+  }
+  if (length(cols) == 1L && identical(tolower(cols), "all")) return(col_map)
+  want <- as.character(cols)
+  cand <- if (is.null(prefix)) want else
+    ifelse(grepl(paste0("^", prefix), want), want, paste0(prefix, want))
+  idx  <- match(tolower(cand), tolower(out))
+  if (anyNA(idx)) {
+    stop(sprintf(paste0(
+      "add_%s(): unknown column(s): %s. Pass column names, \"all\", or NULL ",
+      "for the default set. See enrichment_cols(\"%s\")."),
+      enrichment_name, paste(want[is.na(idx)], collapse = ", "),
+      enrichment_name), call. = FALSE)
+  }
+  col_map[out[idx]]
+}
+
+
+#' Browse the trait columns an enrichment door can attach
+#'
+#' Lists the columns available from an enrichment's pre-built `.vtr`, so you can
+#' choose which to attach through the doors that accept a `cols` argument (such
+#' as [add_gift()] and [add_floraweb()]). Read offline from the local `.vtr`;
+#' the first call may trigger the one-time download.
+#'
+#' @param source Character. An enrichment name (see [list_enrichments()]).
+#' @return A data.frame with one row per column: `column` (the name) and `type`
+#'   (`"numeric"` or `"character"`).
+#' @seealso [add_gift()], [add_floraweb()], [list_enrichments()]
+#' @examples
+#' \donttest{
+#' old <- options(taxify.data_dir = taxify_example_data())
+#' enrichment_cols("gift")
+#' options(old)
+#' }
+#' @export
+enrichment_cols <- function(source) {
+  ac <- .enrichment_available_cols(source, verbose = FALSE)
+  if (is.null(ac)) {
+    stop(sprintf(paste0(
+      "enrichment_cols(): enrichment '%s' is not available. It downloads on ",
+      "first use; install 'taxifydb' to build it, or check your connection."),
+      source), call. = FALSE)
+  }
+  ac
+}
+
+
 enrich_simple <- function(x, enrichment_name, col_map, source_label,
                           na_types = NULL, join_col = "accepted_name",
-                          verbose = TRUE) {
+                          cols = NULL, default_cols = NULL, col_prefix = NULL,
+                          expose_all = TRUE, verbose = TRUE) {
   if (!join_col %in% names(x)) {
     stop(sprintf("x must have a '%s' column (from taxify())", join_col),
          call. = FALSE)
+  }
+
+  # Expose every other column the .vtr carries (the sources were widened at
+  # build time so no trait is dropped), while keeping the door's curated
+  # col_map as the default output. One place makes all doors cols=-aware: the
+  # default attaches the curated set, cols = "all" attaches everything, cols =
+  # <names> picks any. Doors that manage selection themselves (default_cols
+  # given, e.g. add_gift) opt out.
+  if (isTRUE(expose_all) && is.null(default_cols)) {
+    av <- tryCatch(.enrichment_available_cols(enrichment_name, verbose = FALSE),
+                   error = function(e) NULL)
+    if (!is.null(av)) {
+      extra <- setdiff(av$column, unname(col_map))
+      if (length(extra) > 0L) {
+        default_cols <- names(col_map)               # curated output = default
+        ex_out <- make.unique(c(names(col_map), extra))[-seq_along(col_map)]
+        col_map <- c(col_map, stats::setNames(extra, ex_out))
+        if (is.null(na_types)) na_types <- list()
+        et <- av$type[match(extra, av$column)]
+        for (k in seq_along(ex_out)) {
+          na_types[[ex_out[k]]] <-
+            if (identical(et[k], "numeric")) NA_real_ else NA_character_
+        }
+      }
+    }
+  }
+
+  # User column selection (only engaged when a door forwards cols/default_cols).
+  if (!is.null(cols) || !is.null(default_cols)) {
+    full_n  <- length(col_map)
+    col_map <- .apply_col_selection(col_map, cols, default_cols, col_prefix,
+                                    enrichment_name)
+    if (is.null(cols) && !is.null(default_cols) && verbose &&
+        length(col_map) < full_n &&
+        is.null(.taxify_env[[paste0(".cols_notice.", enrichment_name)]])) {
+      message(sprintf(paste0(
+        "add_%s(): attaching %d of %d columns. Pass cols = \"all\" for all, ",
+        "or see enrichment_cols(\"%s\")."),
+        enrichment_name, length(col_map), full_n, enrichment_name))
+      .taxify_env[[paste0(".cols_notice.", enrichment_name)]] <- TRUE
+    }
   }
 
   vtr_path <- ensure_enrichment(enrichment_name, verbose = verbose)
@@ -588,14 +866,22 @@ enrich_simple <- function(x, enrichment_name, col_map, source_label,
                                  join_col = join_col))
   }
 
-  # Initialize output columns
+  # Read the .vtr schema once: it types the output columns and confirms which
+  # source columns exist. NA sentinels are derived from the source column's type
+  # (numeric -> NA_real_, else NA_character_), so a door never hand-declares
+  # na_types; an explicit na_types entry still wins.
+  schema <- vectra::tbl(vtr_path) |> utils::head(1L) |> vectra::collect()
+  if (is.null(na_types)) na_types <- list()
   for (out_col in names(col_map)) {
-    na_val <- if (!is.null(na_types) && out_col %in% names(na_types)) {
-      na_types[[out_col]]
-    } else {
-      NA_character_
+    if (is.null(na_types[[out_col]])) {
+      src <- col_map[[out_col]]
+      na_types[[out_col]] <- if (src %in% names(schema)) {
+        na_sentinel_for(schema[[src]])
+      } else {
+        NA_character_
+      }
     }
-    x[[out_col]] <- na_val
+    x[[out_col]] <- na_types[[out_col]]
   }
 
   valid_rows <- which(!is.na(x[[join_col]]))
@@ -607,8 +893,6 @@ enrich_simple <- function(x, enrichment_name, col_map, source_label,
                                license = lic))
   }
 
-  # Check which source columns exist in the .vtr
-  schema <- vectra::tbl(vtr_path) |> utils::head(1L) |> vectra::collect()
   available_src <- intersect(unname(col_map), names(schema))
   if (length(available_src) == 0L) {
     meta <- read_enrichment_meta(vtr_path)
@@ -620,14 +904,6 @@ enrich_simple <- function(x, enrichment_name, col_map, source_label,
 
   # Filter col_map to available columns
   col_map <- col_map[col_map %in% available_src]
-
-  # Build temp .vtr with unique lookup values
-  names_unique <- unique(x[[join_col]][valid_rows])
-  names_df <- data.frame(lookup_name = names_unique, stringsAsFactors = FALSE)
-  tmp <- tempfile(fileext = ".vtr")
-  on.exit(unlink(tmp), add = TRUE)
-
-  vectra::write_vtr(names_df, tmp)
 
   # Determine join key in enrichment .vtr
   # For genus-level enrichments, prefer the "genus" column when join_col is
@@ -644,6 +920,25 @@ enrich_simple <- function(x, enrichment_name, col_map, source_label,
       enrichment_name, join_col
     ), call. = FALSE)
   }
+
+  # Species-level joins are aggregate-aware: an aggregate query reaches the
+  # aggregate trait row, and a species query inherits an aggregate-level trait
+  # when no species-level one exists (downward inheritance only). Genus-level
+  # joins keep plain exact matching.
+  agg_aware <- join_col == "accepted_name"
+  if (agg_aware) {
+    keys <- agg_join_keys(x[[join_col]], x[["qualifier"]])
+    lookup_pool <- unique(c(keys$primary[valid_rows], keys$inherit[valid_rows]))
+    lookup_pool <- lookup_pool[!is.na(lookup_pool)]
+  } else {
+    lookup_pool <- unique(x[[join_col]][valid_rows])
+  }
+
+  # Build temp .vtr with the lookup keys
+  names_df <- data.frame(lookup_name = lookup_pool, stringsAsFactors = FALSE)
+  tmp <- tempfile(fileext = ".vtr")
+  on.exit(unlink(tmp), add = TRUE)
+  vectra::write_vtr(names_df, tmp)
 
   # Select only needed columns from enrichment .vtr
   select_cols <- unique(c(join_key, unname(col_map)))
@@ -662,9 +957,22 @@ enrich_simple <- function(x, enrichment_name, col_map, source_label,
                                license = lic))
   }
 
-  # Vectorized fill via match()
-  joined <- joined[!duplicated(joined$lookup_name), , drop = FALSE]
-  idx <- match(x[[join_col]], joined$lookup_name)
+  # Resolve a per-row index into `joined`
+  if (agg_aware) {
+    enr_key <- canon_agg_marker(joined$lookup_name)
+    keep    <- !duplicated(enr_key)
+    joined  <- joined[keep, , drop = FALSE]
+    enr_key <- enr_key[keep]
+    sel <- agg_select_idx(keys, enr_key)
+    idx <- sel$idx
+    if (isTRUE(getOption("taxify.trait_provenance", FALSE))) {
+      x[[paste0(enrichment_name, "_inherited")]] <- sel$inherited
+    }
+  } else {
+    joined <- joined[!duplicated(joined$lookup_name), , drop = FALSE]
+    idx <- match(x[[join_col]], joined$lookup_name)
+  }
+
   matched <- which(!is.na(idx))
   for (out_col in names(col_map)) {
     src_col <- col_map[[out_col]]
@@ -704,7 +1012,8 @@ enrich_simple <- function(x, enrichment_name, col_map, source_label,
 #' @noRd
 enrich_by_group <- function(x, enrichment_name, group_col, groups,
                             value_cols, source_label,
-                            na_types = NULL, verbose = TRUE) {
+                            na_types = NULL, cols = NULL, expose_all = TRUE,
+                            verbose = TRUE) {
   if (!"accepted_name" %in% names(x)) {
     stop("x must have an 'accepted_name' column (from taxify())", call. = FALSE)
   }
@@ -738,6 +1047,38 @@ enrich_by_group <- function(x, enrichment_name, group_col, groups,
     ), call. = FALSE)
   }
 
+  # Expose every other per-(species, group) column the widened .vtr carries,
+  # defaulting output to the door's curated value_cols. cols selects among them
+  # ("all" or a vector); the extras keep their .vtr names.
+  if (isTRUE(expose_all)) {
+    reserved <- c(join_key, group_col, "canonical_name", "accepted_name",
+                  "genus", unname(value_cols))
+    extra <- setdiff(names(schema), reserved)
+    extra <- extra[!is.na(extra) & nzchar(extra)]
+    if (length(extra) > 0L) {
+      default_vc <- names(value_cols)
+      ex_out <- make.unique(c(names(value_cols), extra))[-seq_along(value_cols)]
+      value_cols <- c(value_cols, stats::setNames(extra, ex_out))
+      if (is.null(na_types)) na_types <- list()
+      for (k in seq_along(ex_out)) {
+        na_types[[ex_out[k]]] <-
+          if (is.numeric(schema[[extra[k]]])) NA_real_ else NA_character_
+      }
+      sel <- if (is.null(cols)) default_vc
+             else if (length(cols) == 1L && identical(tolower(cols), "all"))
+               names(value_cols)
+             else {
+               idx <- match(tolower(cols), tolower(names(value_cols)))
+               if (anyNA(idx)) stop(sprintf(
+                 "add_%s(): unknown column(s): %s. Use \"all\", names, or NULL.",
+                 enrichment_name, paste(cols[is.na(idx)], collapse = ", ")),
+                 call. = FALSE)
+               names(value_cols)[idx]
+             }
+      value_cols <- value_cols[sel]
+    }
+  }
+
   # Resolve "all" groups: manifest (O(1)) → vectra distinct() (fallback)
   if (length(groups) == 1L && !anyNA(groups) && groups == "all") {
     manifest <- tryCatch(fetch_manifest(), error = function(e) NULL)
@@ -764,18 +1105,25 @@ enrich_by_group <- function(x, enrichment_name, group_col, groups,
     .taxify_env[[".taxify_long_tip_shown"]] <- TRUE
   }
 
-  # Build output column names and initialize with correct NA types
+  # Build output column names, typing each NA sentinel from its source column
+  # (unless na_types overrides it), then initialize per group.
+  if (is.null(na_types)) na_types <- list()
+  for (base_col in names(value_cols)) {
+    if (is.null(na_types[[base_col]])) {
+      src <- value_cols[[base_col]]
+      na_types[[base_col]] <- if (src %in% names(schema)) {
+        na_sentinel_for(schema[[src]])
+      } else {
+        NA_character_
+      }
+    }
+  }
   out_cols <- character(0L)
   for (g in groups) {
     for (base_col in names(value_cols)) {
       out_col <- if (length(groups) == 1L) base_col else paste0(base_col, "_", g)
       out_cols <- c(out_cols, out_col)
-      na_val <- if (!is.null(na_types) && base_col %in% names(na_types)) {
-        na_types[[base_col]]
-      } else {
-        NA_character_
-      }
-      x[[out_col]] <- na_val
+      x[[out_col]] <- na_types[[base_col]]
     }
   }
 

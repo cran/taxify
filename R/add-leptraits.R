@@ -4,6 +4,7 @@
 #' [taxify()] result by looking up `accepted_name`.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -36,7 +37,7 @@
 #' options(old)
 #'
 #' @export
-add_leptraits <- function(x, verbose = TRUE) {
+add_leptraits <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     wingspan_mm           = "wingspan_mm",
     voltinism             = "voltinism",
@@ -48,23 +49,12 @@ add_leptraits <- function(x, verbose = TRUE) {
     n_hostplant_families  = "n_hostplant_families",
     flight_months         = "flight_months"
   )
-  na_types <- list(
-    wingspan_mm          = NA_real_,
-    voltinism            = NA_real_,
-    diapause_stage       = NA_character_,
-    canopy_affinity      = NA_character_,
-    edge_affinity        = NA_character_,
-    moisture_affinity    = NA_character_,
-    disturbance_affinity = NA_character_,
-    n_hostplant_families = NA_integer_,
-    flight_months        = NA_integer_
-  )
   enrich_simple(
     x,
     enrichment_name = "leptraits",
     col_map         = col_map,
     source_label    = "LepTraits",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

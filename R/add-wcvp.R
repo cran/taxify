@@ -4,14 +4,18 @@
 #' data to a [taxify()] result, filtered by TDWG botanical region.
 #'
 #' @param x A data.frame returned by [taxify()].
-#' @param region Character. TDWG Level 2 region code(s), or `"all"`.
+#' @param region Character. TDWG Level 3 region code(s), or `"all"`. See
+#'   [taxify_regions()] for the full list of codes.
 #'   \itemize{
-#'     \item Single code (e.g., `"EUR"`): adds `native_status` column
-#'       (no suffix).
-#'     \item Multiple codes (e.g., `c("EUR", "NAM")`): adds
-#'       `native_status_EUR`, `native_status_NAM`.
+#'     \item Single code (e.g., `"BGM"` for Belgium): adds `native_status`
+#'       column (no suffix).
+#'     \item Multiple codes (e.g., `c("BGM", "GER")`): adds
+#'       `native_status_BGM`, `native_status_GER`.
 #'     \item `"all"`: adds one column per region in the dataset.
 #'   }
+#' @param cols Which columns to attach. `NULL` (the default) attaches the
+#'   curated set; a character vector of column names attaches just those, and
+#'   `"all"` attaches every column the source carries (see [enrichment_cols()]).
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional column(s):
 #' \describe{
@@ -36,9 +40,9 @@
 #' options(old)
 #'
 #' @export
-add_wcvp <- function(x, region, verbose = TRUE) {
+add_wcvp <- function(x, region, cols = NULL, verbose = TRUE) {
   if (missing(region)) {
-    stop("'region' is required. Use a TDWG Level 2 code (e.g., \"EUR\") or \"all\".",
+    stop("'region' is required. Use a TDWG Level 3 code (e.g., \"BGM\") or \"all\".",
          call. = FALSE)
   }
   enrich_by_group(
@@ -48,6 +52,7 @@ add_wcvp <- function(x, region, verbose = TRUE) {
     groups          = region,
     value_cols      = c(native_status = "native_status"),
     source_label    = "WCVP (Kew)",
+    cols            = cols,
     verbose         = verbose
   )
 }

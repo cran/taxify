@@ -15,6 +15,33 @@ knitr::opts_chunk$set(
 # #> 3                wcvp  ...  340000  FALSE                        native_status ...
 # #> ...
 
+## ----list-traits--------------------------------------------------------------
+# list_traits()
+# #>          trait              label        kind   unit n_sources    sources
+# #> 1    woodiness          Woodiness categorical   <NA>         2 zanne, gift
+# #> 2 plant_height       Plant height     numeric      m         2  diaz, gift
+# #> 3    seed_mass          Seed mass     numeric     mg         2  diaz, gift
+# #> 4          sla Specific leaf area     numeric mm2/mg         2  leda, gift
+
+## ----add-trait-coalesce-------------------------------------------------------
+# taxify("Abies alba") |>
+#   add_trait("seed_mass")
+# #> # accepted_name  ... seed_mass seed_mass_unit seed_mass_sources seed_mass_n
+# #> # Abies alba     ...   67.9748             mg        diaz,gift            2
+
+## ----add-trait-wide-----------------------------------------------------------
+# taxify("Abies alba") |>
+#   add_trait("woodiness", mode = "wide")
+# #> # accepted_name  ... woodiness_zanne woodiness_gift
+# #> # Abies alba     ...           woody          woody
+
+## ----trait-info---------------------------------------------------------------
+# trait_info("seed_mass")
+# #> Seed mass (numeric, mg)  |  default priority: diaz > gift
+# #>   source  enrichment       column                   note caution
+# #> 1   diaz diaz_traits seed_mass_mg            Milligrams.      NA
+# #> 2   gift        gift gift_seed_mass_mean GIFT grams -> mg.    NA
+
 ## ----pre-download-------------------------------------------------------------
 # # Download a single enrichment
 # taxify_download_enrichment("conservation_status")
@@ -28,7 +55,7 @@ knitr::opts_chunk$set(
 #   "elton_traits", "avonet", "pantheria", "amphibio",
 #   "common_names", "woodiness", "diaz_traits", "leda",
 #   "fungal_traits", "funguild", "algae_traits",
-#   "fish_traits", "fishbase", "lizard_traits", "anage", "glonaf",
+#   "fish_traits", "fishbase", "repttraits", "anage", "glonaf",
 #   "leptraits", "animaltraits", "arthropod_traits", "alien_first_records",
 #   "baseflor", "ecoflora", "floraweb"
 # ))
@@ -39,7 +66,7 @@ knitr::opts_chunk$set(
 #   "Festuca rubra", "Salix caprea", "Cornus sanguinea"
 # ))
 # 
-# plants |> add_woodiness()
+# plants |> add_zanne()
 # #>               input_name       accepted_name woodiness
 # #> 1          Quercus robur       Quercus robur     woody
 # #> 2        Betula pendula      Betula pendula     woody
@@ -92,6 +119,27 @@ knitr::opts_chunk$set(
 #   add_ecoflora() |>
 #   add_floraweb()
 
+## ----fungalroot---------------------------------------------------------------
+# taxify(c("Quercus robur", "Pinus sylvestris", "Trifolium pratense",
+#          "Vaccinium myrtillus", "Brassica oleracea")) |>
+#   add_fungalroot()
+# #>          input_name     genus mycorrhizal_type mycorrhizal_status mycorrhizal_records
+# #> 1       Quercus robur   Quercus              EcM        mycorrhizal                 163
+# #> 2    Pinus sylvestris     Pinus              EcM        mycorrhizal                 500
+# #> 3  Trifolium pratense Trifolium               AM        mycorrhizal                 193
+# #> 4 Vaccinium myrtillus Vaccinium              ErM        mycorrhizal                 227
+# #> 5   Brassica oleracea  Brassica               NM    non-mycorrhizal                  59
+
+## ----gift, eval=FALSE---------------------------------------------------------
+# taxify(c("Abies alba", "Quercus robur")) |>
+#   add_gift()
+
+## ----gift-select, eval=FALSE--------------------------------------------------
+# gift_traits()                                   # available trait columns
+# 
+# taxify(c("Abies alba", "Quercus robur")) |>
+#   add_gift(cols = c("plant_height_max", "sla_mean", "woodiness_1"))
+
 ## ----conservation-status------------------------------------------------------
 # species <- taxify(c(
 #   "Panthera tigris", "Ailuropoda melanoleuca",
@@ -99,7 +147,7 @@ knitr::opts_chunk$set(
 #   "Passer domesticus", "Quercus robur"
 # ))
 # 
-# species |> add_conservation_status()
+# species |> add_iucn()
 # #>            input_name conservation_status
 # #> 1     Panthera tigris                  EN
 # #> 2 Ailuropoda melanoleuca               VU
@@ -215,7 +263,7 @@ knitr::opts_chunk$set(
 #   "Perca fluviatilis", "Silurus glanis"
 # ))
 # 
-# freshwater_fish |> add_fish_traits()
+# freshwater_fish |> add_fishmorph()
 # #>        input_name fish_body_elongation fish_eye_size fish_oral_gape_position fish_body_lateral_shape ...
 # #> 1    Salmo trutta                 0.22          0.08                    0.42                    0.18 ...
 # #> 2    Esox lucius                  0.18          0.06                    0.50                    0.15 ...
@@ -237,19 +285,19 @@ knitr::opts_chunk$set(
 # #> 4    Squalus acanthias            160.0         11000.0              4.3           16.0          900.0 ...
 # #> 5         Salmo trutta            140.0        50000.0              3.4            0.0          332.0 ...
 
-## ----lizard-traits------------------------------------------------------------
-# lizards <- taxify(c(
-#   "Pogona vitticeps", "Lacerta agilis", "Iguana iguana",
-#   "Varanus komodoensis", "Gekko gecko"
-# ))
+## ----repttraits---------------------------------------------------------------
+# reptiles <- taxify(c(
+#   "Pogona vitticeps", "Python regius", "Chelonia mydas",
+#   "Naja naja", "Crocodylus niloticus"
+# ), backend = "reptiledb")
 # 
-# lizards |> add_lizard_traits()
-# #>            input_name lizard_body_mass_g lizard_svl_mm lizard_tail_length_mm lizard_clutch_size ...
-# #> 1    Pogona vitticeps             350.0         230.0                 250.0               18.0 ...
-# #> 2      Lacerta agilis              10.0          70.0                 100.0                8.0 ...
-# #> 3       Iguana iguana            4000.0         450.0                 700.0               35.0 ...
-# #> 4 Varanus komodoensis           70000.0        1500.0                1400.0               18.0 ...
-# #> 5         Gekko gecko              60.0         140.0                 130.0                2.0 ...
+# reptiles |> add_repttraits()
+# #>             input_name biogeographic_realm habitat_type elevation_max_m body_mass_g  svl_mm reproductive_mode ...
+# #> 1     Pogona vitticeps     Australo-Pacific      Desert/...             612       575.4   250         oviparous ...
+# #> 2        Python regius          Afrotropic         Forest            1200      1610.6  1125         oviparous ...
+# #> 3       Chelonia mydas              Marine       Wetlands              NA    230000.0  1500         oviparous ...
+# #> 4            Naja naja            Oriental         Forest            1009      1683.5  1570         oviparous ...
+# #> 5 Crocodylus niloticus          Afrotropic       Wetlands              NA    750000.0    NA         oviparous ...
 
 ## ----anage--------------------------------------------------------------------
 # vertebrates <- taxify(c(
@@ -312,7 +360,7 @@ knitr::opts_chunk$set(
 #   "Reynoutria japonica", "Solidago canadensis"
 # ))
 # 
-# plants |> add_invasive_status(country = "AT")
+# plants |> add_griis(country = "AT")
 # #>            input_name invasive_status
 # #> 1 Robinia pseudoacacia        invasive
 # #> 2  Ailanthus altissima        invasive
@@ -322,7 +370,7 @@ knitr::opts_chunk$set(
 # #> 6 Solidago canadensis        invasive
 
 ## ----invasive-multi-----------------------------------------------------------
-# plants |> add_invasive_status(country = c("AT", "DE", "GB"))
+# plants |> add_griis(country = c("AT", "DE", "GB"))
 # #>            input_name invasive_status_AT invasive_status_DE invasive_status_GB
 # #> 1 Robinia pseudoacacia         invasive           invasive           invasive
 # #> 2  Ailanthus altissima         invasive           invasive         introduced
@@ -332,13 +380,13 @@ knitr::opts_chunk$set(
 # #> 6 Solidago canadensis         invasive           invasive         introduced
 
 ## ----invasive-filter----------------------------------------------------------
-# result <- plants |> add_invasive_status(country = c("AT", "DE"))
+# result <- plants |> add_griis(country = c("AT", "DE"))
 # # Species invasive in Austria but not in Germany
 # result[result$invasive_status_AT == "invasive" &
 #        result$invasive_status_DE != "invasive", ]
 
 ## ----invasive-all-------------------------------------------------------------
-# plants |> add_invasive_status(country = "all")
+# plants |> add_griis(country = "all")
 # # Adds invasive_status_AD, invasive_status_AE, ..., invasive_status_ZW
 
 ## ----alien-fr-single----------------------------------------------------------
@@ -377,12 +425,12 @@ knitr::opts_chunk$set(
 
 ## ----taxify-long-griis--------------------------------------------------------
 # aliens |>
-#   add_invasive_status(country = c("AT", "DE")) |>
+#   add_griis(country = c("AT", "DE")) |>
 #   taxify_long()
 
 ## ----taxify-long-combined-----------------------------------------------------
 # aliens |>
-#   add_invasive_status(country = c("AT", "DE")) |>
+#   add_griis(country = c("AT", "DE")) |>
 #   add_alien_first_records(country = c("AT", "DE", "CH")) |>
 #   taxify_long()
 
@@ -452,8 +500,8 @@ knitr::opts_chunk$set(
 #   "Quercus robur", "Fagus sylvatica", "Picea abies",
 #   "Arrhenatherum elatius", "Festuca rubra", "Plantago lanceolata"
 # )) |>
-#   add_conservation_status() |>
-#   add_woodiness() |>
+#   add_iucn() |>
+#   add_zanne() |>
 #   add_eive() |>
 #   add_diaz_traits()
 
@@ -462,7 +510,7 @@ knitr::opts_chunk$set(
 #   "Parus major", "Cyanistes caeruleus", "Erithacus rubecula",
 #   "Turdus merula", "Falco peregrinus"
 # )) |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_avonet() |>
 #   add_elton_traits() |>
 #   add_common_names()
@@ -472,7 +520,7 @@ knitr::opts_chunk$set(
 #   "Vulpes vulpes", "Canis lupus", "Ursus arctos",
 #   "Lutra lutra", "Lynx lynx"
 # )) |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_pantheria() |>
 #   add_elton_traits() |>
 #   add_common_names(lang = "de")
@@ -481,7 +529,7 @@ knitr::opts_chunk$set(
 # fungal_result <- taxify(c(
 #   "Amanita muscaria", "Boletus edulis", "Trametes versicolor"
 # )) |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_fungal_traits() |>
 #   add_funguild()
 
@@ -489,8 +537,8 @@ knitr::opts_chunk$set(
 # fish_result <- taxify(c(
 #   "Salmo trutta", "Esox lucius", "Gadus morhua"
 # )) |>
-#   add_conservation_status() |>
-#   add_fish_traits() |>
+#   add_iucn() |>
+#   add_fishmorph() |>
 #   add_fishbase()
 
 ## ----coverage-example---------------------------------------------------------
@@ -504,7 +552,7 @@ knitr::opts_chunk$set(
 # ))
 # 
 # mixed |>
-#   add_woodiness() |>
+#   add_zanne() |>
 #   add_avonet() |>
 #   add_pantheria() |>
 #   add_amphibio() |>
@@ -519,14 +567,14 @@ knitr::opts_chunk$set(
 # #> 6    Salmo trutta        NA          NA                    NA           NA              <NA>              3.4 ...
 
 ## ----coverage-check-----------------------------------------------------------
-# result <- taxify(species_list) |> add_woodiness()
+# result <- taxify(species_list) |> add_zanne()
 # # Fraction of matched species with woodiness data
 # mean(!is.na(result$woodiness[!is.na(result$accepted_name)]))
 
 ## ----summary-enrichments------------------------------------------------------
 # result <- taxify(c("Quercus robur", "Fagus sylvatica", "Pinus sylvestris")) |>
-#   add_conservation_status() |>
-#   add_woodiness() |>
+#   add_iucn() |>
+#   add_zanne() |>
 #   add_eive()
 # 
 # summary(result)
@@ -544,8 +592,9 @@ knitr::opts_chunk$set(
 
 ## ----guide-euro-plants--------------------------------------------------------
 # result <- taxify(species_list, backend = "wfo") |>
-#   add_conservation_status() |>
-#   add_woodiness() |>
+#   add_iucn() |>
+#   add_zanne() |>
+#   add_fungalroot() |>
 #   add_eive() |>
 #   add_diaz_traits() |>
 #   add_leda() |>
@@ -554,75 +603,76 @@ knitr::opts_chunk$set(
 
 ## ----guide-global-plants------------------------------------------------------
 # result <- taxify(species_list, backend = "wfo") |>
-#   add_conservation_status() |>
-#   add_woodiness() |>
+#   add_iucn() |>
+#   add_zanne() |>
+#   add_fungalroot() |>
 #   add_diaz_traits() |>
 #   add_wcvp(region = c("NAM", "SAM", "AFR")) |>
 #   add_common_names()
 
 ## ----guide-birds--------------------------------------------------------------
 # result <- taxify(species_list, backend = "col") |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_avonet() |>
 #   add_elton_traits() |>
 #   add_common_names()
 
 ## ----guide-mammals------------------------------------------------------------
 # result <- taxify(species_list, backend = "col") |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_pantheria() |>
 #   add_elton_traits() |>
 #   add_common_names()
 
 ## ----guide-amphibians---------------------------------------------------------
 # result <- taxify(species_list, backend = "col") |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_amphibio() |>
 #   add_common_names()
 
 ## ----guide-fish---------------------------------------------------------------
 # result <- taxify(species_list, backend = "worms") |>
-#   add_conservation_status() |>
-#   add_fish_traits() |>
+#   add_iucn() |>
+#   add_fishmorph() |>
 #   add_fishbase() |>
 #   add_common_names()
 
-## ----guide-lizards------------------------------------------------------------
-# result <- taxify(species_list, backend = "col") |>
-#   add_conservation_status() |>
-#   add_lizard_traits() |>
+## ----guide-reptiles-----------------------------------------------------------
+# result <- taxify(species_list, backend = "reptiledb") |>
+#   add_iucn() |>
+#   add_repttraits() |>
 #   add_common_names()
 
 ## ----guide-butterflies--------------------------------------------------------
 # result <- taxify(species_list, backend = "col") |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_leptraits() |>
 #   add_common_names()
 
 ## ----guide-arthropods---------------------------------------------------------
 # result <- taxify(species_list, backend = c("col", "gbif")) |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_arthropod_traits() |>
 #   add_animaltraits() |>
 #   add_common_names()
 
 ## ----guide-fungi--------------------------------------------------------------
 # result <- taxify(species_list, backend = "col") |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_fungal_traits() |>
 #   add_funguild() |>
 #   add_common_names()
 
 ## ----guide-algae--------------------------------------------------------------
 # result <- taxify(species_list, backend = "worms") |>
-#   add_conservation_status() |>
+#   add_iucn() |>
 #   add_algae_traits() |>
 #   add_common_names()
 
 ## ----guide-mixed-all----------------------------------------------------------
 # result <- taxify(species_list) |>
-#   add_conservation_status() |>
-#   add_woodiness() |>
+#   add_iucn() |>
+#   add_zanne() |>
 #   add_avonet() |>
 #   add_pantheria() |>
 #   add_amphibio() |>
@@ -635,7 +685,7 @@ knitr::opts_chunk$set(
 # birds   <- result[result$family %in% bird_families, ]
 # mammals <- result[result$family %in% mammal_families, ]
 # 
-# plants  <- plants |> add_woodiness() |> add_eive()
+# plants  <- plants |> add_zanne() |> add_eive()
 # birds   <- birds |> add_avonet() |> add_elton_traits()
 # mammals <- mammals |> add_pantheria() |> add_elton_traits()
 

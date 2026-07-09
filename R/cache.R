@@ -149,7 +149,7 @@ taxify_data_dir <- function() {
 #'
 #' ```r
 #' old <- options(taxify.data_dir = taxify_example_data())
-#' taxify("Quercus robur") |> add_woodiness()
+#' taxify("Quercus robur") |> add_zanne()
 #' options(old)  # restore the real data directory
 #' ```
 #'
@@ -162,6 +162,46 @@ taxify_data_dir <- function() {
 #' @export
 taxify_example_data <- function() {
   system.file("exampledb", package = "taxify")
+}
+
+
+#' Is the active data directory the bundled read-only example database?
+#'
+#' The content-id refresh gate must never fire against the example database:
+#' its enrichments and backbones are curated subsets (offline fixtures) whose
+#' bytes intentionally differ from the released assets, and it lives in the
+#' read-only package installation.
+#'
+#' @return Logical scalar.
+#' @noRd
+is_example_data_dir <- function() {
+  ex <- taxify_example_data()
+  if (!nzchar(ex)) return(FALSE)
+  dd <- taxify_data_dir()
+  isTRUE(tryCatch(
+    normalizePath(dd, mustWork = FALSE) == normalizePath(ex, mustWork = FALSE),
+    error = function(e) FALSE
+  ))
+}
+
+
+#' Names of backbones whose compiled .vtr is present locally
+#'
+#' A no-download check: returns the backend names whose `.vtr` exists in the
+#' current data directory, in canonical order. Used by [inspect()] when
+#' `backbones = TRUE` to match against every installed backbone.
+#'
+#' @return Character vector of installed backend names (possibly empty).
+#' @noRd
+installed_backbones <- function() {
+  known <- c("wfo", "col", "gbif", "itis", "ncbi", "ott", "worms",
+             "fungorum", "algaebase", "euromed", "fishbase", "sealifebase",
+             "reptiledb", "lcvp", "wcvp")
+  ok <- vapply(known, function(nm) {
+    p <- versioned_vtr_path(nm, "latest")
+    file.exists(p) && is_compiled_backbone(p)
+  }, logical(1L))
+  known[ok]
 }
 
 

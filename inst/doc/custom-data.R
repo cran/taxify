@@ -163,7 +163,7 @@ knitr::opts_chunk$set(
 
 ## -----------------------------------------------------------------------------
 # result <- taxify(species, backend = "wfo") |>
-#   add_conservation_status() |>
-#   add_woodiness() |>
+#   add_iucn() |>
+#   add_zanne() |>
 #   add_data(traits, species_col = "taxon")
 

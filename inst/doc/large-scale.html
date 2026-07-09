@@ -711,18 +711,17 @@ working set is roughly 10-20 MB. For 50,000 unmatched names against
 GBIF, it can reach 100-200 MB. The temporary files and working buffers
 are freed after each fuzzy pass.</p>
 <p>Enrichment <code>.vtr</code> files are loaded on demand. Calling
-<code>add_conservation_status()</code> loads the conservation_status
-enrichment (~60,000 rows, a few MB). Calling
-<code>add_elton_traits()</code> loads EltonTraits (~15,000 rows).
-Enrichment joins use a different mechanism than backbone matching: they
-build a temporary <code>.vtr</code> of unique accepted names, run an
-<code>inner_join()</code> against the enrichment <code>.vtr</code>, and
-fill the result via <code>match()</code>. The enrichment
-<code>.vtr</code> itself is not fully materialized into memory; only the
-joined subset is collected. The memory cost per enrichment join is
-proportional to the number of unique accepted names in the result, which
-is typically much smaller than the input list (synonyms collapse to
-shared accepted names).</p>
+<code>add_iucn()</code> loads the conservation_status enrichment
+(~60,000 rows, a few MB). Calling <code>add_elton_traits()</code> loads
+EltonTraits (~15,000 rows). Enrichment joins use a different mechanism
+than backbone matching: they build a temporary <code>.vtr</code> of
+unique accepted names, run an <code>inner_join()</code> against the
+enrichment <code>.vtr</code>, and fill the result via
+<code>match()</code>. The enrichment <code>.vtr</code> itself is not
+fully materialized into memory; only the joined subset is collected. The
+memory cost per enrichment join is proportional to the number of unique
+accepted names in the result, which is typically much smaller than the
+input list (synonyms collapse to shared accepted names).</p>
 <p>For a typical session matching 50,000 plant names against WFO with
 two enrichments, expect about 150 MB of total memory usage from taxify’s
 caches. Matching the same names against GBIF with five enrichments
@@ -944,8 +943,8 @@ exists and the version is current, they return immediately.</p>
 <span id="cb15-14"><a href="#cb15-14" tabindex="-1"></a></span>
 <span id="cb15-15"><a href="#cb15-15" tabindex="-1"></a><span class="co"># Now the analysis can run fully offline</span></span>
 <span id="cb15-16"><a href="#cb15-16" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
-<span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_conservation_status</span>(result)</span>
-<span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_woodiness</span>(result)</span></code></pre></div>
+<span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_iucn</span>(result)</span>
+<span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_zanne</span>(result)</span></code></pre></div>
 <p>In a CI/CD or cluster environment, the download step can run in a
 setup script or container build phase. The matching step then operates
 entirely from local disk, with no network dependency and no risk of
@@ -1018,8 +1017,8 @@ memory and enriching after.</p>
 <span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
 <span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>,</span>
 <span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_conservation_status</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_woodiness</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_iucn</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_zanne</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, <span class="fu">sprintf</span>(<span class="st">&quot;results/chunk_%04d.rds&quot;</span>, i))</span>
 <span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>}</span></code></pre></div>
 <p><strong>Backend selection cheat sheet:</strong></p>

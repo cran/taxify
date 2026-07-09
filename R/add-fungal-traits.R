@@ -6,6 +6,7 @@
 #' database and joins on the `genus` column already present in taxify output.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -46,7 +47,7 @@
 #' options(old)
 #'
 #' @export
-add_fungal_traits <- function(x, verbose = TRUE) {
+add_fungal_traits <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     primary_lifestyle                  = "primary_lifestyle",
     secondary_lifestyle                = "secondary_lifestyle",
@@ -58,17 +59,13 @@ add_fungal_traits <- function(x, verbose = TRUE) {
     endophytic_interaction_capability  = "endophytic_interaction_capability",
     ectomycorrhiza_exploration_type    = "ectomycorrhiza_exploration_type"
   )
-  na_types <- stats::setNames(
-    rep(list(NA_character_), length(col_map)),
-    names(col_map)
-  )
   enrich_simple(
     x,
     enrichment_name = "fungal_traits",
     col_map         = col_map,
     source_label    = "FungalTraits",
-    na_types        = na_types,
     join_col        = "genus",
+    cols            = cols,
     verbose         = verbose
   )
 }

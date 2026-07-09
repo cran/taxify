@@ -15,14 +15,15 @@ new_backend <- function(name, ..., class = character()) {
 }
 
 
-#' Download a backbone database
+#' Build a backbone database from source
 #'
-#' Downloads the latest Darwin Core snapshot for the specified backend and
-#' converts it to vectra's `.vtr` format for fast repeated queries.
+#' Builds the backbone `.vtr` for a backend from its upstream Darwin Core source,
+#' delegating to the sibling `taxifydb` package (which must be installed). This
+#' is the from-source path, for rebuilding a backbone locally.
 #'
-#' Always re-downloads the latest release, overwriting any existing backbone.
-#' Use [taxify()] for day-to-day matching — it auto-downloads on first use
-#' and reuses the local copy thereafter.
+#' For everyday use you do not need this: [taxify()] auto-downloads the pre-built
+#' `.vtr` on first use, and [taxify_download_vtr()] fetches a pre-built backbone
+#' directly without `taxifydb`.
 #'
 #' @param backend A `taxify_backend` object or a character string
 #'   (e.g., `"wfo"`).
@@ -31,6 +32,8 @@ new_backend <- function(name, ..., class = character()) {
 #' @param verbose Logical. Print progress messages.
 #' @param ... Additional arguments passed to methods.
 #' @return The path to the `.vtr` file (invisibly).
+#' @seealso [taxify_download_vtr()] to fetch a pre-built backbone, [taxify()]
+#'   which downloads on first use.
 #' @export
 taxify_download <- function(backend, dest = NULL, verbose = TRUE, ...) {
   if (is.character(backend)) {
@@ -81,7 +84,8 @@ match_exact <- function(backend, names_df, backbone, ...) {
 #' @noRd
 match_fuzzy <- function(backend, unmatched_df, backbone,
                         method = "dl", threshold = 0.2,
-                        names_df = NULL, ...) {
+                        names_df = NULL, region = NULL,
+                        range_mode = "present", ...) {
   UseMethod("match_fuzzy")
 }
 
@@ -119,7 +123,8 @@ match_exact.taxify_backend <- function(backend, names_df, backbone, ...) {
 #' @exportS3Method
 match_fuzzy.taxify_backend <- function(backend, unmatched_df, backbone,
                                        method = "dl", threshold = 0.2,
-                                       names_df = NULL, ...) {
+                                       names_df = NULL, region = NULL,
+                                       range_mode = "present", ...) {
   bb_path <- backbone
   result  <- unmatched_df
   col_map <- backend$col_map
@@ -129,11 +134,13 @@ match_fuzzy.taxify_backend <- function(backend, unmatched_df, backbone,
   }
 
   result <- fuzzy_match_via_join(result, names_df, bb_path, method, threshold,
-                                 col_map)
+                                 col_map, region = region,
+                                 range_mode = range_mode)
 
   if (isTRUE(backend$prefix_fallback)) {
     result <- fuzzy_match_prefix_blocked(result, names_df, bb_path, method,
-                                         threshold, col_map)
+                                         threshold, col_map, region = region,
+                                         range_mode = range_mode)
   }
 
   result
@@ -325,8 +332,22 @@ match_exact_compiled <- function(result, names_df, bb_path, col_map) {
     fill_compiled_matches(result, hits, match_type, col_map)
   }
 
+  # --- Pass A: Aggregate taxon (preserve mode) ---
+  # For aggregate-concept inputs, match the dedicated aggregate taxon
+  # ("<binomial> aggr.") before falling back to the binomial species. agg_key is
+  # populated only in preserve mode; NA (or absent) otherwise, so this pass is a
+  # no-op under aggregates = "collapse".
+  agg_key <- names_df$agg_key
+  if (!is.null(agg_key)) {
+    agg_mask <- has_name & !is.na(agg_key) & is.na(result$match_type)
+    if (any(agg_mask)) {
+      result <- lookup_and_fill(result, agg_key[agg_mask], which(agg_mask),
+                                name_col, "exact")
+    }
+  }
+
   # --- Pass 0: Genus-only ---
-  genus_mask <- has_name & genus_only
+  genus_mask <- has_name & genus_only & is.na(result$match_type)
   if (any(genus_mask)) {
     result <- lookup_and_fill(result, cleaned[genus_mask], which(genus_mask),
                               name_col, "exact")
@@ -490,7 +511,8 @@ fill_compiled_matches <- function(result, matches, match_type, col_map) {
 #' @return The updated result data.frame.
 #' @noRd
 fuzzy_match_via_join <- function(result, names_df, bb_path, method, threshold,
-                                 col_map) {
+                                 col_map, region = NULL,
+                                 range_mode = "present") {
   unmatched_rows <- which(is.na(result$match_type) & !is.na(result$input_name))
   if (length(unmatched_rows) == 0L) return(result)
 
@@ -562,7 +584,10 @@ fuzzy_match_via_join <- function(result, names_df, bb_path, method, threshold,
 
   if (nrow(matches) > 0L) {
     matches <- standardize_pick_cols(matches, col_map)
+    matches <- filter_fuzzy_by_region(matches, region, range_mode)
+  }
 
+  if (nrow(matches) > 0L) {
     best <- pick_best_vec(matches)
     best <- dedup_fuzzy_targets(best, id_col = col_map$id)
     idx <- best$row_idx
@@ -644,7 +669,8 @@ get_fuzzy_bb <- function(bb_path, col_map) {
 #' @return The updated result data.frame.
 #' @noRd
 fuzzy_match_prefix_blocked <- function(result, names_df, bb_path, method,
-                                       threshold, col_map) {
+                                       threshold, col_map, region = NULL,
+                                       range_mode = "present") {
   unmatched_rows <- which(is.na(result$match_type) & !is.na(result$input_name))
   if (length(unmatched_rows) == 0L) return(result)
 
@@ -701,7 +727,10 @@ fuzzy_match_prefix_blocked <- function(result, names_df, bb_path, method,
 
   if (nrow(matches) > 0L) {
     matches <- standardize_pick_cols(matches, col_map)
+    matches <- filter_fuzzy_by_region(matches, region, range_mode)
+  }
 
+  if (nrow(matches) > 0L) {
     best <- pick_best_vec(matches)
     best <- dedup_fuzzy_targets(best, id_col = col_map$id)
     idx <- best$row_idx
@@ -842,8 +871,13 @@ resolve_backend <- function(backend) {
     fungorum = fungorum_backend(),
     algaebase = algaebase_backend(),
     euromed = euromed_backend(),
+    fishbase = fishbase_backend(),
+    sealifebase = sealifebase_backend(),
+    reptiledb = reptiledb_backend(),
+    lcvp = lcvp_backend(),
+    wcvp = wcvp_backend(),
     stop(sprintf(
-      "Unknown backend '%s'. Available: wfo, col, gbif, itis, ncbi, ott, worms, fungorum, algaebase, euromed",
+      "Unknown backend '%s'. Available: wfo, col, gbif, itis, ncbi, ott, worms, fungorum, algaebase, euromed, fishbase, sealifebase, reptiledb, lcvp, wcvp",
       backend), call. = FALSE)
   )
 }

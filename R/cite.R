@@ -101,10 +101,15 @@ collect_citations <- function(meta) {
     }
   }
 
-  # 3. Enrichments
+  # 3. Enrichments -- only those that actually contributed a value to the
+  # result. A source queried but matching no rows (n_matched == 0), e.g. a bird
+  # trait layer on a plant, or an add_trait() source with no data for these
+  # species, is dropped rather than cited.
   enrichments <- meta$enrichments
   if (!is.null(enrichments) && length(enrichments) > 0L) {
     for (e in enrichments) {
+      n_matched <- e$n_matched %||% NA_integer_
+      if (is.na(n_matched) || n_matched <= 0L) next
       cit <- extract_manifest_citation(manifest, "enrichments", e$name)
       if (!is.null(cit)) {
         citations <- c(citations, list(cit))
@@ -122,7 +127,10 @@ collect_citations <- function(meta) {
     }
   }
 
-  citations
+  # Dedup: the same source can be registered more than once (a door plus an
+  # add_trait() call, or repeated calls). Keep the first citation per key.
+  keys <- vapply(citations, function(c) c$key %||% "", character(1L))
+  citations[!duplicated(keys) | !nzchar(keys)]
 }
 
 
@@ -137,7 +145,32 @@ extract_manifest_citation <- function(manifest, section, name) {
   if (is.null(manifest)) return(NULL)
   entry <- manifest[[section]][[name]]
   if (is.null(entry) || is.null(entry$citation)) return(NULL)
-  entry$citation
+  clean_citation(entry$citation)
+}
+
+
+#' Drop empty citation fields to clean length-1 character values
+#'
+#' A manifest citation field with no value arrives from `jsonlite` as a JSON
+#' `null` or `{}`, both read as a zero-length list rather than `NULL`. Those
+#' slip past `%||%` and then break `is.na()`/`nzchar()` downstream. Each field
+#' is collapsed to a length-1 character scalar, or dropped when it holds no
+#' usable value, so the `%||%` fallbacks see a clean absence.
+#'
+#' @param cit A raw citation list from the manifest.
+#' @return A citation list with only non-empty scalar fields, or `NULL`.
+#' @noRd
+clean_citation <- function(cit) {
+  if (!is.list(cit) || length(cit) == 0L) return(NULL)
+  cleaned <- lapply(cit, function(v) {
+    if (is.null(v) || length(v) != 1L || !is.atomic(v)) return(NULL)
+    v <- as.character(v)
+    if (is.na(v) || !nzchar(v)) return(NULL)
+    v
+  })
+  cleaned <- cleaned[!vapply(cleaned, is.null, logical(1L))]
+  if (length(cleaned) == 0L) return(NULL)
+  cleaned
 }
 
 
@@ -232,14 +265,20 @@ cite_footer <- function(meta) {
     }
   }
 
-  # Enrichments
+  # Enrichments -- only those that contributed a value (drop 0-match sources),
+  # deduplicated by label.
   enrichments <- meta$enrichments
   if (!is.null(enrichments) && length(enrichments) > 0L) {
+    seen <- character(0L)
     for (e in enrichments) {
+      n_matched <- e$n_matched %||% NA_integer_
+      if (is.na(n_matched) || n_matched <= 0L) next
       label <- e$source %||% e$name
-      if (!is.na(e$version) && nzchar(e$version)) {
+      if (!is.null(e$version) && !is.na(e$version) && nzchar(e$version)) {
         label <- paste(label, e$version)
       }
+      if (label %in% seen) next
+      seen  <- c(seen, label)
       parts <- c(parts, label)
     }
   }

@@ -4,6 +4,7 @@
 #' by looking up `accepted_name`.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -19,7 +20,7 @@
 #' }
 #'
 #' @details
-#' Source: FishBase via rfishbase (Froese & Pauly, CC BY-NC 3.0).
+#' Source: FishBase via rfishbase (Froese & Pauly, CC BY-NC 4.0).
 #' Coverage: ~35k fish species. Fishes only.
 #'
 #' The build-from-source fallback requires the \pkg{rfishbase} package
@@ -39,7 +40,7 @@
 #' options(old)
 #'
 #' @export
-add_fishbase <- function(x, verbose = TRUE) {
+add_fishbase <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     fb_body_length_cm = "body_length_cm",
     fb_body_mass_g    = "body_mass_g",
@@ -50,20 +51,12 @@ add_fishbase <- function(x, verbose = TRUE) {
     fb_habitat        = "habitat",
     fb_importance     = "importance"
   )
-  na_types <- stats::setNames(
-    c(
-      rep(list(NA_real_), 6L),
-      list(NA_character_),
-      list(NA_character_)
-    ),
-    names(col_map)
-  )
   enrich_simple(
     x,
     enrichment_name = "fishbase",
     col_map         = col_map,
     source_label    = "FishBase",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

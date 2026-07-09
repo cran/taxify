@@ -342,8 +342,8 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 <p>taxify matches taxonomic names against locally stored Darwin Core
-backbone databases. Ten backends are available, each compiled from a
-different authoritative source. The backend we choose determines which
+backbone databases. Thirteen backends are available, each compiled from
+a different authoritative source. The backend we choose determines which
 names can be matched, what taxonomic opinion governs synonym resolution,
 and which extra metadata columns are available downstream. This vignette
 walks through the backends, explains how to combine them in fallback
@@ -351,10 +351,10 @@ chains, and offers practical guidance on which combination to pick for a
 given project.</p>
 <div id="backend-overview" class="section level2">
 <h2>Backend overview</h2>
-<p>The table below summarizes the ten backends. “Approx. names” is the
-total number of name strings in the compiled backbone (accepted names
-plus synonyms); the actual species count is lower because each accepted
-species may have several synonym entries pointing to it.</p>
+<p>The table below summarizes the thirteen backends. “Approx. names” is
+the total number of name strings in the compiled backbone (accepted
+names plus synonyms); the actual species count is lower because each
+accepted species may have several synonym entries pointing to it.</p>
 <table>
 <colgroup>
 <col width="15%" />
@@ -443,6 +443,27 @@ species may have several synonym entries pointing to it.</p>
 <td align="left">~170k</td>
 <td align="left">ChecklistBank DwC-A (CC BY-NC)</td>
 </tr>
+<tr class="odd">
+<td align="left"><code>fishbase</code></td>
+<td align="left">FishBase</td>
+<td align="left">Fishes</td>
+<td align="left">~100k</td>
+<td align="left">rfishbase (load_taxa + synonyms)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>sealifebase</code></td>
+<td align="left">SeaLifeBase</td>
+<td align="left">Non-fish marine and aquatic</td>
+<td align="left">~134k</td>
+<td align="left">rfishbase (load_taxa + synonyms)</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>reptiledb</code></td>
+<td align="left">Reptile Database</td>
+<td align="left">Reptiles</td>
+<td align="left">~50k</td>
+<td align="left">reptarium taxa.csv + synonym/checklist XLSX</td>
+</tr>
 </tbody>
 </table>
 <p>A few things stand out. WFO is the standard reference for plant
@@ -502,6 +523,21 @@ better synonym resolution than generalist databases.</p>
 protists. It is the only backend licensed CC BY-NC (non-commercial use
 only). All other backends are open-access. taxify prints a license
 notice during AlgaeBase download to make this visible.</p>
+<p>FishBase and SeaLifeBase are the standard references for aquatic
+animals. FishBase covers fishes; SeaLifeBase covers the non-fish marine
+and aquatic groups (molluscs, crustaceans, marine mammals, and the
+rest). Both are compiled from the rfishbase package rather than a file
+download, taking accepted species from <code>load_taxa()</code> and
+synonym links from <code>synonyms()</code>. They carry species-rank rows
+only, so their genera enter the genus register derived from those
+species. The data is CC BY-NC 3.0.</p>
+<p>The Reptile Database is the taxonomic reference for reptiles, with
+~50k names covering snakes, lizards, turtles, crocodilians, and the
+tuatara. It is built from the reptarium bulk exports: the current
+accepted-species list, the periodic synonym snapshot, and the
+family-to-order checklist. The source carries no kingdom or class field,
+so the backbone stamps Animalia / Chordata / Reptilia on every row. The
+data is CC BY 4.0.</p>
 </div>
 <div id="downloading-backbones" class="section level2">
 <h2>Downloading backbones</h2>
@@ -604,10 +640,10 @@ all-rounder.</p>
 </div>
 <div id="backend-specific-output-differences" class="section level2">
 <h2>Backend-specific output differences</h2>
-<p>All ten backends produce the same 16-column output schema. This is a
-deliberate design choice: downstream code does not need to know which
-backend produced a match. That said, the content of those columns varies
-in ways worth knowing about.</p>
+<p>All thirteen backends produce the same 16-column output schema. This
+is a deliberate design choice: downstream code does not need to know
+which backend produced a match. That said, the content of those columns
+varies in ways worth knowing about.</p>
 <p><strong>Authorship.</strong> WFO’s <code>scientificName</code> is
 already canonical (no authorship appended), so the
 <code>authorship</code> column comes from a separate

@@ -1,5 +1,5 @@
 backend=gbif
 version=example
 build_date=2026-06-24
-nrow=14
+nrow=15
 source_url=bundled example database

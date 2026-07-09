@@ -4,6 +4,7 @@
 #' [taxify()] result by looking up `accepted_name`.
 #'
 #' @param x A data.frame returned by [taxify()].
+#' @param cols Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional columns:
 #' \describe{
@@ -38,7 +39,7 @@
 #' options(old)
 #'
 #' @export
-add_anage <- function(x, verbose = TRUE) {
+add_anage <- function(x, cols = NULL, verbose = TRUE) {
   col_map <- c(
     max_longevity_yr       = "max_longevity_yr",
     anage_body_mass_g      = "body_mass_g",
@@ -51,16 +52,12 @@ add_anage <- function(x, verbose = TRUE) {
     growth_rate            = "growth_rate",
     temperature_k          = "temperature_k"
   )
-  na_types <- stats::setNames(
-    rep(list(NA_real_), length(col_map)),
-    names(col_map)
-  )
   enrich_simple(
     x,
     enrichment_name = "anage",
     col_map         = col_map,
     source_label    = "AnAge",
-    na_types        = na_types,
+    cols            = cols,
     verbose         = verbose
   )
 }

@@ -1,0 +1,6 @@
+{
+  "backend": "fishbase",
+  "version": "example",
+  "nrow": 2,
+  "static": true
+}

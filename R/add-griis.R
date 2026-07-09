@@ -1,0 +1,58 @@
+#' Add invasive species status (GRIIS)
+#'
+#' Joins GRIIS (Global Register of Introduced and Invasive Species) status to a
+#' [taxify()] result, filtered by country. This is the source-named door for
+#' GRIIS; GloNAF ([add_glonaf()]) carries related naturalized-alien status.
+#'
+#' @param x A data.frame returned by [taxify()].
+#' @param country Character. ISO 3166-1 alpha-2 country code(s), or `"all"`.
+#'   \itemize{
+#'     \item Single code (e.g., `"AT"`): adds `invasive_status` column
+#'       (no suffix).
+#'     \item Multiple codes (e.g., `c("AT", "DE")`): adds
+#'       `invasive_status_AT`, `invasive_status_DE`.
+#'     \item `"all"`: adds one column per country in the dataset.
+#'   }
+#' @param cols Which columns to attach. `NULL` (the default) attaches the
+#'   curated set; a character vector of column names attaches just those, and
+#'   `"all"` attaches every column the source carries (see [enrichment_cols()]).
+#' @param verbose Logical. Default `TRUE`.
+#' @return The same data.frame with additional column(s):
+#' \describe{
+#'   \item{invasive_status}{One of `"native"`, `"introduced"`, `"invasive"`,
+#'     or `NA` if not recorded for that country.}
+#' }
+#'
+#' @details
+#' Source: GRIIS (Zenodo combined CSV, CC BY 4.0, 196 countries).
+#' Coverage: ~23k name x country combinations.
+#'
+#' @examples
+#' # Runs offline against the bundled example database.
+#' old <- options(taxify.data_dir = taxify_example_data())
+#'
+#' taxify("Robinia pseudoacacia") |>
+#'   add_griis(country = "AT")
+#'
+#' taxify("Robinia pseudoacacia") |>
+#'   add_griis(country = c("AT", "DE"))
+#'
+#' options(old)
+#'
+#' @export
+add_griis <- function(x, country, cols = NULL, verbose = TRUE) {
+  if (missing(country)) {
+    stop("'country' is required. Use an ISO 3166-1 alpha-2 code (e.g., \"AT\") or \"all\".",
+         call. = FALSE)
+  }
+  enrich_by_group(
+    x,
+    enrichment_name = "griis",
+    group_col       = "country_code",
+    groups          = country,
+    value_cols      = c(invasive_status = "invasive_status"),
+    source_label    = "GRIIS",
+    cols            = cols,
+    verbose         = verbose
+  )
+}
