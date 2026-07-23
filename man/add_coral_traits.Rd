@@ -41,8 +41,8 @@ Source: Coral Trait Database (Madin et al. 2016, Scientific Data, CC BY 4.0).
 Coverage: ~1.5k coral species.
 }
 \examples{
-\donttest{
-taxify("Acropora millepora", backend = "gbif") |>
+\dontrun{
+taxify("Acropora millepora", backbone = "gbif") |>
   add_coral_traits()
 }
 

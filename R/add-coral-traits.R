@@ -34,8 +34,8 @@
 #' 3:160017. \doi{10.1038/sdata.2016.17}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Acropora millepora", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Acropora millepora", backbone = "gbif") |>
 #'   add_coral_traits()
 #' }
 #'

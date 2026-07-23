@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Getting started with taxify"
 output: rmarkdown::html_vignette
 vignette: >
@@ -53,9 +53,9 @@ disagrees, so the matching has to come first.
 cleaned, matched against a backbone you keep on disk, synonyms resolved to the
 accepted name. Matching runs in C through the [vectra](https://github.com/gcol33/vectra)
 engine, so there are no web services and no rate limits, and the same input gives
-the same output on any machine. Thirteen Darwin Core backbones are available
+the same output on any machine. Fifteen Darwin Core backbones are available
 (WFO, COL, GBIF, ITIS, NCBI, OTT, WoRMS, Euro+Med, Species Fungorum, AlgaeBase,
-FishBase, SeaLifeBase, Reptile Database), all queried offline.
+FishBase, SeaLifeBase, Reptile Database, LCVP, WCVP), all queried offline.
 
 ```{r}
 library(taxify)
@@ -103,8 +103,8 @@ res[, c("input_name", "accepted_name", "family",
 ```
 
 Ten names, ten rows, every match readable. Each row also carries genus,
-authorship, taxon and accepted IDs, a hybrid flag, the backend, and the exact
-backbone version (the full table is wider, the same shape for any input).
+authorship, taxon and accepted IDs, a hybrid flag and type, the backbone, and the
+exact backbone version (the full table is wider, the same shape for any input).
 
 Each name reaches its accepted name a different way. The animation below walks one
 name at a time through the pipeline: the clean step strips authorship, a
@@ -241,19 +241,19 @@ summary(res)
 
 ```
 #> ── taxify results ──────────────────────────────────────────────────────────
-#>   backend: WFO v2024-12  |  10 names submitted
+#>   backbone: WFO v2024-12  |  10 names submitted
 #>
 #>   matched        10  (exact: 6, case-insensitive: 1, fuzzy: 2, abbrev: 1)
 #>   ────────────────────────────────────────────────────────────
 #>   taxon groups: angiosperm: 8  gymnosperm: 1  unknown: 1
 ```
 
-The digest reports the backend and version, the match-route breakdown (all ten
+The digest reports the backbone and version, the match-route breakdown (all ten
 resolved here, including the abbreviated `Q. petraea`), and the taxon-group mix.
 When a name is out of scope (an animal in a plant-only backbone) or genuinely
-absent, the digest tallies it and suggests an alternative backend. The match types and the multi-backend fallback
-(`backend = c("wfo", "col", "gbif")`) are covered in the
-[backends vignette](https://gillescolling.com/taxify/articles/backends.html).
+absent, the digest tallies it and suggests an alternative backbone. The match types and the multi-backbone fallback
+(`backbone = c("wfo", "col", "gbif")`) are covered in the
+[backbones vignette](https://gillescolling.com/taxify/articles/backbones.html).
 
 ## Offline, and how much faster
 
@@ -289,7 +289,6 @@ function draw(tc){VA.bg(x,W,H);
   bar(b2,wfoFrac,C.red,'WorldFlora',wfoFrac>=1,wfoFrac>=1?fmt(WFO):fmt(simSec));
   x.fillStyle=C.mut;x.font=VA.F(12);x.textAlign='left';x.fillText('elapsed (simulated): '+fmt(simSec),BX,b2+bh+22);
   if(taxDone&&tc>PERIOD-HOLD-0.01){var aa=VA.clamp((tc-(PERIOD-HOLD))/1.0,0,1);x.globalAlpha=aa;VA.glow(x,C.green,8);x.fillStyle=C.green;x.font=VA.F(20,true);x.textAlign='center';x.fillText(Math.round(WFO/TAX)+'x faster',W/2,H-40);VA.noglow(x);x.globalAlpha=1;}
-  x.fillStyle=C.mut;x.font=VA.F(11);x.textAlign='center';x.fillText('package benchmark, Windows, R 4.5.2 -- both against a local copy',W/2,H-14);
   VA.scan(x,W,H);
 }
 VA.run(draw,PERIOD,null,'sp','sp-cv');
@@ -297,14 +296,17 @@ VA.run(draw,PERIOD,null,'sp','sp-cv');
 cat(paste0(
   "<canvas id='sp-cv' width='760' height='330' style='max-width:100%'></canvas>\n",
   "<script>\n(function(){\n",
-  "var TAX=1.0,WFO=1862.0;\n",
+  "var TAX=18.8,WFO=4192.4;\n",
   body, "\n})();\n</script>\n"))
 ```
 
-Exact matching is close (0.1 s against 1.3 s); the gap opens on fuzzy matching,
-where the genus blocking keeps taxify near a second while the in-R scan grows with
-the list. The full benchmark and large-batch strategy are in the
-[large-scale vignette](https://gillescolling.com/taxify/articles/large-scale.html).
+On 1,000 names that all carry a one-character typo, taxify takes 18.8 s and
+WorldFlora 4,192 s. Exact matching is closer, 2.2 s against 17.1 s. The genus
+blocking is what opens the gap: a typo competes only against names in its own
+genus, so the work does not grow with the size of the backbone.
+`scripts/benchmark-worldflora.R` in the repository produces both figures, and the
+[large-scale vignette](https://gillescolling.com/taxify/articles/large-scale.html)
+covers the batch strategy for lists above 100,000 names.
 
 ## Add your own attributes
 
@@ -341,7 +343,7 @@ in the [custom-data vignette](https://gillescolling.com/taxify/articles/custom-d
 ## The enrichment layers
 
 taxify also ships published trait and status layers that attach on the accepted
-name. There are more than sixty, across the tree of life and for the
+name. There are more than eighty, across the tree of life and for the
 conservation and invasion records this kind of work needs. Each `add_*()` matches its own
 source against the backbone and attaches on the accepted name, so any of them
 stacks into a pipeline the same way. Run `list_enrichments()` for the current set,
@@ -485,7 +487,7 @@ values. The same three lines work for any attribute the package can attach.
 This vignette is the fast path. Each step has a dedicated vignette with the full
 detail:
 
-- [Backends and multi-backend fallback](https://gillescolling.com/taxify/articles/backends.html)
+- [Choosing and combining backbones](https://gillescolling.com/taxify/articles/backbones.html)
 
 - [Fuzzy matching](https://gillescolling.com/taxify/articles/fuzzy-matching.html)
 
@@ -493,7 +495,7 @@ detail:
 
 - [Custom data](https://gillescolling.com/taxify/articles/custom-data.html)
 
-- [Hybrid names](https://gillescolling.com/taxify/articles/hybrid-names.html)
+- [Hybrids and aggregates](https://gillescolling.com/taxify/articles/hybrids-and-aggregates.html)
 
 - [Large-scale matching](https://gillescolling.com/taxify/articles/large-scale.html)
 

@@ -372,7 +372,7 @@ leaf area (SLA) and maximum height for five European tree species.</p>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>, <span class="st">&quot;Picea abies&quot;</span>,</span>
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>)</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>)</span>
 <span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
 <span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co"># External trait data — note one synonym and one subspecies</span></span>
 <span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
@@ -403,7 +403,7 @@ path directly. <code>add_data()</code> reads <code>.csv</code> and
 files efficiently without loading everything into R at once.
 Tab-separated files (<code>.tsv</code>, <code>.tsv.gz</code>) are also
 supported.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(<span class="st">&quot;path/to/leaf_traits.csv&quot;</span>)</span></code></pre></div>
 <p>If the CSV has a single obvious species-name column, auto-detection
 picks it up. If there are several plausible character columns, or if the
@@ -711,7 +711,7 @@ matches.</p>
 the built-in enrichment functions. Custom data and pre-built enrichments
 use the same <code>accepted_id</code> join key, so they can be stacked
 in any order.</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backend =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
 <span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
 <span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
 <span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>  <span class="fu">add_data</span>(traits, <span class="at">species_col =</span> <span class="st">&quot;taxon&quot;</span>)</span></code></pre></div>

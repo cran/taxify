@@ -38,8 +38,8 @@ Source: Tree of Sex (Tree of Sex Consortium 2014, Scientific Data, CC0).
 Coverage: ~37.5k species across plants, vertebrates and invertebrates.
 }
 \examples{
-\donttest{
-taxify("Silene latifolia", backend = "gbif") |>
+\dontrun{
+taxify("Silene latifolia", backbone = "gbif") |>
   add_tree_of_sex()
 }
 

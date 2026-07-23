@@ -32,8 +32,8 @@
 #' Knowledge Network for Biocomplexity. \doi{10.5063/F1CV4G34}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Acorus calamus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Acorus calamus", backbone = "gbif") |>
 #'   add_useful_plants()
 #' }
 #'

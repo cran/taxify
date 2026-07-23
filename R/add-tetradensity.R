@@ -16,8 +16,8 @@
 #' terrestrial vertebrates. figshare. \doi{10.6084/m9.figshare.5371633}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Capreolus capreolus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Capreolus capreolus", backbone = "gbif") |>
 #'   add_tetradensity()
 #' }
 #'

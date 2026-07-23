@@ -28,8 +28,8 @@
 #' \doi{10.1038/sdata.2018.22}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Lepomis gibbosus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Lepomis gibbosus", backbone = "gbif") |>
 #'   add_globtherm()
 #' }
 #'

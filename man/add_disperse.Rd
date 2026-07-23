@@ -31,8 +31,8 @@ Source: DISPERSE (Sarremejane et al. 2020, Scientific Data, CC-BY
 4.0). Joins on genus because the database is genus-resolved.
 }
 \examples{
-\donttest{
-taxify("Baetis rhodani", backend = "gbif") |>
+\dontrun{
+taxify("Baetis rhodani", backbone = "gbif") |>
   add_disperse()
 }
 

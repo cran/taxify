@@ -38,8 +38,8 @@
 #' \doi{10.16904/envidat.348}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Abietinella abietina", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Abietinella abietina", backbone = "gbif") |>
 #'   add_bet()
 #' }
 #'

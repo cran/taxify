@@ -26,8 +26,8 @@ Joins shared bird/mammal frugivore traits to a \code{\link[=taxify]{taxify()}} r
 Source: Gerstner et al. (2023) Frugivoria (EDI, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Ramphastos toco", backend = "gbif") |>
+\dontrun{
+taxify("Ramphastos toco", backbone = "gbif") |>
   add_frugivoria()
 }
 

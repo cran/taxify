@@ -26,8 +26,8 @@ Source: Broekman et al. (2023) HomeRange database (Dryad, CC0).
 Per-individual records are reduced to species medians.
 }
 \examples{
-\donttest{
-taxify("Panthera leo", backend = "gbif") |>
+\dontrun{
+taxify("Panthera leo", backbone = "gbif") |>
   add_homerange()
 }
 

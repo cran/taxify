@@ -5,12 +5,18 @@ knitr::opts_chunk$set(
   eval = FALSE
 )
 
+## ----eval=FALSE---------------------------------------------------------------
+# # Rubus fruticosus agg. gets the aggregate's trait where the source has it,
+# # otherwise the nominal Rubus fruticosus value.
+# taxify("Rubus fruticosus agg.") |>
+#   add_trait("plant_height")
+
 ## ----list-enrichments---------------------------------------------------------
 # library(taxify)
 # 
 # list_enrichments()
 # #>              name version   nrow static                              trait_cols ...
-# #> 1 conservation_status  ...  166000   TRUE                   conservation_status ...
+# #> 1 iucn  ...  166000   TRUE                   conservation_status ...
 # #> 2               griis  ...   23000  FALSE                      invasive_status ...
 # #> 3                wcvp  ...  340000  FALSE                        native_status ...
 # #> ...
@@ -44,18 +50,18 @@ knitr::opts_chunk$set(
 
 ## ----pre-download-------------------------------------------------------------
 # # Download a single enrichment
-# taxify_download_enrichment("conservation_status")
+# taxify_download_enrichment("iucn")
 # 
 # # Download several at once
-# taxify_download_enrichment(c("woodiness", "eive", "leda"))
+# taxify_download_enrichment(c("zanne", "eive", "leda"))
 # 
 # # Download all of them
 # taxify_download_enrichment(c(
-#   "conservation_status", "griis", "wcvp", "eive",
+#   "iucn", "griis", "wcvp", "eive",
 #   "elton_traits", "avonet", "pantheria", "amphibio",
-#   "common_names", "woodiness", "diaz_traits", "leda",
+#   "common_names", "zanne", "diaz_traits", "leda",
 #   "fungal_traits", "funguild", "algae_traits",
-#   "fish_traits", "fishbase", "repttraits", "anage", "glonaf",
+#   "fishmorph", "fishbase", "repttraits", "anage", "glonaf",
 #   "leptraits", "animaltraits", "arthropod_traits", "alien_first_records",
 #   "baseflor", "ecoflora", "floraweb"
 # ))
@@ -264,7 +270,7 @@ knitr::opts_chunk$set(
 # ))
 # 
 # freshwater_fish |> add_fishmorph()
-# #>        input_name fish_body_elongation fish_eye_size fish_oral_gape_position fish_body_lateral_shape ...
+# #>        input_name fish_body_elongation fish_relative_eye_size fish_oral_gape_position fish_body_lateral_shape ...
 # #> 1    Salmo trutta                 0.22          0.08                    0.42                    0.18 ...
 # #> 2    Esox lucius                  0.18          0.06                    0.50                    0.15 ...
 # #> 3  Cyprinus carpio                0.35          0.05                    0.38                    0.25 ...
@@ -289,7 +295,7 @@ knitr::opts_chunk$set(
 # reptiles <- taxify(c(
 #   "Pogona vitticeps", "Python regius", "Chelonia mydas",
 #   "Naja naja", "Crocodylus niloticus"
-# ), backend = "reptiledb")
+# ), backbone = "reptiledb")
 # 
 # reptiles |> add_repttraits()
 # #>             input_name biogeographic_realm habitat_type elevation_max_m body_mass_g  svl_mm reproductive_mode ...
@@ -303,7 +309,7 @@ knitr::opts_chunk$set(
 # vertebrates <- taxify(c(
 #   "Vulpes vulpes", "Aquila chrysaetos", "Crocodylus niloticus",
 #   "Bufo bufo", "Salmo salar"
-# ), backend = c("col", "gbif"))
+# ), backbone = c("col", "gbif"))
 # 
 # vertebrates |> add_anage()
 # #>              input_name max_longevity_yr anage_body_mass_g metabolic_rate_w ...
@@ -317,7 +323,7 @@ knitr::opts_chunk$set(
 # arthropods <- taxify(c(
 #   "Drosophila melanogaster", "Apis mellifera",
 #   "Tenebrio molitor", "Gryllus campestris"
-# ), backend = c("col", "gbif"))
+# ), backbone = c("col", "gbif"))
 # 
 # arthropods |> add_animaltraits()
 # #>                input_name animaltraits_body_mass_kg animaltraits_metabolic_rate_w
@@ -330,7 +336,7 @@ knitr::opts_chunk$set(
 # butterflies <- taxify(c(
 #   "Vanessa cardui", "Pieris rapae", "Papilio machaon",
 #   "Lycaena phlaeas", "Colias crocea"
-# ), backend = c("col", "gbif"))
+# ), backbone = c("col", "gbif"))
 # 
 # butterflies |> add_leptraits()
 # #>        input_name wingspan_mm voltinism diapause_stage canopy_affinity ...
@@ -344,7 +350,7 @@ knitr::opts_chunk$set(
 # insects <- taxify(c(
 #   "Abax parallelepipedus", "Pterostichus melanarius",
 #   "Chorthippus parallelus", "Araneus diadematus"
-# ), backend = c("col", "gbif"))
+# ), backbone = c("col", "gbif"))
 # 
 # insects |> add_arthropod_traits()
 # #>               input_name arthropod_body_size_mm arthropod_dispersal arthropod_voltinism arthropod_feeding_guild ...
@@ -579,19 +585,19 @@ knitr::opts_chunk$set(
 # 
 # summary(result)
 # #> -- taxify results --------------------------------------------------------
-# #>   backend: WFO v2024.12  |  3 names submitted
+# #>   backbone: WFO v2024.12  |  3 names submitted
 # #>
 # #>   matched       3  (exact: 3, case-insensitive: 0, fuzzy: 0)
 # #>   --------------------------------------------------------
 # #>   taxon groups: plant: 3
 # #>
 # #>   enrichments:
-# #>     conservation_status  (IUCN Red List 2025.1)     -- 3 of 3 matched
-# #>     woodiness            (Zanne et al. 2014 1.0)    -- 3 of 3 matched
+# #>     iucn                 (IUCN Red List 2025.1)     -- 3 of 3 matched
+# #>     zanne                (Zanne et al. 2014 1.0)    -- 3 of 3 matched
 # #>     eive                 (EIVE 1.0 2023.1)          -- 3 of 3 matched
 
 ## ----guide-euro-plants--------------------------------------------------------
-# result <- taxify(species_list, backend = "wfo") |>
+# result <- taxify(species_list, backbone = "wfo") |>
 #   add_iucn() |>
 #   add_zanne() |>
 #   add_fungalroot() |>
@@ -602,7 +608,7 @@ knitr::opts_chunk$set(
 #   add_common_names()
 
 ## ----guide-global-plants------------------------------------------------------
-# result <- taxify(species_list, backend = "wfo") |>
+# result <- taxify(species_list, backbone = "wfo") |>
 #   add_iucn() |>
 #   add_zanne() |>
 #   add_fungalroot() |>
@@ -611,60 +617,60 @@ knitr::opts_chunk$set(
 #   add_common_names()
 
 ## ----guide-birds--------------------------------------------------------------
-# result <- taxify(species_list, backend = "col") |>
+# result <- taxify(species_list, backbone = "col") |>
 #   add_iucn() |>
 #   add_avonet() |>
 #   add_elton_traits() |>
 #   add_common_names()
 
 ## ----guide-mammals------------------------------------------------------------
-# result <- taxify(species_list, backend = "col") |>
+# result <- taxify(species_list, backbone = "col") |>
 #   add_iucn() |>
 #   add_pantheria() |>
 #   add_elton_traits() |>
 #   add_common_names()
 
 ## ----guide-amphibians---------------------------------------------------------
-# result <- taxify(species_list, backend = "col") |>
+# result <- taxify(species_list, backbone = "col") |>
 #   add_iucn() |>
 #   add_amphibio() |>
 #   add_common_names()
 
 ## ----guide-fish---------------------------------------------------------------
-# result <- taxify(species_list, backend = "worms") |>
+# result <- taxify(species_list, backbone = "worms") |>
 #   add_iucn() |>
 #   add_fishmorph() |>
 #   add_fishbase() |>
 #   add_common_names()
 
 ## ----guide-reptiles-----------------------------------------------------------
-# result <- taxify(species_list, backend = "reptiledb") |>
+# result <- taxify(species_list, backbone = "reptiledb") |>
 #   add_iucn() |>
 #   add_repttraits() |>
 #   add_common_names()
 
 ## ----guide-butterflies--------------------------------------------------------
-# result <- taxify(species_list, backend = "col") |>
+# result <- taxify(species_list, backbone = "col") |>
 #   add_iucn() |>
 #   add_leptraits() |>
 #   add_common_names()
 
 ## ----guide-arthropods---------------------------------------------------------
-# result <- taxify(species_list, backend = c("col", "gbif")) |>
+# result <- taxify(species_list, backbone = c("col", "gbif")) |>
 #   add_iucn() |>
 #   add_arthropod_traits() |>
 #   add_animaltraits() |>
 #   add_common_names()
 
 ## ----guide-fungi--------------------------------------------------------------
-# result <- taxify(species_list, backend = "col") |>
+# result <- taxify(species_list, backbone = "col") |>
 #   add_iucn() |>
 #   add_fungal_traits() |>
 #   add_funguild() |>
 #   add_common_names()
 
 ## ----guide-algae--------------------------------------------------------------
-# result <- taxify(species_list, backend = "worms") |>
+# result <- taxify(species_list, backbone = "worms") |>
 #   add_iucn() |>
 #   add_algae_traits() |>
 #   add_common_names()

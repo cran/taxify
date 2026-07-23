@@ -48,9 +48,12 @@
 #'       (the canonical unit, numeric traits only); `<trait>_sources` (the source
 #'       it came from, or the comma-separated contributing sources with an
 #'       aggregating `combine`); `<trait>_n` (how many sources backed the value);
-#'       and, only when a source measured the trait differently,
-#'       `<trait>_caution` explaining the method difference. To inspect every
-#'       source, use `mode = "wide"`.}
+#'       for numeric traits, `<trait>_min` and `<trait>_max` (the range of
+#'       values behind the headline -- across the contributing sources, and
+#'       across a source's own records where that spread was recorded at build
+#'       time, so a life-stage or population span stays visible); and, only when
+#'       a source measured the trait differently, `<trait>_caution` explaining
+#'       the method difference. To inspect every source, use `mode = "wide"`.}
 #'     \item{`mode = "wide"`}{One column per source, `<trait>_<source>`, each
 #'       harmonized to the trait's shared vocabulary (categorical) or unit
 #'       (numeric); `<trait>_unit`; and `<trait>_caution` on rows where a
@@ -129,19 +132,60 @@ add_trait <- function(x, trait, sources = "all",
   }
 
   na_scalar <- if (spec$kind == "numeric") NA_real_ else NA_character_
+  numeric   <- spec$kind == "numeric"
   per_src <- list()
+  per_min <- list()          # per-source lower extreme (numeric traits only)
+  per_max <- list()          # per-source upper extreme
   for (s in ord) {
-    sp  <- spec$sources[[s]]
-    raw <- .trait_join_one(x, sp$enrichment, sp$col, spec$kind,
-                           join_col = sp$join_col %||% "accepted_name",
-                           verbose = verbose)
-    per_src[[s]] <- if (is.null(raw)) rep(na_scalar, nrow(x)) else sp$map(raw)
+    sp <- spec$sources[[s]]
+    jc <- sp$join_col %||% "accepted_name"
+    if (numeric) {
+      # Fetch the source's value plus its within-source min/max where the .vtr
+      # stores them (built by taxifydb where a source has several records per
+      # species); where it does not, min = max = value, so the spread reduces to
+      # the cross-source range.
+      tr <- .trait_join_spread(x, sp$enrichment, sp$col, jc, sp$map, verbose)
+      if (is.null(tr)) {
+        na <- rep(NA_real_, nrow(x))
+        per_src[[s]] <- na; per_min[[s]] <- na; per_max[[s]] <- na
+      } else {
+        per_src[[s]] <- tr$value; per_min[[s]] <- tr$min; per_max[[s]] <- tr$max
+      }
+    } else {
+      raw <- .trait_join_one(x, sp$enrichment, sp$col, spec$kind,
+                             join_col = jc, group = sp$group,
+                             verbose = verbose)
+      per_src[[s]] <- if (is.null(raw)) rep(na_scalar, nrow(x)) else sp$map(raw)
+    }
   }
 
-  # Per-source caution (method/definition differs from the reference source).
-  cvec <- vapply(ord, function(s) spec$sources[[s]]$caution %||% NA_character_,
-                 character(1L))
+  # Two kinds of caution. Static per-source cautions (`cvec`) flag a whole source
+  # whose method/definition differs from the reference; they drive the coalesce's
+  # complete-vs-median switch below. Per-record cautions (`perrec`) flag
+  # individual species from a companion column in the same enrichment (e.g. a
+  # model-imputed PHYLACINE body mass) and are provenance annotations only, so
+  # they are kept out of `cvec` and the discordance test.
+  is_perrec <- function(sp) {
+    cc <- sp$caution_col
+    !is.null(cc) && length(cc) && !is.na(cc) && nzchar(cc) && !is.null(sp$caution_fn)
+  }
+  cvec <- vapply(ord, function(s) {
+    sp <- spec$sources[[s]]
+    if (is_perrec(sp)) NA_character_ else sp$caution %||% NA_character_
+  }, character(1L))
   names(cvec) <- ord
+  perrec <- list()
+  for (s in ord) {
+    sp <- spec$sources[[s]]
+    if (!is_perrec(sp)) next
+    jc   <- sp$join_col %||% "accepted_name"
+    comp <- .trait_join_one(x, sp$enrichment, sp$caution_col, "categorical",
+                            join_col = jc, group = sp$group, verbose = FALSE)
+    if (is.null(comp)) next
+    ctext <- sp$caution_fn(comp)
+    ctext[is.na(per_src[[s]])] <- NA_character_   # only where the source has a value
+    if (any(!is.na(ctext))) perrec[[s]] <- ctext
+  }
   # Discordance is data-aware: it only matters when at least two sources actually
   # supply values here and one of them is cautioned. A single source that has
   # data is not a method conflict (its own caution is still surfaced per row).
@@ -154,6 +198,7 @@ add_trait <- function(x, trait, sources = "all",
     for (s in ord) x[[paste0(trait, "_", s)]] <- per_src[[s]]
     if (!is.null(unit)) x[[paste0(trait, "_unit")]] <- unit
     cr <- .trait_wide_caution(per_src, cvec, nrow(x))
+    cr <- .merge_perrec_caution(cr, perrec, NULL, nrow(x))
     if (!is.null(cr)) x[[paste0(trait, "_caution")]] <- cr
   } else {
     # When sources measure the trait differently, do not blend: report the most
@@ -164,7 +209,19 @@ add_trait <- function(x, trait, sources = "all",
     if (!is.null(unit)) x[[paste0(trait, "_unit")]] <- unit
     x[[paste0(trait, "_sources")]] <- co$source
     x[[paste0(trait, "_n")]]       <- co$n
+    # Numeric traits also report the spread: the smallest and largest observed
+    # value across the contributing sources -- widened to each source's stored
+    # within-source min/max where taxifydb recorded it. The coalesced value stays
+    # the headline (median by default); min/max let a reader see the range and
+    # decide whether to go back to a source (e.g. a life-stage span). `<trait>_n`
+    # remains the number of contributing sources.
+    if (numeric) {
+      sp_range <- .coalesce_spread(per_min[ord], per_max[ord])
+      x[[paste0(trait, "_min")]] <- sp_range$min
+      x[[paste0(trait, "_max")]] <- sp_range$max
+    }
     cr <- .trait_caution_col(co, cvec, disc, use_combine)
+    cr <- .merge_perrec_caution(cr, perrec, co$source, nrow(x))
     if (!is.null(cr)) x[[paste0(trait, "_caution")]] <- cr
     if (auto && disc && verbose && any(!is.na(co$value))) {
       message(sprintf(
@@ -187,7 +244,7 @@ add_trait <- function(x, trait, sources = "all",
     x <- register_enrichment(
       x,
       name      = sp$enrichment,
-      source    = sp$citation %||% sp$enrichment,
+      source_label = sp$citation %||% sp$enrichment,
       version   = NA_character_,
       n_matched = sum(!is.na(per_src[[s]]))
     )

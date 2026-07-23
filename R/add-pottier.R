@@ -20,8 +20,8 @@
 #' Scientific Data 9:600. \doi{10.1038/s41597-022-01704-9}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Rana temporaria", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Rana temporaria", backbone = "gbif") |>
 #'   add_pottier()
 #' }
 #'

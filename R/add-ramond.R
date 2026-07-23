@@ -33,8 +33,8 @@
 #' SEANOE. \doi{10.17882/51662}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Alexandrium", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Alexandrium", backbone = "gbif") |>
 #'   add_ramond()
 #' }
 #'

@@ -18,8 +18,8 @@
 #' States of America. Scientific Data 10:745. \doi{10.1038/s41597-023-02635-9}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Lampsilis cardium", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Lampsilis cardium", backbone = "gbif") |>
 #'   add_sheld()
 #' }
 #'

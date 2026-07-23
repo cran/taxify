@@ -27,8 +27,8 @@ Source: Blanchard & Moreau (2017) ant defensive traits (Dryad, CC0).
 Joins on genus because the database is genus-resolved.
 }
 \examples{
-\donttest{
-taxify("Camponotus pennsylvanicus", backend = "gbif") |>
+\dontrun{
+taxify("Camponotus pennsylvanicus", backbone = "gbif") |>
   add_blanchard()
 }
 

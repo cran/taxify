@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Enriching results with trait and status data"
 output: rmarkdown::html_vignette
 vignette: >
@@ -26,7 +26,7 @@ incompatible formats. Manually aligning names between a taxonomic backbone
 and a trait database can consume hours even for moderately sized species
 lists.
 
-taxify ships with more than sixty enrichment layers that attach published
+taxify ships with more than eighty enrichment layers that attach published
 trait and status datasets to a `taxify()` result in a single pipe call. Each
 enrichment is backed by a pre-built `.vtr` file that downloads automatically
 on first use and caches locally for all subsequent sessions. The enrichment
@@ -86,10 +86,32 @@ hash indexes on the `canonical_name` column in the enrichment `.vtr`,
 making even enrichments with hundreds of thousands of rows resolve in
 under a second.
 
+### Species aggregates
+
+Aggregate concepts (`"Rubus fruticosus agg."`, `"Galium mollugo s.l."`) sit
+above the binomial, so the join resolves them along the taxonomic hierarchy: a
+species inherits its aggregate's value where the source records the trait only at
+the aggregate level, and an aggregate falls back to the nominal binomial's value
+where the source carries none.
+
+```{r eval=FALSE}
+# Rubus fruticosus agg. gets the aggregate's trait where the source has it,
+# otherwise the nominal Rubus fruticosus value.
+taxify("Rubus fruticosus agg.") |>
+  add_trait("plant_height")
+```
+
+The fallback is on by default (toggle with `aggregate_trait_fallback = FALSE` or
+`options(taxify.aggregate_trait_fallback = FALSE)`), and
+`options(taxify.trait_provenance = TRUE)` adds an `<enrichment>_basis` column
+recording whether each value is `"primary"`, `"aggregate"`, or `"binomial"`. The
+[Hybrids and aggregates vignette](https://gillescolling.com/taxify/articles/hybrids-and-aggregates.html)
+covers aggregate matching and this fallback in full.
+
 ### Cross-backbone name resolution
 
 A subtle but important design decision underlies the enrichment `.vtr`
-files: they are built to work with any of taxify's seven backends (WFO,
+files: they are built to work with any of taxify's seven backbones (WFO,
 COL, GBIF, ITIS, NCBI, OTT, WoRMS). Different backbones sometimes accept
 different names for the same taxon. WFO might accept "Senecio jacobaea"
 while COL accepts "Jacobaea vulgaris" for the same species. If the
@@ -97,14 +119,14 @@ enrichment `.vtr` only contained one of these names, it would fail to match
 results from the other backbone.
 
 The taxifydb build pipeline solves this by resolving every source
-species name against each of the seven backends separately (not as a
+species name against each of the seven backbones separately (not as a
 fallback chain, which would only return the first match). The union of all
 unique `accepted_name` values is collected per source species. Each source
 row is then expanded: one enrichment row per distinct accepted name, with
 the trait data duplicated. The final `.vtr` is then deduplicated by
 `canonical_name` (plus any group column for grouped enrichments).
 
-In practice, backends agree on more than 90% of names, so this expansion
+In practice, backbones agree on more than 90% of names, so this expansion
 is modest (typically 1.1–1.5x the original row count). The result is that
 `add_iucn()` works identically whether the upstream
 `taxify()` call used WFO, COL, or GBIF. We do not have to pick enrichments
@@ -137,7 +159,7 @@ This check adds negligible latency because the manifest itself is cached.
 If the pre-built `.vtr` download fails (network issues, mirror outage,
 transient server errors), taxify does not stop immediately. Instead, it
 attempts to build the enrichment from the original source data. Each of
-the 18 enrichments has a build recipe in an internal registry
+the <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> enrichments has a build recipe in an internal registry
 (`.enrichment_build_registry`) that knows how to download the raw CSV, ZIP,
 or API response from the upstream source, parse it into a data.frame with
 a `canonical_name` column, and produce the `.vtr` file locally. This
@@ -153,7 +175,7 @@ issues a warning explaining the situation. This emergency result is
 ephemeral and not cached. If all three paths fail, an error is raised with
 a link to the GitHub issue tracker so the failure can be reported.
 
-### ### The enrichment data directory
+### The enrichment data directory
 
 All enrichment `.vtr` files live under a single root directory, organized
 by enrichment name and version:
@@ -161,17 +183,17 @@ by enrichment name and version:
 ```
 taxify_data_dir()/
   enrichment/
-    conservation_status/
+    iucn/
       latest/
-        conservation_status.vtr
+        iucn.vtr
         meta.json
     griis/
       latest/
         griis.vtr
         meta.json
-    woodiness/
+    zanne/
       latest/
-        woodiness.vtr
+        zanne.vtr
         meta.json
     ...
 ```
@@ -181,8 +203,8 @@ directory (typically `~/.local/share/taxify` on Linux/macOS or
 `%LOCALAPPDATA%/taxify` on Windows). This directory is also where backbone
 `.vtr` files are stored, so a single `taxify_data_dir()` call reveals
 where all taxify data lives on the system. Enrichment files are modest in
-size: most are between 1 and 20 MB. The full set of 18 enrichments totals
-roughly 150-200 MB.
+size: most are between 1 and 20 MB. The full set of <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> enrichments is
+correspondingly larger.
 
 
 ## Discovering enrichments
@@ -199,7 +221,7 @@ library(taxify)
 
 list_enrichments()
 #>              name version   nrow static                              trait_cols ...
-#> 1 conservation_status  ...  166000   TRUE                   conservation_status ...
+#> 1 iucn  ...  166000   TRUE                   conservation_status ...
 #> 2               griis  ...   23000  FALSE                      invasive_status ...
 #> 3                wcvp  ...  340000  FALSE                        native_status ...
 #> ...
@@ -211,7 +233,7 @@ FungalTraits, FUNGuild, AlgaeTraits, FISHMORPH, ReptTraits,
 LepTraits, AnimalTraits, NW European Arthropods) are based on published,
 version-locked datasets that have a single definitive release.
 These never trigger version checks, so they add zero network overhead to
-a session. Non-static enrichments (conservation_status, GRIIS, WCVP,
+a session. Non-static enrichments (iucn, GRIIS, WCVP,
 common_names) are periodically updated as the upstream source publishes new
 releases. For these, taxify checks once per session whether a newer version
 is available and updates transparently if so.
@@ -307,18 +329,18 @@ enrichment names and downloads each one to the local data directory.
 
 ```{r pre-download}
 # Download a single enrichment
-taxify_download_enrichment("conservation_status")
+taxify_download_enrichment("iucn")
 
 # Download several at once
-taxify_download_enrichment(c("woodiness", "eive", "leda"))
+taxify_download_enrichment(c("zanne", "eive", "leda"))
 
 # Download all of them
 taxify_download_enrichment(c(
-  "conservation_status", "griis", "wcvp", "eive",
+  "iucn", "griis", "wcvp", "eive",
   "elton_traits", "avonet", "pantheria", "amphibio",
-  "common_names", "woodiness", "diaz_traits", "leda",
+  "common_names", "zanne", "diaz_traits", "leda",
   "fungal_traits", "funguild", "algae_traits",
-  "fish_traits", "fishbase", "repttraits", "anage", "glonaf",
+  "fishmorph", "fishbase", "repttraits", "anage", "glonaf",
   "leptraits", "animaltraits", "arthropod_traits", "alien_first_records",
   "baseflor", "ecoflora", "floraweb"
 ))
@@ -348,7 +370,7 @@ immediately without any network access.
 ## Simple enrichments
 
 Simple enrichments add one or more columns via a flat join on
-`accepted_name`. Eighteen of the twenty-two enrichment layers use this
+`accepted_name`. Almost every enrichment layer uses this
 pattern. They differ only in which columns they add and which taxonomic
 groups they cover. We group them below by taxon focus, starting with plants
 (which have the most enrichment layers), then conservation status
@@ -367,7 +389,7 @@ that are straightforward to integrate.
 
 #### Woodiness (Zanne et al. 2014)
 
-The woodiness enrichment classifies ~50,000 plant species as woody,
+The zanne enrichment classifies ~50,000 plant species as woody,
 herbaceous, or variable. The dataset comes from Zanne et al. (2014), a
 landmark study on the radiation of angiosperms into freezing environments,
 published in *Nature*. The underlying classification draws on the world's
@@ -1132,7 +1154,7 @@ freshwater_fish <- taxify(c(
 ))
 
 freshwater_fish |> add_fishmorph()
-#>        input_name fish_body_elongation fish_eye_size fish_oral_gape_position fish_body_lateral_shape ...
+#>        input_name fish_body_elongation fish_relative_eye_size fish_oral_gape_position fish_body_lateral_shape ...
 #> 1    Salmo trutta                 0.22          0.08                    0.42                    0.18 ...
 #> 2    Esox lucius                  0.18          0.06                    0.50                    0.15 ...
 #> 3  Cyprinus carpio                0.35          0.05                    0.38                    0.25 ...
@@ -1146,10 +1168,14 @@ morphological ratios normalized by body length. The 10 traits are:
 - `fish_body_elongation`: body depth relative to standard length. High
   values indicate deep-bodied species (cyprinids), low values indicate
   elongated species (eels, pike).
-- `fish_eye_size`: eye diameter relative to head length. Large-eyed
+- `fish_relative_eye_size`: eye diameter relative to head depth. Large-eyed
   species tend to be visual predators in clear water.
+- `fish_vertical_eye_position`: the vertical position of the eye on the
+  head, from ventral to dorsal.
 - `fish_oral_gape_position`: the vertical position of the mouth, from
   ventral (benthic feeders) to dorsal (surface feeders).
+- `fish_relative_maxillary_length`: jaw (maxillary) length relative to head
+  length, associated with prey size and feeding mode.
 - `fish_body_lateral_shape`: the lateral compression of the body.
 
 - `fish_pectoral_fin_size`: pectoral fin area, associated with
@@ -1158,20 +1184,15 @@ morphological ratios normalized by body length. The 10 traits are:
   fin on the body.
 - `fish_caudal_peduncle_throttling`: the narrowing of the caudal
   peduncle, associated with sustained swimming efficiency.
-- `fish_caudal_fin_shape`: the aspect ratio of the caudal fin. High
-  values (forked tails) indicate cruising swimmers; low values (rounded
-  tails) indicate ambush predators or benthic species.
-- `fish_fin_surface_ratio`: total fin area relative to body area.
 
-- `fish_max_body_length_cm`: the maximum recorded standard length in
-  centimetres.
+- `fish_max_body_length`: the maximum recorded body length.
 
 These morphological ratios are ecomorphological indicators: they predict
 how a species interacts with its physical environment. Body elongation and
-caudal fin shape together separate benthic, slow-moving species from
-pelagic, fast-cruising species. Oral gape position separates surface
-feeders from bottom feeders. Eye size and pectoral fin size relate to
-sensory ecology and manoeuvrability, respectively. The combination of
+caudal peduncle throttling together separate benthic, slow-moving species
+from pelagic, fast-cruising species. Oral gape position separates surface
+feeders from bottom feeders. Relative eye size and pectoral fin size relate
+to sensory ecology and manoeuvrability, respectively. The combination of
 these traits places each species in morphological space, making FISHMORPH
 directly useful for functional diversity calculations (Rao's Q, functional
 richness, functional divergence) in freshwater fish community ecology.
@@ -1257,7 +1278,7 @@ mean climate.
 reptiles <- taxify(c(
   "Pogona vitticeps", "Python regius", "Chelonia mydas",
   "Naja naja", "Crocodylus niloticus"
-), backend = "reptiledb")
+), backbone = "reptiledb")
 
 reptiles |> add_repttraits()
 #>             input_name biogeographic_realm habitat_type elevation_max_m body_mass_g  svl_mm reproductive_mode ...
@@ -1329,7 +1350,7 @@ metabolic data can be compared directly across vertebrate classes.
 vertebrates <- taxify(c(
   "Vulpes vulpes", "Aquila chrysaetos", "Crocodylus niloticus",
   "Bufo bufo", "Salmo salar"
-), backend = c("col", "gbif"))
+), backbone = c("col", "gbif"))
 
 vertebrates |> add_anage()
 #>              input_name max_longevity_yr anage_body_mass_g metabolic_rate_w ...
@@ -1363,7 +1384,7 @@ trait databases.
 arthropods <- taxify(c(
   "Drosophila melanogaster", "Apis mellifera",
   "Tenebrio molitor", "Gryllus campestris"
-), backend = c("col", "gbif"))
+), backbone = c("col", "gbif"))
 
 arthropods |> add_animaltraits()
 #>                input_name animaltraits_body_mass_kg animaltraits_metabolic_rate_w
@@ -1396,7 +1417,7 @@ data, and adult flight phenology.
 butterflies <- taxify(c(
   "Vanessa cardui", "Pieris rapae", "Papilio machaon",
   "Lycaena phlaeas", "Colias crocea"
-), backend = c("col", "gbif"))
+), backbone = c("col", "gbif"))
 
 butterflies |> add_leptraits()
 #>        input_name wingspan_mm voltinism diapause_stage canopy_affinity ...
@@ -1432,7 +1453,7 @@ for this region.
 insects <- taxify(c(
   "Abax parallelepipedus", "Pterostichus melanarius",
   "Chorthippus parallelus", "Araneus diadematus"
-), backend = c("col", "gbif"))
+), backbone = c("col", "gbif"))
 
 insects |> add_arthropod_traits()
 #>               input_name arthropod_body_size_mm arthropod_dispersal arthropod_voltinism arthropod_feeding_guild ...
@@ -2019,8 +2040,8 @@ slightly different sets of names).
 
 | Enrichment | Taxon scope | Geographic scope | ~Species |
 |---|---|---|---|
-| conservation_status | all groups | global | 166,000 |
-| woodiness | plants | global | 50,000 |
+| iucn | all groups | global | 166,000 |
+| zanne | plants | global | 50,000 |
 | eive | plants | European | 14,500 |
 | diaz_traits | plants | global | 46,000 |
 | leda | plants | NW European | 8,000 |
@@ -2031,7 +2052,7 @@ slightly different sets of names).
 | fungal_traits | fungi | global | 10,200 genera |
 | funguild | fungi | global | 13,000 |
 | algae_traits | macroalgae | European | 1,745 |
-| fish_traits | freshwater fish | global | 8,300 |
+| fishmorph | freshwater fish | global | 8,300 |
 | fishbase | all fish | global | 35,000 |
 | repttraits | reptiles | global | 12,060 |
 | anage | vertebrates | global | 4,700 |
@@ -2118,15 +2139,15 @@ result <- taxify(c("Quercus robur", "Fagus sylvatica", "Pinus sylvestris")) |>
 
 summary(result)
 #> -- taxify results --------------------------------------------------------
-#>   backend: WFO v2024.12  |  3 names submitted
+#>   backbone: WFO v2024.12  |  3 names submitted
 #>
 #>   matched       3  (exact: 3, case-insensitive: 0, fuzzy: 0)
 #>   --------------------------------------------------------
 #>   taxon groups: plant: 3
 #>
 #>   enrichments:
-#>     conservation_status  (IUCN Red List 2025.1)     -- 3 of 3 matched
-#>     woodiness            (Zanne et al. 2014 1.0)    -- 3 of 3 matched
+#>     iucn                 (IUCN Red List 2025.1)     -- 3 of 3 matched
+#>     zanne                (Zanne et al. 2014 1.0)    -- 3 of 3 matched
 #>     eive                 (EIVE 1.0 2023.1)          -- 3 of 3 matched
 ```
 
@@ -2149,7 +2170,7 @@ The version strings in the register provide exact provenance information
 for the methods section of a paper. Rather than writing "we used the IUCN
 Red List" (which version? downloaded when?), we can report the version
 string directly from `summary()` (e.g., "IUCN Red List v2025.1 as
-distributed by taxify enrichment conservation_status v2025.04").
+distributed by taxify enrichment iucn v2025.04").
 
 
 ## Practical guidance: which enrichments for which taxa
@@ -2166,7 +2187,7 @@ position, global functional traits, regional functional traits, native
 range, and vernacular names.
 
 ```{r guide-euro-plants}
-result <- taxify(species_list, backend = "wfo") |>
+result <- taxify(species_list, backbone = "wfo") |>
   add_iucn() |>
   add_zanne() |>
   add_fungalroot() |>
@@ -2199,7 +2220,7 @@ stack relies on the wider-coverage datasets and omits the regional
 enrichments.
 
 ```{r guide-global-plants}
-result <- taxify(species_list, backend = "wfo") |>
+result <- taxify(species_list, backbone = "wfo") |>
   add_iucn() |>
   add_zanne() |>
   add_fungalroot() |>
@@ -2221,7 +2242,7 @@ detailed functional profile spanning body plan, habitat use, dietary niche,
 and movement ecology.
 
 ```{r guide-birds}
-result <- taxify(species_list, backend = "col") |>
+result <- taxify(species_list, backbone = "col") |>
   add_iucn() |>
   add_avonet() |>
   add_elton_traits() |>
@@ -2243,7 +2264,7 @@ independent sources (`pantheria_body_mass_g` and `elton_body_mass_g`),
 which can serve as a cross-validation of the mass data.
 
 ```{r guide-mammals}
-result <- taxify(species_list, backend = "col") |>
+result <- taxify(species_list, backbone = "col") |>
   add_iucn() |>
   add_pantheria() |>
   add_elton_traits() |>
@@ -2262,7 +2283,7 @@ AmphiBIO is the sole dedicated amphibian enrichment. It can be combined
 with conservation status and common names.
 
 ```{r guide-amphibians}
-result <- taxify(species_list, backend = "col") |>
+result <- taxify(species_list, backbone = "col") |>
   add_iucn() |>
   add_amphibio() |>
   add_common_names()
@@ -2280,11 +2301,11 @@ habitat specialization and extinction risk.
 Fish are covered by two complementary enrichments: FISHMORPH for
 morphological traits of freshwater species, and FishBase for ecological
 and life-history traits across all fish (freshwater + marine). The WoRMS
-backend provides authoritative taxonomy for marine fish; COL and GBIF
+backbone provides authoritative taxonomy for marine fish; COL and GBIF
 cover both freshwater and marine species.
 
 ```{r guide-fish}
-result <- taxify(species_list, backend = "worms") |>
+result <- taxify(species_list, backbone = "worms") |>
   add_iucn() |>
   add_fishmorph() |>
   add_fishbase() |>
@@ -2308,7 +2329,7 @@ with conservation status, it gives a functional profile suitable for reptile
 community analyses and conservation assessments.
 
 ```{r guide-reptiles}
-result <- taxify(species_list, backend = "reptiledb") |>
+result <- taxify(species_list, backbone = "reptiledb") |>
   add_iucn() |>
   add_repttraits() |>
   add_common_names()
@@ -2325,7 +2346,7 @@ globally. For European butterfly ecology, it can be combined with the
 NW European Arthropod traits for additional life-history variables.
 
 ```{r guide-butterflies}
-result <- taxify(species_list, backend = "col") |>
+result <- taxify(species_list, backbone = "col") |>
   add_iucn() |>
   add_leptraits() |>
   add_common_names()
@@ -2339,7 +2360,7 @@ combined with AnimalTraits for cross-taxon body mass comparisons and with
 LepTraits for additional butterfly-specific traits.
 
 ```{r guide-arthropods}
-result <- taxify(species_list, backend = c("col", "gbif")) |>
+result <- taxify(species_list, backbone = c("col", "gbif")) |>
   add_iucn() |>
   add_arthropod_traits() |>
   add_animaltraits() |>
@@ -2354,10 +2375,10 @@ than the Logghe et al. dataset.
 
 Fungi are covered by two enrichments: FungalTraits for genus-level
 ecological traits and FUNGuild for trophic guild classifications. The COL
-and GBIF backends provide fungal taxonomy.
+and GBIF backbones provide fungal taxonomy.
 
 ```{r guide-fungi}
-result <- taxify(species_list, backend = "col") |>
+result <- taxify(species_list, backbone = "col") |>
   add_iucn() |>
   add_fungal_traits() |>
   add_funguild() |>
@@ -2375,11 +2396,11 @@ systematic bias.
 ### Macroalgae (European)
 
 European macroalgae are covered by AlgaeTraits, which provides
-morphological and ecological traits for ~1,745 species. The WoRMS backend
+morphological and ecological traits for ~1,745 species. The WoRMS backbone
 is recommended for marine algae taxonomy.
 
 ```{r guide-algae}
-result <- taxify(species_list, backend = "worms") |>
+result <- taxify(species_list, backbone = "worms") |>
   add_iucn() |>
   add_algae_traits() |>
   add_common_names()
@@ -2555,7 +2576,7 @@ A minimal methods paragraph citing enrichments might read:
 ## Summary
 
 taxify's enrichment system turns taxonomic name matching into a gateway to
-ecological trait data. The 22 built-in enrichments cover conservation status,
+ecological trait data. The <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> built-in enrichments cover conservation status,
 growth form, ecological niches, functional traits, diet, morphology,
 life-history, geographic ranges, invasive status, and vernacular names
 across plants, birds, mammals, amphibians, vertebrates, butterflies,
@@ -2578,7 +2599,7 @@ analytical tables in a single pipe chain.
 
 The key properties of the enrichment system, to recap, are: automatic
 download and caching (no manual data management), cross-backbone
-compatibility (enrichments work regardless of which backend produced the
+compatibility (enrichments work regardless of which backbone produced the
 result), version tracking (the `summary()` method documents exactly which
 data versions were used), and compositional design (enrichments stack
 freely via the pipe operator without side effects or ordering constraints).

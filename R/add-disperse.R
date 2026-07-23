@@ -23,8 +23,8 @@
 #' \doi{10.6084/m9.figshare.c.5000633}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Baetis rhodani", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Baetis rhodani", backbone = "gbif") |>
 #'   add_disperse()
 #' }
 #'

@@ -35,8 +35,8 @@ Source: GlobTherm (Bennett et al. 2018, Scientific Data, CC0).
 Coverage: ~2.1k species across aquatic and terrestrial groups.
 }
 \examples{
-\donttest{
-taxify("Lepomis gibbosus", backend = "gbif") |>
+\dontrun{
+taxify("Lepomis gibbosus", backbone = "gbif") |>
   add_globtherm()
 }
 

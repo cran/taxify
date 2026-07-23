@@ -28,8 +28,8 @@ Source: Rimet & Druart (2018) phytoplankton metrics database
 (Zenodo, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Asterionella formosa", backend = "gbif") |>
+\dontrun{
+taxify("Asterionella formosa", backbone = "gbif") |>
   add_rimet_phyto()
 }
 

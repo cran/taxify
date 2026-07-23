@@ -18,8 +18,8 @@
 #' benthic invertebrates. figshare. \doi{10.6084/m9.figshare.21939647}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Macomona liliana", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Macomona liliana", backbone = "gbif") |>
 #'   add_nztd()
 #' }
 #'

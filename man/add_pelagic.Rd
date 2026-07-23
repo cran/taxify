@@ -28,8 +28,8 @@ Source: Gleiber et al. (2024) Pelagic Species Trait Database
 (Borealis, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Thunnus albacares", backend = "gbif") |>
+\dontrun{
+taxify("Thunnus albacares", backbone = "gbif") |>
   add_pelagic()
 }
 

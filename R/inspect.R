@@ -1,4 +1,4 @@
-﻿#' Inspect a name list for probable typos and other anomalies
+#' Inspect a name list for probable typos and other anomalies
 #'
 #' A quality-control pass over a name list. By default `inspect()` does not match
 #' names against backbones: on a plain character vector it runs the checks that
@@ -69,7 +69,7 @@
 #' @return A `taxify_inspection` data.frame (one row per anomalous name, ordered
 #'   most-notable first) with columns `input_name`, `suggestion` (the name to use
 #'   instead, or `NA`), `anomalies` (`|`-joined labels), `tier` (ordered factor
-#'   `note` < `review` < `unresolved`), `reason`, `fuzzy_dist`, and `backend`.
+#'   `note` < `review` < `unresolved`), `reason`, `fuzzy_dist`, and `backbone`.
 #'   Zero rows means nothing stood out.
 #'
 #' @examples
@@ -113,7 +113,7 @@ inspect <- function(x,
         res <- bare_taxify_result(x)
       } else {
         res <- tryCatch(
-          taxify(x, backend = inst, region = region, coords = coords,
+          taxify(x, backbone = inst, region = region, coords = coords,
                  range = range, verbose = verbose),
           error = function(e) {
             warning("inspect(): backbone matching failed (",
@@ -158,8 +158,9 @@ bare_taxify_result <- function(x) {
 inspect_load_register <- function() {
   tryCatch({
     if (is.null(.taxify_env$register)) {
-      p <- register_vtr_path()
-      if (file.exists(p)) taxify_load_register(verbose = FALSE)
+      if (!is.null(ensure_register(verbose = FALSE))) {
+        taxify_load_register(verbose = FALSE)
+      }
     }
     .taxify_env$register
   }, error = function(e) NULL)
@@ -184,7 +185,7 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
   acc       <- col("accepted_name",     rep(NA_character_, n))
   fd        <- col("fuzzy_dist",        rep(NA_real_, n))
   amb_tgt   <- col("ambiguous_targets", rep(NA_character_, n))
-  backend   <- col("backend",           rep(NA_character_, n))
+  backbone   <- col("backbone",           rep(NA_character_, n))
   syn_raw   <- col("is_synonym",        rep(FALSE, n))
   amb_raw   <- col("is_ambiguous",      rep(FALSE, n))
   input     <- res$input_name
@@ -351,13 +352,13 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
                         ordered = TRUE),
     reason     = reasons_chr[ord],
     fuzzy_dist = fd[ord],
-    backend    = backend[ord],
+    backbone    = backbone[ord],
     stringsAsFactors = FALSE
   )
   rownames(out) <- NULL
 
-  bk <- attr(res, "taxify_meta")$backend
-  if (is.null(bk)) bk <- unique(backend[!is.na(backend)])
+  bk <- attr(res, "taxify_meta")$backbone
+  if (is.null(bk)) bk <- unique(backbone[!is.na(backbone)])
   bk <- bk[!is.na(bk)]
 
   tier_counts <- table(factor(tier_lab[tier_num[keep]], levels = tier_lab))
@@ -375,10 +376,14 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
 #' Find, for each name, a more frequent near-identical name in the same list
 #'
 #' Clusters the input by Levenshtein distance (base [adist()], no dependency)
-#' on a case- and whitespace-folded key. A name is a near-duplicate when another
-#' name within a small edit distance occurs strictly more often, so the rarer
-#' spelling is the likely typo of the common one. Returns the common spelling to
-#' suggest. Frequency-gated: a lone pair (each seen once) gives no signal.
+#' on a case- and whitespace-folded key. Two names in the same genus are compared
+#' on the epithet alone, so a shared genus prefix does not inflate the length
+#' budget and let genuinely distinct congeners pass as typos; names in different
+#' genera keep the whole-string comparison. A name is a near-duplicate when
+#' another name within a small edit distance occurs strictly more often, so the
+#' rarer spelling is the likely typo of the common one. Returns the common
+#' spelling to suggest. A bare genus (no epithet) is never a near-duplicate of a
+#' congener. Frequency-gated: a lone pair (each seen once) gives no signal.
 #'
 #' @param x Character vector of input names.
 #' @return Character vector the length of `x`: the suggested spelling, or `NA`
@@ -400,14 +405,34 @@ near_duplicate_targets <- function(x) {
     names(sort(table(v), decreasing = TRUE))[1L]
   })
 
-  d   <- utils::adist(u)
-  nch <- nchar(u)
+  parts     <- strsplit(u, " ", fixed = TRUE)
+  genus_u   <- vapply(parts, `[`, character(1L), 1L)
+  epithet_u <- vapply(parts, function(p)
+    if (length(p) >= 2L) paste(p[-1L], collapse = " ") else NA_character_,
+    character(1L))
+  has_ep    <- !is.na(epithet_u)
+
+  d_full   <- utils::adist(u)
+  nch_full <- nchar(u)
+  d_ep     <- matrix(NA_integer_, length(u), length(u))
+  nch_ep   <- ifelse(has_ep, nchar(epithet_u), NA_integer_)
+  if (any(has_ep)) {
+    ep <- which(has_ep)
+    d_ep[ep, ep] <- utils::adist(epithet_u[ep])
+  }
+
   target_u <- rep(NA_character_, length(u))
   for (i in seq_along(u)) {
-    near <- which(d[i, ] >= 1L & d[i, ] <= 2L)
+    same_genus <- has_ep[i] & has_ep & genus_u == genus_u[i]
+    dij     <- d_full[i, ]
+    shorter <- pmin(nch_full[i], nch_full)
+    dij[same_genus]     <- d_ep[i, same_genus]
+    shorter[same_genus] <- pmin(nch_ep[i], nch_ep[same_genus])
+
+    near <- which(dij >= 1L & dij <= 2L)
     if (!length(near)) next
-    shorter <- pmin(nch[i], nch[near])
-    near <- near[d[i, near] / shorter <= 0.25 & shorter >= 5L]
+    sh   <- shorter[near]
+    near <- near[dij[near] / sh <= 0.25 & sh >= 5L]
     if (!length(near)) next
     ci   <- as.integer(cnt[u[i]])
     more <- near[as.integer(cnt[u[near]]) > ci]
@@ -496,6 +521,7 @@ range_outlier_rows <- function(acc, matched, min_batch, verbose = FALSE) {
 #' @param x A `taxify_inspection` object.
 #' @param ... Ignored.
 #' @return `x`, invisibly.
+#' @keywords internal
 #' @export
 print.taxify_inspection <- function(x, ...) {
   meta <- attr(x, "taxify_inspection_meta")

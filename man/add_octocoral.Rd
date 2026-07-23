@@ -29,8 +29,8 @@ records reduced to one value per species.
 Source: Octocoral Trait Database v2.2 (Gomez-Gras et al., CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Gorgonia ventalina", backend = "gbif") |>
+\dontrun{
+taxify("Gorgonia ventalina", backbone = "gbif") |>
   add_octocoral()
 }
 

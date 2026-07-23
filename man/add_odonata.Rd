@@ -26,8 +26,8 @@ Joins Odonate Phenotypic Database categorical traits to a \code{\link[=taxify]{t
 Source: Odonate Phenotypic Database (Waller et al., Dryad, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Calopteryx splendens", backend = "gbif") |>
+\dontrun{
+taxify("Calopteryx splendens", backbone = "gbif") |>
   add_odonata()
 }
 

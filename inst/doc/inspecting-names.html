@@ -516,8 +516,8 @@ candidate typo, but it remains a kingdom-group outlier in a plant
 list.</p>
 <p>If you have already matched the list, inspect the result instead of
 asking <code>inspect()</code> to match again. This reuses the exact
-backend, region, and options of your original call.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">taxify</span>(names, <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
+backbone, region, and options of your original call.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">taxify</span>(names, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="fu">inspect</span>()</span></code></pre></div>
 <p>The two routes return the same kind of report. Pass
 <code>backbones = TRUE</code> when you want a quick standalone check;
@@ -590,7 +590,7 @@ the rest of the checks still run.</p>
 <p>Printing is a convenience. The object underneath is an ordinary
 data.frame with columns <code>input_name</code>,
 <code>suggestion</code>, <code>anomalies</code>, <code>tier</code>,
-<code>reason</code>, <code>fuzzy_dist</code>, and <code>backend</code>,
+<code>reason</code>, <code>fuzzy_dist</code>, and <code>backbone</code>,
 so the report drops straight into a cleaning script.</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>report <span class="ot">&lt;-</span> <span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>

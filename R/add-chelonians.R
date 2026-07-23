@@ -36,8 +36,8 @@
 #' \doi{10.6084/m9.figshare.28828241}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Chelonia mydas", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Chelonia mydas", backbone = "gbif") |>
 #'   add_chelonians()
 #' }
 #'

@@ -14,7 +14,7 @@ knitr::opts_chunk$set(
 #   "Quercus robur", "Fagus sylvatica", "Picea abies",
 #   "Pinus sylvestris", "Betula pendula"
 # )
-# result <- taxify(species, backend = "wfo")
+# result <- taxify(species, backbone = "wfo")
 # 
 # # External trait data — note one synonym and one subspecies
 # traits <- data.frame(
@@ -30,7 +30,7 @@ knitr::opts_chunk$set(
 # result <- result |> add_data(traits, species_col = "taxon")
 
 ## -----------------------------------------------------------------------------
-# result <- taxify(species, backend = "wfo")
+# result <- taxify(species, backbone = "wfo")
 # result <- result |> add_data("path/to/leaf_traits.csv")
 
 ## -----------------------------------------------------------------------------
@@ -162,7 +162,7 @@ knitr::opts_chunk$set(
 # result |> add_data(traits, species_col = "taxon", fuzzy = FALSE)
 
 ## -----------------------------------------------------------------------------
-# result <- taxify(species, backend = "wfo") |>
+# result <- taxify(species, backbone = "wfo") |>
 #   add_iucn() |>
 #   add_zanne() |>
 #   add_data(traits, species_col = "taxon")

@@ -27,8 +27,8 @@ traits to a \code{\link[=taxify]{taxify()}} result by \code{accepted_name}.
 Source: EuPollTrait (Milicic et al. 2025, Zenodo, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Bombus terrestris", backend = "gbif") |>
+\dontrun{
+taxify("Bombus terrestris", backbone = "gbif") |>
   add_eupolltrait()
 }
 

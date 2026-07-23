@@ -6,8 +6,8 @@ knitr::opts_chunk$set(
 )
 
 ## ----taxify-lcvp-wcvp---------------------------------------------------------
-# result <- taxify(plant_names, backend = c("wcvp", "lcvp", "wfo"))
-# result[, c("input_name", "accepted_name", "backend")]
+# result <- taxify(plant_names, backbone = c("wcvp", "lcvp", "wfo"))
+# result[, c("input_name", "accepted_name", "backbone")]
 
 ## ----taxize-basic-------------------------------------------------------------
 # # --- taxize ---
@@ -28,7 +28,7 @@ knitr::opts_chunk$set(
 # names <- c("Quercus robur", "Pinus sylvestris", "Betula pendula",
 #            "Panthera leo", "Salmo trutta")
 # 
-# result <- taxify(names, backend = "gbif")
+# result <- taxify(names, backbone = "gbif")
 # 
 # result$accepted_name
 # result$family
@@ -54,7 +54,7 @@ knitr::opts_chunk$set(
 # names <- c("Quercus robur", "Quercus pedonculata",
 #            "Pinus silvestris", "Rosa canina")
 # 
-# result <- taxify(names, backend = "wfo")
+# result <- taxify(names, backbone = "wfo")
 # 
 # # Misspellings are caught by fuzzy matching:
 # result[, c("input_name", "matched_name", "match_type", "fuzzy_dist")]
@@ -80,11 +80,11 @@ knitr::opts_chunk$set(
 # )
 # 
 # # WFO first (best for plants), GBIF as fallback (all kingdoms)
-# result <- taxify(names, backend = c("wfo", "gbif"))
+# result <- taxify(names, backbone = c("wfo", "gbif"))
 # 
-# # The backend column shows which database matched each name:
-# result[, c("input_name", "backend", "family")]
-# #   input_name            backend family
+# # The backbone column shows which database matched each name:
+# result[, c("input_name", "backbone", "family")]
+# #   input_name            backbone family
 # # 1 Quercus robur         wfo     Fagaceae
 # # 2 Panthera leo          gbif    Felidae
 # # 3 Amanita muscaria      gbif    Amanitaceae

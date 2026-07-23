@@ -42,8 +42,8 @@ Source: Amniote Life History Database (Myhrvold et al. 2015, Ecology, CC0).
 Coverage: 21,322 species across birds, mammals and reptiles.
 }
 \examples{
-\donttest{
-taxify("Accipiter badius", backend = "gbif") |>
+\dontrun{
+taxify("Accipiter badius", backbone = "gbif") |>
   add_amniote()
 }
 

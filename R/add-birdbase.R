@@ -38,8 +38,8 @@
 #' \doi{10.1038/s41597-025-05615-3}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Struthio camelus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Struthio camelus", backbone = "gbif") |>
 #'   add_birdbase()
 #' }
 #'

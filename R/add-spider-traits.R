@@ -34,8 +34,8 @@
 #' \doi{10.1093/database/baab064}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Araneus diadematus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Araneus diadematus", backbone = "gbif") |>
 #'   add_spider_traits()
 #' }
 #'

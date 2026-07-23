@@ -6,7 +6,7 @@
 \usage{
 taxify(
   x,
-  backend = "wfo",
+  backbone = NULL,
   fuzzy = TRUE,
   fuzzy_threshold = 0.2,
   fuzzy_method = c("dl", "levenshtein", "jw"),
@@ -14,15 +14,20 @@ taxify(
   region = NULL,
   coords = NULL,
   range = c("present", "native", "introduced"),
+  kingdom = NULL,
+  mode = c("fallback", "wide", "agreement"),
   verbose = TRUE
 )
 }
 \arguments{
 \item{x}{Character vector of taxonomic names.}
 
-\item{backend}{Character vector of backend names (e.g., \code{"wfo"}, \code{"col"},
-\code{"gbif"}) or a single \code{taxify_backend} object. When multiple backends
-are given, they are tried in order as a fallback chain. Default \code{"wfo"}.}
+\item{backbone}{Character vector of backbone names (e.g., \code{"wfo"}, \code{"col"},
+\code{"gbif"}) or a single \code{taxify_backend} object. Several are tried in order
+as a fallback chain. \code{NULL} (default) uses every installed backbone in
+priority order, installing the default set (COL, GBIF, ITIS) on first use;
+override the priority with \code{options(taxify.backbone_priority = ...)} and the
+first-run set with \code{options(taxify.default_backbones = ...)}.}
 
 \item{fuzzy}{Logical. Enable fuzzy matching for names that fail exact
 match. Default \code{TRUE}.}
@@ -51,39 +56,77 @@ so preserve falls back for the others). \code{"collapse"} strips the marker and
 matches the binomial species, the way any non-aggregate name is matched.
 Either way the qualifier is recorded in the \code{qualifier} column.}
 
-\item{region}{TDWG botanical region(s) to constrain fuzzy matching to, or
-\code{NULL} (default) for no geographic constraint. Accepts Level 3 codes
-(\code{"BGM"}, \code{c("BGM", "GER")}) or region names at any level, matched case-
-and accent-insensitively against the bundled WGSRPD crosswalk: a Level 3
-name (\code{"Belgium"}), a Level 2 region (\code{"Middle Europe"}), or a Level 1
-continent (\code{"Europe"}, which expands to all its codes). See
-\code{\link[=taxify_regions]{taxify_regions()}} for the full list. When set, \strong{fuzzy} candidates are
-restricted to species with WCVP records in the region(s); exact matches are
-always kept. The filter only narrows genuinely ambiguous fuzzy candidates:
-a candidate is dropped only when the same input name has another candidate
-that is in-region or has no WCVP range data, so non-plant matches (no WCVP
-coverage) are never affected and a name whose only candidate is
-out-of-region is still returned. WCVP is vascular plants only, so this
-disambiguates plant names.}
+\item{region}{Region(s) to constrain fuzzy matching to, or \code{NULL} (default)
+for no geographic constraint. Botanical (WCVP, vascular plants): TDWG Level
+3 codes (\code{"BGM"}, \code{c("BGM", "GER")}) or region names at any level, matched
+case- and accent-insensitively against the bundled WGSRPD crosswalk -- a
+Level 3 name (\code{"Belgium"}), a Level 2 region (\code{"Middle Europe"}), or a Level
+1 continent (\code{"Europe"}, which expands to all its codes). Marine (only when
+the \code{marine_distribution} asset is installed): a MEOW ecoregion \code{ECO_CODE},
+or an ecoregion / province / realm name (a province or realm expands to its
+member ecoregions). See \code{\link[=taxify_regions]{taxify_regions()}} for both lists. When set,
+\strong{fuzzy} candidates are restricted to species with range records in the
+region(s); exact matches are always kept. The filter only narrows genuinely
+ambiguous fuzzy candidates: a candidate is dropped only when the same input
+name has another candidate that is in-region or has no range data, so a
+match in a group with no range coverage is never affected and a name whose
+only candidate is out-of-region is still returned.}
 
-\item{coords}{Coordinates to constrain fuzzy matching to, mapped to TDWG
-regions by point-in-polygon and unioned with \code{region}. A single
+\item{coords}{Coordinates to constrain fuzzy matching to, mapped to region
+codes by point-in-polygon and unioned with \code{region}. Points are tested
+against the WGSRPD botanical boundaries (yielding TDWG codes) and, when the
+marine asset is installed, the MEOW ecoregion boundaries (yielding
+\code{ECO_CODE}s), so a coastal point can resolve to both. A single
 \code{c(lon, lat)} pair, a matrix/data.frame of longitude/latitude columns
 (named \code{lon}/\code{lat} or \code{x}/\code{y}, else the first two columns as lon, lat), or
 a point-geometry spatial object (an \pkg{sf}/\code{sfc} object or a \pkg{terra}
 \code{SpatVector}, reprojected to longitude/latitude automatically). \code{NULL}
-(default) for none. The WGSRPD boundary file is downloaded once and cached;
+(default) for none. Each boundary file is downloaded once and cached;
 coordinate lookup needs that download (or a prior cache). The point-in-
 polygon test uses \pkg{terra} or \pkg{sf} when installed, otherwise a
 native fallback; force the engine with
 \code{options(taxify.pip_engine = "terra" | "sf" | "native")}.}
 
-\item{range}{Character. Which WCVP statuses count as in-region when \code{region}
+\item{range}{Character. Which range statuses count as in-region when \code{region}
 or \code{coords} is set. \code{"present"} (default) accepts any record (native,
-introduced, or extinct) -- the right choice for name disambiguation.
-\code{"native"} accepts only native records, \code{"introduced"} only introduced
-(alien) records; both fold an ecological filter into matching and are for
-callers who want that. Ignored when no region is set.}
+introduced, extinct, or unknown status) -- the right choice for name
+disambiguation. \code{"native"} accepts only native records, \code{"introduced"} only
+introduced (alien) records; both fold an ecological filter into matching and
+are for callers who want that. Ignored when no region is set.}
+
+\item{kingdom}{Character. Restrict matches to one or more kingdoms, to
+disambiguate a name shared across kingdoms (a \emph{Prunella} that is both a bird
+and a plant, an \emph{Oenanthe} that is both). \code{NULL} (default) applies no
+constraint. Accepts a kingdom name or a common alias, case-insensitively:
+\code{"animals"}/\code{"Animalia"}/\code{"Metazoa"}, \code{"plants"}/\code{"Plantae"},
+\code{"fungi"}, \code{"bacteria"}, \code{"archaea"}, \code{"chromista"}, \code{"protozoa"},
+\code{"viruses"}. A matched taxon is kept only when its kingdom is the requested
+one (or is unknown, which is never rejected); with the default multi-backbone
+fallback, a name a backbone resolves into the wrong kingdom is passed on to
+the next backbone, so the in-kingdom treatment wins. The kingdom is read
+from the backbone where it stores one (COL, ITIS, NCBI, OTT, WoRMS); for a
+backbone that does not (WFO, GBIF), it falls back to the genus register's
+kingdom, which cannot split a genus that is itself homonymous across
+kingdoms -- name a kingdom-appropriate \code{backbone} for those.}
+
+\item{mode}{Character. How to combine results when \code{backbone} names more than
+one backbone. \code{"fallback"} (default) is the fallback chain described above:
+one answer per name, from the first backbone that matched. \code{"wide"} and
+\code{"agreement"} instead consult \strong{every} backbone for every name and report
+how they compare, so a backbone disagreement (see the \emph{Backbone-specific
+accepted names} section) is visible in one call rather than by querying each
+backbone by hand. Both return a strict superset of the \code{"fallback"} result
+(the same standard columns, with \code{accepted_name} still the fallback pick, so
+the frame still pipes into the \verb{add_*()} enrichments) plus:
+\itemize{
+\item \code{"wide"}: one \verb{accepted_<backbone>} column per backbone and a
+logical \code{all_agree}.
+\item \code{"agreement"}: \code{n_backbones_matched}, \code{n_distinct_accepted}, and
+\code{all_agree}.
+}
+\code{all_agree} is \code{TRUE}/\code{FALSE} when at least two backbones matched the name
+and \code{NA} when fewer than two did (nothing to compare). Ignored (with a
+message) when only one backbone is given, since there is nothing to compare.}
 
 \item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
@@ -91,9 +134,13 @@ callers who want that. Ignored when no region is set.}
 A data.frame with one row per input name and the following columns:
 \describe{
 \item{input_name}{The original name as provided.}
-\item{matched_name}{Full name in the backbone that matched.}
+\item{matched_name}{Full name in the backbone that matched. For an
+unresolved hybrid formula (\code{match_type = "hybrid_formula"}) it holds the
+input-parent cross (e.g. \code{"Salix alba x Salix fragilis"}) when both
+parents resolve, else \code{NA}.}
 \item{accepted_name}{Resolved accepted name (equals \code{matched_name}
-if not a synonym).}
+if not a synonym). For a hybrid formula it holds the accepted-parent
+cross (both parents resolved), else \code{NA}.}
 \item{taxon_id}{Backend-specific ID of the matched name.}
 \item{accepted_id}{ID of the accepted name.}
 \item{rank}{Taxonomic rank (species, subspecies, genus, etc.).}
@@ -107,6 +154,13 @@ author, so \code{accepted_name} and \code{accepted_authorship} together form the
 accepted name's full citation.}
 \item{is_synonym}{Logical. Was the match a synonym?}
 \item{is_hybrid}{Logical. Was a hybrid marker detected in the input?}
+\item{hybrid_type}{\code{"nothogenus"} (\code{"x Cupressocyparis leylandii"}),
+\code{"nothospecies"} (\code{"Quercus x hispanica"}), \code{"formula"}
+(\code{"Salix alba x Salix fragilis"}), or \code{NA} for a non-hybrid. Nothogenus
+and nothospecies resolve to a single backbone taxon in the usual columns;
+a formula does not (its match columns are \code{NA} and \code{match_type} is
+\code{"hybrid_formula"}). The parent binomials of a formula, and their accepted
+names, are added on demand by \code{\link[=add_hybrid_info]{add_hybrid_info()}}.}
 \item{qualifier}{Canonical taxonomic qualifier found in the input name
 (\code{"cf."}, \code{"aff."}, \code{"agg."}, \code{"s.l."}, \code{"s.str."}, \code{"sp."}, ...), or
 \code{NA}. Spelling variants are folded to one token (\code{"aggr."}, \code{"agg"} and
@@ -122,7 +176,9 @@ back to the nominal binomial. \code{NA} for non-aggregate queries and under
 \code{aggregates = "collapse"}, where the collapse is explicit.}
 \item{match_type}{One of \code{"exact"}, \code{"exact_ci"}, \code{"fuzzy"}, \code{"abbrev"}
 (an abbreviated genus such as \code{"Q. robur"} resolved via genus initial
-plus epithet), or \code{"none"}.}
+plus epithet), \code{"hybrid_formula"} (a two-parent cross; the row's
+backbone-match columns are \code{NA} and the parents are resolved into the
+\verb{hybrid_parent_*} columns instead), or \code{"none"}.}
 \item{fuzzy_dist}{Normalized string distance (0--1), \code{NA} if exact.}
 \item{is_ambiguous}{Logical. \code{TRUE} when the matched scientificName had
 multiple synonym rows pointing to different accepted taxa at the same
@@ -131,10 +187,17 @@ priority tier (homonym ambiguity). Disambiguated via
 for irreducible ambiguity, the scalar columns hold one candidate.}
 \item{ambiguous_targets}{Character. \code{|}-joined list of conflicting
 accepted taxon IDs when \code{is_ambiguous = TRUE}; \code{NA} otherwise.}
-\item{backend}{Which backend was used (e.g., \code{"wfo"}, \code{"col"},
+\item{backbone}{Which backbone was used (e.g., \code{"wfo"}, \code{"col"},
 \code{"gbif"}).}
 \item{backbone_version}{Backend name, version, and download date
 (e.g., \code{"wfo:2024-12 (2026-04-01)"}). Useful for reproducibility.}
+\item{kingdom_group}{Coarse kingdom-level group of the matched genus, from
+the bundled genus register (used for cross-kingdom disambiguation); \code{NA}
+when the genus is not in the register.}
+\item{taxon_group}{Broad taxonomic group of the matched genus, from the
+genus register; \code{NA} when unavailable.}
+\item{life_form}{Life-form classification of the matched genus, from the
+genus register's family-based lookup; \code{NA} when unavailable.}
 }
 }
 \description{
@@ -144,10 +207,37 @@ containing the matched name, accepted name, taxonomic hierarchy, and
 match quality information.
 }
 \details{
-When multiple backends are specified, names are matched against each
-backend in order. Names matched by an earlier backend are not re-matched
-by later ones (fallback chain).
+By default \code{taxify()} matches against \strong{every installed backbone}, tried in
+priority order as a fallback chain: a name is resolved by the first backbone
+(COL, then the domain authorities, then the broad aggregators) that matches
+it, and names matched earlier are not re-matched later. On a fresh setup with
+nothing installed yet, the first call downloads a default set (COL, GBIF,
+ITIS) once; pre-install a different set with \code{\link[=install_backbones]{install_backbones()}}. Name a
+backbone (or several) explicitly to match only against that one, or those in
+that order.
 }
+\section{Backbone-specific accepted names}{
+
+Each backbone is an independent taxonomy, and they can legitimately disagree
+on which name is accepted and which is a synonym. \code{taxify()} returns the
+matched backbone's own current treatment; it does not reconcile backbones
+against each other by voting (a consensus would regress toward the most
+conservative treatment across backbones that copy one another). With the
+default multi-backbone fallback, \code{accepted_name} is the pick of the
+highest-priority backbone that matched. To see where backbones disagree, pass
+\code{mode = "wide"} (or \code{"agreement"}) for each backbone's \code{accepted_name} side by
+side; to follow one authority, name a single \code{backbone}.
+
+For example, the red and parma kangaroos: the GBIF Backbone Taxonomy
+accepts \verb{Macropus rufus} and \verb{Macropus parma}, treating \verb{Osphranter rufus}
+and \verb{Notamacropus parma} as synonyms of them, so
+\code{taxify("Osphranter rufus", backbone = "gbif")} resolves to \verb{Macropus rufus}.
+The Catalogue of Life splits the genus and does the reverse, so
+\code{taxify("Macropus rufus", backbone = "col")} resolves to \verb{Osphranter rufus}.
+Both are faithful to their source; the difference is in the backbones, not in
+the matching.
+}
+
 \examples{
 # Runs offline against the bundled example database.
 old <- options(taxify.data_dir = taxify_example_data())
@@ -170,7 +260,11 @@ taxify("Quercus robus", coords = c(4.35, 50.85))
 
 # Fallback chain: try WFO first, then COL for unmatched
 taxify(c("Quercus robur", "Panthera leo"),
-       backend = c("wfo", "col"))
+       backbone = c("wfo", "col"))
+
+# Compare how two backbones resolve the same names, side by side
+taxify(c("Quercus robur", "Pinus sylvestris"),
+       backbone = c("wfo", "col"), mode = "wide")
 
 options(old)
 

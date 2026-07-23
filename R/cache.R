@@ -5,12 +5,12 @@
 
 #' Get a cached backbone path
 #'
-#' @param backend_name Character string (e.g., "wfo").
+#' @param backbone_name Character string (e.g., "wfo").
 #' @return A character path or NULL if not cached.
 #' @noRd
-get_backbone_path <- function(backend_name) {
-  if (exists(backend_name, envir = .taxify_cache, inherits = FALSE)) {
-    get(backend_name, envir = .taxify_cache, inherits = FALSE)
+get_backbone_path <- function(backbone_name) {
+  if (exists(backbone_name, envir = .taxify_cache, inherits = FALSE)) {
+    get(backbone_name, envir = .taxify_cache, inherits = FALSE)
   } else {
     NULL
   }
@@ -19,32 +19,17 @@ get_backbone_path <- function(backend_name) {
 
 #' Store a backbone path in the cache
 #'
-#' @param backend_name Character string.
+#' @param backbone_name Character string.
 #' @param path Character. Path to the .vtr file, or `NULL` to remove from cache.
 #' @noRd
-set_backbone_path <- function(backend_name, path) {
+set_backbone_path <- function(backbone_name, path) {
   if (is.null(path)) {
-    if (exists(backend_name, envir = .taxify_cache, inherits = FALSE)) {
-      rm(list = backend_name, envir = .taxify_cache)
+    if (exists(backbone_name, envir = .taxify_cache, inherits = FALSE)) {
+      rm(list = backbone_name, envir = .taxify_cache)
     }
   } else {
-    assign(backend_name, path, envir = .taxify_cache)
+    assign(backbone_name, path, envir = .taxify_cache)
   }
-}
-
-
-#' Create a fresh vectra node from a cached backbone path
-#'
-#' @param backend_name Character string.
-#' @return A vectra node (lazy handle).
-#' @noRd
-backbone_node <- function(backend_name) {
-  path <- get_backbone_path(backend_name)
-  if (is.null(path)) {
-    stop(sprintf("No backbone path cached for '%s'", backend_name),
-         call. = FALSE)
-  }
-  vectra::tbl(path)
 }
 
 
@@ -67,6 +52,9 @@ read_backbone_meta <- function(vtr_path) {
   meta_path <- paste0(tools::file_path_sans_ext(vtr_path), ".meta")
   if (!file.exists(meta_path)) return(NULL)
   lines <- readLines(meta_path, warn = FALSE)
+  # Strip a leading UTF-8 BOM (U+FEFF) so a sidecar written by PowerShell does
+  # not fold the mark into the first key name.
+  if (length(lines)) lines[1] <- sub("^\ufeff", "", enc2utf8(lines[1]))
   pairs <- strsplit(lines, "=", fixed = TRUE)
   keys <- vapply(pairs, `[`, character(1L), 1L)
   vals <- vapply(pairs, function(p) paste(p[-1L], collapse = "="), character(1L))
@@ -85,15 +73,32 @@ read_backbone_meta <- function(vtr_path) {
 #' name, version, and download date from the `.meta` sidecar.
 #'
 #' @param vtr_path Character. Path to the `.vtr` file.
-#' @param backend_name Character. Fallback backend name if no meta file.
+#' @param backbone_name Character. Fallback backend name if no meta file.
 #' @param version Character. Fallback version if no meta file.
 #' @return A character string.
 #' @noRd
-format_backbone_version <- function(vtr_path, backend_name, version) {
+format_backbone_version <- function(vtr_path, backbone_name, version) {
   meta <- read_backbone_meta(vtr_path)
-  be  <- (meta$backend %||% backend_name)
-  ver <- (meta$version %||% version)
+  be  <- (meta$backend %||% backbone_name)
+  ver <- meta$version
   dt  <- meta$download_date
+
+  # A downloaded backbone carries no `.meta` sidecar (that is a taxifydb build
+  # artifact), so fall back to the meta.json written at download time. It holds
+  # the manifest version, which is authoritative -- preferred over the backend
+  # constructor's declared version, a static default that drifts as releases
+  # advance.
+  if (is.null(ver)) {
+    mj <- file.path(dirname(vtr_path), "meta.json")
+    if (file.exists(mj)) {
+      j <- tryCatch(read_json_bom(mj, simplifyVector = TRUE),
+                    error = function(e) NULL)
+      ver <- j$version %||% ver
+      dt  <- dt %||% j$downloaded_at
+    }
+  }
+  ver <- ver %||% version
+
   if (length(dt) == 1L && !is.na(dt) && nzchar(dt)) {
     sprintf("%s:%s (%s)", be, ver, dt)
   } else {
@@ -188,15 +193,14 @@ is_example_data_dir <- function() {
 #' Names of backbones whose compiled .vtr is present locally
 #'
 #' A no-download check: returns the backend names whose `.vtr` exists in the
-#' current data directory, in canonical order. Used by [inspect()] when
+#' current data directory, in canonical order. Used by the default-backend
+#' resolution ([resolve_default_backend()]) and by [inspect()] when
 #' `backbones = TRUE` to match against every installed backbone.
 #'
 #' @return Character vector of installed backend names (possibly empty).
 #' @noRd
 installed_backbones <- function() {
-  known <- c("wfo", "col", "gbif", "itis", "ncbi", "ott", "worms",
-             "fungorum", "algaebase", "euromed", "fishbase", "sealifebase",
-             "reptiledb", "lcvp", "wcvp")
+  known <- backbone_names()
   ok <- vapply(known, function(nm) {
     p <- versioned_vtr_path(nm, "latest")
     file.exists(p) && is_compiled_backbone(p)
@@ -216,34 +220,34 @@ installed_backbones <- function() {
 #' @return Character. Path to the .vtr file.
 #' @noRd
 ensure_backbone <- function(backend, version = "latest", verbose = TRUE) {
-  be_name <- backend$name
+  bb_name <- backend$name
 
   # 1. In-session cache hit (set_backbone_path only stores verified paths)
-  cached <- get_backbone_path(be_name)
+  cached <- get_backbone_path(bb_name)
   if (!is.null(cached) && file.exists(cached)) return(cached)
 
   # 2. Versioned layout: <data_dir>/<backend>/<version>/<backend>.vtr
-  versioned_path <- versioned_vtr_path(be_name, version)
+  versioned_path <- versioned_vtr_path(bb_name, version)
   if (file.exists(versioned_path) && is_compiled_backbone(versioned_path)) {
-    set_backbone_path(be_name, versioned_path)
+    set_backbone_path(bb_name, versioned_path)
     return(versioned_path)
   }
 
   # 3. Auto-download (pre-built .vtr from Zenodo via manifest)
   path <- tryCatch(
-    download_backbone(be_name, version = version, verbose = verbose),
+    download_backbone(bb_name, version = version, verbose = verbose),
     error = function(e) {
       # If pre-built download fails, fall back to build-from-source
       if (verbose) {
         message(sprintf(
           "Pre-built .vtr not available for '%s'. Building from source...",
-          be_name
+          bb_name
         ))
       }
-      taxify_download(backend, verbose = verbose)
+      taxify_build(backend, verbose = verbose)
     }
   )
 
-  set_backbone_path(be_name, path)
+  set_backbone_path(bb_name, path)
   path
 }

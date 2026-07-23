@@ -45,10 +45,12 @@ Source: AusTraits (Falster et al. 2021, Scientific Data, CC BY 4.0).
 Coverage: ~33k Australian plant taxa.
 }
 \examples{
-\donttest{
-taxify("Eucalyptus globulus", backend = "gbif") |>
+old <- options(taxify.data_dir = taxify_example_data())
+
+taxify("Eucalyptus globulus", backbone = "gbif") |>
   add_austraits()
-}
+
+options(old)
 
 }
 \references{

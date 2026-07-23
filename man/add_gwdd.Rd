@@ -33,8 +33,8 @@ CC BY 4.0). Coverage: ~17.3k species. Bark density is not part of the
 aggregated source and is not included.
 }
 \examples{
-\donttest{
-taxify("Quercus robur", backend = "gbif") |>
+\dontrun{
+taxify("Quercus robur", backbone = "gbif") |>
   add_gwdd()
 }
 

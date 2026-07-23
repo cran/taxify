@@ -9,50 +9,43 @@ add_combine(x, cols = NULL, verbose = TRUE)
 \arguments{
 \item{x}{A data.frame returned by \code{\link[=taxify]{taxify()}}.}
 
-\item{cols}{Which columns to attach: \code{NULL} (default) the curated set, \code{"all"} every column the source carries, or a character vector of names. See \code{\link{enrichment_cols}}.}
+\item{cols}{Which columns to attach: \code{NULL} (default) the curated set,
+\code{"all"} every column the source carries, or a character vector of
+names. See \code{\link{enrichment_cols}}.}
 
 \item{verbose}{Logical. Default \code{TRUE}.}
 }
 \value{
-The same data.frame with additional columns:
-\describe{
-\item{combine_adult_mass_g}{Adult body mass (g).}
-\item{combine_adult_body_length_mm}{Adult head-body length (mm).}
-\item{combine_litter_size_n}{Litter size (count).}
-\item{combine_litters_per_year_n}{Litters per year (count).}
-\item{combine_max_longevity_d}{Maximum longevity (days).}
-\item{combine_gestation_length_d}{Gestation length (days).}
-\item{combine_weaning_age_d}{Weaning age (days).}
-\item{combine_generation_length_d}{Generation length (days).}
-\item{combine_dispersal_km}{Natal dispersal distance (km).}
-\item{combine_habitat_breadth_n}{Number of IUCN habitats (count).}
-\item{combine_diet_breadth_n}{Number of diet categories (count).}
-\item{combine_trophic_level}{Trophic level (1 herbivore, 2 omnivore,
-3 carnivore).}
-\item{combine_activity_cycle}{Activity cycle (1 nocturnal, 2 cathemeral,
-3 diurnal).}
-\item{combine_foraging_stratum}{Foraging stratum (G/Ar/A/S/M).}
-\item{combine_biogeographical_realm}{Biogeographical realm(s).}
-}
+The same data.frame with the \verb{combine_*} trait columns (reported
+values, gaps filled from the imputed table) and, beside each, a
+\verb{combine_*_src} column tagging that cell as \code{"reported"}, \code{"imputed"}, or
+\code{NA}. Traits COMBINE does not impute (for example
+\code{combine_biogeographical_realm}) come out \code{"reported"} wherever present. If
+the imputed table is unavailable, the reported values are returned with
+every \verb{_src} tag \code{"reported"} or \code{NA}.
 }
 \description{
-Joins COMBINE mammal traits to a \code{\link[=taxify]{taxify()}} result by looking up
-\code{accepted_name}. COMBINE is a separate, coalesced mammal trait source; it is
-offered alongside \code{\link[=add_pantheria]{add_pantheria()}}, not as a replacement. Reported (not
-phylogenetically imputed) values are used.
+The default COMBINE door. Attaches the reported (measured or literature
+compiled) trait values and fills each still-missing cell from COMBINE's
+phylogenetically imputed table, so a single call reaches the fullest coverage
+COMBINE offers. A measurement is never overwritten: the reported value wins
+wherever it exists and the imputed model only fills gaps. Beside every trait
+sits a \verb{<trait>_src} column recording where that cell came from -- \code{"reported"},
+\code{"imputed"}, or \code{NA} when neither table has it -- so a model estimate is
+always distinguishable from a measurement.
 }
 \details{
-Source: COMBINE (Soria et al. 2021, Ecology, CC0). Coverage: ~6.2k mammal
-species. Keyed on the IUCN 2020 binomial.
+For a single-table view use \code{\link[=add_combine_reported]{add_combine_reported()}} (measured values only)
+or \code{\link[=add_combine_imputed]{add_combine_imputed()}} (the imputed table on its own).
 }
 \examples{
-\donttest{
-taxify("Vulpes vulpes", backend = "gbif") |>
+\dontrun{
+# Coverage-filled values with per-trait provenance:
+res <- taxify("Osphranter rufus", backbone = "col") |>
   add_combine()
+res[, c("combine_gestation_length_d", "combine_gestation_length_d_src")]
 }
-
 }
-\references{
-Soria CD et al. (2021) COMBINE: a coalesced mammal database of intrinsic and
-extrinsic traits. Ecology 102:e03344. \doi{10.1002/ecy.3344}
+\seealso{
+\code{\link[=add_combine_reported]{add_combine_reported()}}, \code{\link[=add_combine_imputed]{add_combine_imputed()}}
 }

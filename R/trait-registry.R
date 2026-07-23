@@ -7,459 +7,422 @@
 # describe it. Adding a trait, or a source to a trait, is an edit to this list --
 # no new exported function.
 #
-# Numeric unit conversions and categorical vocabularies were grounded against
-# the actual distinct values / value ranges in each source's .vtr, not guessed:
-#   - GIFT seed mass is grams (x1000 -> mg; matches Diaz mg median); GIFT SLA is
-#     cm^2/g (x0.1 -> mm^2/mg; matches LEDA mm^2/mg median).
-#   - Heights are metres in every source; wood density g/cm^3 everywhere; leaf
-#     N and P are mg/g; leaf area mm^2.
+#
+# ---- How a crosswalk is grounded ------------------------------------------
+#
+# A unit factor or a value mapping is never taken from a column name alone. The
+# evidence runs strongest to weakest, and the strongest rung available decides:
+#
+#   1. Shared-species calibration. Compare the candidate against a source
+#      already registered for the trait, per species, and read the median ratio.
+#      This is the only rung that shows two sources agree in practice rather
+#      than on paper, and it is the tiebreaker wherever the overlap is thick
+#      enough to compute.
+#   2. Single-source distribution sanity. With no second source, the median and
+#      range must be physically plausible in the claimed unit, and the extremes
+#      must be identifiable.
+#   3. The source's data dictionary or publication. Pins down the unit AND the
+#      definition -- fine-root versus whole-root, index versus concentration --
+#      which a value range alone cannot settle.
+#   4. The column header. A hint, never proof.
+#
+# Metadata fixes units and definitions but cannot catch odd encodings (class
+# codes, negative sentinels), so rungs 3 and 4 are always paired with a look at
+# the raw .vtr values. When the rungs cannot separate a unit factor from a
+# definitional difference, the source is not registered.
+#
+# Two traps this ladder exists to catch, both seen repeatedly:
+#
+#   - The same-data trap. A candidate that looks like an independent second
+#      source but IS the incumbent's data, which a ratio of exactly 1.000 gives
+#      away: FISHMORPH max_body_length and fishtraits max_length_cm are both the
+#      FishBase max length; AusTraits' specific root area is Mokany & Ash 2008;
+#      lizard_traits is the Oskyrko data already registered as repttraits;
+#      copepod_traits is the Brun et al. 2017 compilation the zooplankton
+#      database ingested. Registering one would double-count a single lineage.
+#   - The name-match trap. A column whose name matches a registered trait but
+#      whose values are a different quantity. See the rejections at the end.
+#
+#
+# ---- Numeric units ---------------------------------------------------------
+#
+# Conventions that hold across sources: heights are metres; wood density
+# g/cm^3; leaf N and P mg/g; leaf area mm^2; seed and bee ITD lengths mm; depth
+# and elevation metres; home range and range size km^2; habitat and diet
+# breadth a count; FishBase vulnerability an index 0-100.
+#
+# Conversions, each with the calibration that fixed it:
+#
+#   - GIFT seed mass is grams (x1000 -> mg, matches the Diaz mg median); GIFT
+#     SLA is cm^2/g (x0.1 -> mm^2/mg, matches LEDA); GIFT leaf thickness is cm
+#     (x10 -> 0.22 mm, matches BIEN's 0.21).
 #   - Body mass is grams in every animal source except AnimalTraits and
-#     HomeRange, which are kg (x1000 -> g).
-#   - Longevity is years in AnAge/ReptTraits/Amniote/Chelonians; PanTHERIA is
-#     months (/12); COMBINE is days (/365.25).
-# Excluded after inspection: LEDA leda_seed_mass_mg (values 1-4, a class code,
-# not mg); AmphiBIO longevity_d (values are years, not days); SeaLifeBase
-# trophic_level (empty). Pelagic trophic_level carries -9999 sentinels, mapped
-# to NA. EIVE (0-10 continuous) is not yet a source for the ellenberg_* traits:
-# it needs a grounded rescale to the classic 1-9 scale before it can be joined.
-#   - GIFT leaf thickness is cm (median x10 = 0.22 mm matches BIEN's 0.21 mm);
-#     Amniote SVL is cm (its x10 max 30490 mm matches COMBINE body length).
-#   - Amniote female_maturity_d and gestation_d carry negative sentinels, dropped
-#     to NA before conversion. Amphibian clutch sizes reach the thousands and
-#     AnAge's egg-layers the millions -- genuine, not a unit error.
-# Not added (unit could not be calibrated): GIFT leaf length/width (length x10
-# plausible but width did not match AusTraits); dropped rather than guessed.
-# Not added (only one non-empty source): chromosome number and ploidy (FloraWeb
-# column empty), leaf dry mass (LEDA column empty).
+#     HomeRange, which are kg (x1000).
+#   - Longevity is years in AnAge, ReptTraits, Amniote and Chelonians;
+#     PanTHERIA is months (/12); COMBINE is days (/365.25).
+#   - Amniote SVL is cm (x10; the resulting 30490 mm maximum matches COMBINE
+#     body length).
+#   - LDMC is mg/g in LEDA, GIFT and BROT; Diaz ldmc_g_g is g/g (x1000 -> 195,
+#     matches LEDA's 194). Stem specific density feeds wood_density: GIFT
+#     gift_ssd and LEDA ssd are mg/cm^3 (/1000 -> 0.63 and 0.70 against GWDD's
+#     0.57 g/cm^3).
+#   - generation_length: BET is years, COMBINE days (/365.25 -> 6.0 against
+#     BET's 6.7). Weaning is days in Amniote, AnAge and PanTHERIA.
+#   - Days -> years for the maturity and interval traits: male_maturity_d
+#     (AnAge, Amniote, COMBINE), interbirth_interval (COMBINE, AnAge),
+#     age_at_first_reproduction (COMBINE).
+#   - AusTraits root dry matter content is mg/g (/1000 -> 0.199 g/g against
+#     GRooT's 0.227).
+#   - leptraits wingspan_mm is MISLABELLED: its values are cm, so it is
+#     multiplied by 10. Monarch stores 9.4 against a true ~94 mm wingspan,
+#     cabbage white 4.5 against ~45, swallowtail 7.7 against ~77 -- all exactly
+#     one tenth. The header is wrong; the known-species check fixes the unit.
+#   - kew_sid ships a thousand-seed weight in grams, which equals the per-seed
+#     mass in milligrams, so the map is identity. Grounded on shared species
+#     against every incumbent mg source: median ratio 1.00 versus diaz
+#     (n=23,277), bien (n=10,384), austraits (n=7,738, IQR exactly [1, 1]) and
+#     ecoflora (n=2,398). It roughly doubles seed_mass coverage.
 #
-# Second wave (grounded on the widened .vtr medians):
-#   - depth / elevation are metres everywhere (Pelagic -9999 -> NA); home range
-#     and range size are km^2; habitat breadth is a count.
-#   - LDMC is mg/g in LEDA/GIFT/BROT; Diaz ldmc_g_g is g/g (x1000 -> 195 matches
-#     LEDA 194). Stem specific density added to wood_density: GIFT gift_ssd and
-#     LEDA ssd are mg/cm^3 (/1000 -> 0.63/0.70, matches GWDD 0.57 g/cm^3).
-#   - generation_length: BET years, COMBINE days (/365.25 -> 6.0 matches BET
-#     6.7); weaning is days in Amniote/AnAge/PanTHERIA; seed length mm; bee ITD
-#     mm; FishBase vulnerability 0-100.
-#   - conservation_status harmonizes IUCN codes (LC..EX) across six sources;
-#     NE / EP / -9999 fall through to NA. body_shape (fish) and sexual_system
-#     use ordered-regex vocabularies. SVL columns (huang_amph, pottier) join the
-#     existing body_length trait.
-#   - leaf_type (broadleaf/needle/scale), deciduousness (evergreen/deciduous),
-#     marine and freshwater (0/1 -> yes/no realm flags), wing_length (mm).
+# Sources joined at ratio 1.00 against an incumbent, so no conversion applies:
+# neonate_mass (amniote / combine / pantheria / anage, grams); egg_length and
+# egg_width (amniote / repttraits / chelonians, mm); brain_mass (COMBINE grams
+# with AnimalTraits kg x1000, 522 shared species); teat_number and
+# population_density (pantheria / combine); tongue_length (bee_ostwald /
+# eupolltrait proboscis, 162 shared); aspect_ratio (beukhof / quimbayo
+# caudal-fin, 406 shared); forearm_length (combine / pantheria / eurobat, 972
+# shared -- the standard bat measurement, carried by two incumbents and never
+# claimed by a trait); thermal_max and thermal_min from thermofresh against
+# globtherm (135 and 16 shared); longevity and clutch_litter_size from eurobat,
+# fishtraits and chelonians; incubation_period (amniote / chelonians, 1.05).
 #
-# Third wave (recovered after grounding the four earlier "skipped" candidates):
-#   - activity_time: the COMBINE/PanTHERIA 1/2/3 code was calibrated against
-#     EltonTraits period flags on 5026 shared species (code 1 -> 100% nocturnal,
-#     3 -> 100% diurnal, 2 -> crepuscular/mixed -> cathemeral), so the "no
-#     in-data key" objection no longer holds; repttraits / chelonians / quimbayo
-#     also carry the categories as clean text.
-#   - leaf_lifespan: austraits / brot / bien agree 1:1 on shared species (same
-#     unit, months); a clean leaf-economics trait missed the first time.
-#   - plant_lifespan: bien maximum_whole_plant_longevity (years, n=776) agrees
-#     with gift (ratio 1.1) and with austraits text-range midpoints (ratio 0.83);
-#     the first pass cited only the awkward text sources and skipped the numeric.
+# Sources joined at a ratio that is a real offset rather than a unit error:
+# von_bertalanffy_k (beukhof / sharkipedia, 0.88); von_bertalanffy_linf
+# (beukhof / sharkipedia, 1.13, thin overlap because sharks skew large);
+# specific_root_length and root_mass_fraction (GRooT / AusTraits, 1.12 and
+# 0.97); plant_lifespan (bien against gift 1.1, against austraits text-range
+# midpoints 0.83); TetraDensity's per-locality population densities run ~1.3x
+# below the species-level compilations in the same n/km2 unit, so the median
+# reducer absorbs it; chelonians' reproductive_frequency runs 0.6x on a thin
+# overlap in the same per-year unit.
 #
-# Fourth wave (all grounded on the .vtr values / shared-species calibration):
-#   - neonate_mass: amniote / combine / pantheria / anage, all grams, ratio 1.00
-#     across every shared-species pair. egg_mass: amniote grams (single source).
-#   - von_bertalanffy_k: beukhof growth_coefficient and sharkipedia vbgf_k, both
-#     the VBGF K per year (overlap ratio 0.88) -- the one harmonizable slice of
-#     the otherwise-incompatible "growth_rate".
-#   - thermal_max / thermal_min: GlobTherm upper/lower tolerance, degrees C.
-#   - beak_length (mm) and hand_wing_index (unitless dispersal proxy): AVONET.
+# Missing-data encodings, stripped to NA:
 #
-# Fifth wave (AVONET morphology, GRooT root traits, first-reproduction age):
-#   - AVONET bird morphology (beak_width, beak_depth, tarsus_length, tail_length,
-#     secondary1, kipps_distance): all measured in mm, single-source, complete
-#     across 12443 species; same treatment as the existing beak_length/wing_length.
-#   - GRooT root traits: specific_root_length (m/g) and root_mass_fraction (g/g)
-#     coalesce GRooT with AusTraits cleanly (shared-species ratios 1.12 and 0.97).
-#     root_dry_matter_content coalesces too once AusTraits mg/g is divided by 1000
-#     (199 -> 0.199 g/g matches GRooT 0.227). root_tissue_density (g/cm^3),
-#     root_mycorrhizal_colonization (%) and specific_root_area (cm^2/g) stay
-#     GRooT-only (no clean second source; see the SRA note below).
-#   - age_at_first_reproduction: COMBINE days -> years; distinct from age_at_maturity
-#     (first reproduction runs ~1.2x later than female sexual maturity on shared
-#     species), so it is its own trait, not a source for the maturity trait.
-# Method-cautioned sources -- kept, not dropped: the unit is correct but the
-# definition differs from GRooT, so the source carries a `caution` and the
-# default coalesce reports the most complete source instead of a median (see
-# nsrc()'s caution field and .trait_caution_col()):
+#   - Pelagic trophic_level and several conservation_status columns carry -9999;
+#     conservation_status also lets NE and EP fall through to NA.
+#   - Amniote female_maturity_d and gestation_d carry negative sentinels,
+#     dropped before conversion. huang_amph forelimb_length carries a few
+#     near-zero negatives, dropped with num_pos.
+#   - fishtraits marks "no mapped native range in the conterminous US" with -1
+#     across its whole range-derived block -- area, perimeter, patches,
+#     latitudinal and longitudinal range, and both PRISM temperatures -- on the
+#     same introduced species, none of which has a centroid to sample. It cannot
+#     be stripped per column, because -1 is also a genuine January minimum for 6
+#     native species on a continuous 0.1-degree grid running through it; only
+#     the pair identifies the sentinel, so the parser strips the block where all
+#     of it is in scope.
+#
+# Extremes that are genuine, not unit errors: amphibian clutch sizes reach the
+# thousands and AnAge's egg-layers the millions; beukhof age_max reaches ~390
+# years (the Greenland shark) and mussel max_age ~190 (Margaritifera); the
+# age_at_maturity tail at 156 years is five deep-sea species.
+#
+#
+# ---- Categorical vocabularies ----------------------------------------------
+#
+# Value mappers are .xw_cat() for an exact lookup and .xw_grep() for ordered
+# regex, which returns the first pattern that matches. Order is load-bearing
+# wherever one label contains another:
+#
+#   - photobiont: ITALIC's dominant value is "green algae other than
+#     Trentepohlia", which CONTAINS "Trentepohlia", so a bare match would
+#     mislabel all ~185 green-algae species. The green-algae and cyanobacteria
+#     classes are tested first.
+#   - cell_shape: coccobacillus before its parts. oxygen_metabolism:
+#     microaerophilic and anaerobic before aerobic, since both contain "aero".
+#     reproductive_mode: ovoviviparous before viviparous and oviparous, whose
+#     labels it contains.
+#   - diet_guild: compound text diets resolve to their primary token
+#     ("omnivorous to carnivorous" -> omnivore), and an ant "predator" ->
+#     carnivore.
+#
+# Codes decoded against data rather than a legend: Parravicini's reef-fish diet
+# ships no legend for H/I/O/P/PK, so the ambiguous pair was settled against
+# known species -- Chromis, Dascyllus and Pseudanthias are all PK (planktivore),
+# Cephalopholis, Epinephelus and Sphyraena all P (piscivore). A first web lookup
+# guessed the reverse; the species check corrected it. The COMBINE/PanTHERIA
+# activity 1/2/3 code was calibrated against EltonTraits period flags on 5026
+# shared species: 1 -> 100% nocturnal, 3 -> 100% diurnal, 2 -> cathemeral.
+#
+# Derived at build time, so the runtime map is identity: EltonTraits diet_guild
+# (one guild per species from the ten diet fractions, summed within guild,
+# dominant >=50% wins, else omnivore -- it agrees 93% with EltonTraits' own
+# diet_5cat and 83% with AVONET's independent trophic_niche); birdbase
+# clutch_mean; NestTrait's nest_structure / nest_site / nest_attachment, kept as
+# pipe-delimited multi-modal sets ("cup|dome") since a species genuinely uses
+# several; disperse's _mid numeric midpoints.
+#
+# ellenberg_salt takes Baseflor's salinity column directly: it is the same 0-9
+# Ellenberg scale (r = 0.88, mean absolute difference 0.10 against FloraWeb
+# ell_salt_de on 2369 shared species).
+#
+#
+# ---- Cautions ---------------------------------------------------------------
+#
+# A source's `caution` says the unit is right but the definition differs from
+# the trait's other sources. Cautioned sources are kept, not dropped: the
+# default coalesce switches to "complete" (report the single most-populated
+# source verbatim, never a cross-method blend) and emits <trait>_caution.
+#
 #   - root_diameter: AusTraits is maximum root diameter (APD trait_0012111,
-#     incl. coarse roots; ratio ~0.3x GRooT), GRooT is fine-root.
+#     including coarse roots, ~0.3x GRooT); GRooT is fine-root.
 #   - root_n_concentration: AusTraits root_N_per_dry_mass is whole-root N (APD
-#     trait_0000838; ~2x lower), GRooT is fine-root.
-#   - rooting_depth: BROT rootdepth runs ~2x GRooT (maximum vs typical depth).
-# specific_root_area (GRooT-only, cm^2/g): three source papers (Quanquan 2011, an
-#   unpublished MSc thesis; Mokany & Ash 2008; Chanteloup & Bonis 2013) sit ~1000x
-#   below GRooT's cm2 g-1 standard (data paper median 385.8) from a compilation
-#   unit error, not GRooT's conversion -- AusTraits carries the identical Mokany
-#   2008 data equally low. The x1000 correction is grounded, not guessed: Mokany &
-#   Ash 2008's own SRA-SLA regression (Fig 1B, log10 SRA = 1.019 + 0.024*(SLA -
-#   18.208), SRA in m2/kg) puts the real magnitude at ~10 m2/kg = ~100 cm2/g, and
-#   the stored values x1000 land in that range (GRooT-stored x1000 = 22-538 cm2/g
-#   vs the regression's 70-260). taxifydb's parse_groot rescales the three papers
-#   x1000, with standardized sources winning per species (a species with any clean
-#   record keeps its clean median -- Mokany's paper itself cautions its pot-grown
-#   values differ from the field -- and the rescaled papers fill only species no
-#   clean source covers). Result: 529 species, median 386, 0 sub-1. AusTraits is
-#   not a second source here because it IS Mokany 2008. Requires the rebuilt
-#   groot.vtr (enrichment-2026.07) to be installed. (An earlier drop-the-papers fix
-#   was reverted: reading the papers showed the x1000 is grounded and recoverable.)
-# Sixth wave (widening two existing traits, both grounded on the .vtr values):
-#   - diet_guild gains elton_traits: taxifydb's parse_elton_traits derives one
-#     guild per species from the ten EltonTraits diet fractions (summed within
-#     guild, dominant >=50% wins, else omnivore). The derived label agrees 93%
-#     with EltonTraits' own diet_5cat and 83% with AVONET's independent
-#     trophic_niche on shared species, and it extends diet_guild from birds +
-#     reptiles to mammals. Requires the rebuilt elton_traits.vtr (the diet_guild
-#     column is added at build time, so the runtime map is identity).
-#   - ellenberg_salt gains baseflor: Baseflor's salinity column is the same 0-9
-#     Ellenberg scale (Pearson r = 0.88, mean |diff| = 0.10 vs FloraWeb ell_salt_de
-#     on 2369 shared species), so it joins floraweb + ecoflora directly. This is
-#     the clean piece salvaged from the incompatible standalone salinity trait
-#     below.
-# Seventh wave (vertebrate life-history + egg morphology; every source below
-# was shared-species calibrated against an already-registered reference, ratio
-# in parentheses, so the widenings carry no new unit conversion):
-#   - egg_length / egg_width (NEW, mm): amniote + repttraits + chelonians agree
-#     1.00 pairwise (shared 6-87 species), so reptile/bird/turtle egg dimensions
-#     join as one trait alongside the existing egg_mass.
-#   - brain_mass (NEW, g): COMBINE grams + AnimalTraits kg (x1000); the x1000
-#     lands ratio 1.00 vs COMBINE on 522 shared species.
-#   - reproductive_frequency widened 2 -> 6: anage / pantheria / repttraits all
-#     ratio 1.00 vs the existing amniote/combine; chelonians (turtles) runs 0.6x
-#     on a thin overlap but is the same per-year count unit, so median coalesce
-#     absorbs it rather than dropping a source.
-#   - clutch_litter_size gains chelonians (ratio 1.00) and birdbase (mean of the
-#     reported clutch min/max, ratio 1.00 on 6781 shared species; the mean is a
-#     build-time column in taxifydb's parse_birdbase). lizard_traits was NOT
-#     added: it is the same Oskyrko source as repttraits, already registered, so
-#     it would double-count.
-#   - age_at_maturity gains chelonians (ratio 1.00) and beukhof fish (ratio 1.00
-#     on 198 shared species; the calibration confirms the unit is years and
-#     resolves the earlier "156 yr looks wrong" flag -- the tail is five deep-sea
-#     per-species outliers, not a unit error). longevity gains beukhof age_max
-#     (ratio 1.00; the ~390 yr maximum is the Greenland shark, genuine).
-#   - pollination_vector widened with floraweb (German BiolFlor compound vectors
-#     at their primary token, 100% mapped, 82-91% agreement with the registered
-#     baseflor/ecoflora on shared species -- on par with their 89% mutual
-#     agreement) and austraits (named insect taxa -> insect). poll_patterns
-#     gained the insect-taxon tokens (bee/beetle/fly/moth/...) so austraits'
-#     specific insects resolve; its coarse "biotic"/"abiotic" and animal
-#     (bird/bat/vertebrate) records stay NA rather than being guessed into a
-#     vector. GIFT and BIEN are NOT sources here: they carry only biotic/abiotic,
-#     a coarser granularity, and "biotic" is not "insect" (a hummingbird-
-#     pollinated plant is biotic), so folding them in would assert a false vector.
-# Eighth wave (six new traits + one widening; every numeric source was
-# shared-species calibrated against a co-registered source, ratio in parens):
-#   - male_maturity (NEW, yr): anage / amniote / combine male_maturity_d, all
-#     days -> years, ratio 1.00 pairwise (shared 708-1471). The male analogue of
-#     age_at_maturity, kept a separate trait for the same reason first-reproduction
-#     is (different quantity, not a source for the female-maturity trait).
-#   - incubation_period (NEW, days): amniote + chelonians egg incubation_d,
-#     ratio 1.05 on 122 shared species. Distinct from gestation_incubation: 134
-#     amniote species carry both an incubation_d (external egg phase) and a
-#     gestation_d (retained phase), so egg incubation is its own trait.
-#   - diet_breadth (NEW, count): combine + pantheria (ratio 1.00 on 2162 shared)
-#     plus birdbase. birdbase covers birds, disjoint from the mammal sources, so
-#     it cannot be shared-species calibrated; it is grounded on the matching
-#     0-7 integer-count distribution (same "number of dietary categories" trait).
-#   - tongue_length (NEW, mm): bee_ostwald + eupolltrait bee proboscis, ratio
-#     1.00 on 162 shared species (parallels the existing itd bee-size trait).
-#   - aspect_ratio (NEW, unitless): beukhof + quimbayo caudal-fin aspect ratio,
-#     ratio 1.00 on 406 shared species.
-#   - foraging_mode (NEW, active/ambush/mixed): repttraits + chelonians ACT/AMB
-#     codes. lizard_traits carries the same field but is the same Oskyrko source
-#     as repttraits, so it is not added (as with clutch_litter_size).
-#   - diet_guild widened with chelonians and blanchard text diet columns, mapped
-#     to the guild vocabulary by ordered regex (compound "omnivorous to
-#     carnivorous" -> omnivore by primary token; ant "predator" -> carnivore).
-# Ninth wave (six new traits + a depth widening; categorical sources share an
-# identical or cleanly-mappable vocabulary rather than a numeric unit, so they
-# are grounded on the vocabulary + distribution, disjoint taxa notwithstanding):
-#   - reproductive_mode (NEW): repttraits (oviparous/ovoviviparous/viviparous,
-#     9670 records) + sharkipedia, whose shark strategies (matrotrophy,
-#     placentotrophy, aplacental/histotrophic/lecithotrophic viviparity) collapse
-#     to viviparous. ovoviviparous is tested before viviparous/oviparous because
-#     its label contains both substrings.
-#   - coloniality (NEW: colonial/solitary/both), wave_exposure (protected/exposed/
-#     intermediate) and water_clarity (clear/turbid/both): coral_traits + octocoral
-#     share these coral-habitat vocabularies verbatim ('broad'/'both' -> intermediate).
-#   - head_length / head_width (NEW, mm): huang_amph + saproxylic, unit mm verbatim.
-#     Disjoint taxa (amphibians vs beetles) so no shared-species calibration, but
-#     head length in mm is a coherent morphometric per species, as body_length is.
-#   - depth_min / depth_max widened with coral_traits (depth_upper_m / depth_lower_m)
-#     and octocoral (depth_upper / depth_lower): shallowest and deepest occurrence
-#     depths in metres, same unit as the existing fish depth sources.
-#   - Skipped this wave: fecundity (per-event vs per-year vs lifetime egg count
-#     unpinnable across arthropod/fish/mussel sources, disjoint taxa so no
-#     calibration) and offspring_size (egg-diameter vs hatchling-length ambiguous
-#     between amphibio and beukhof, and neonate_mass/egg_mass already cover it).
-# Tenth wave (high-fill single-source columns surfaced by a per-enrichment gap
-# scan; numeric units are unambiguous from the column name so are taken verbatim,
-# no conversion). Opens the prokaryote domain (Madin et al. 2020), previously
-# unused by any trait:
-#   - caudal_fin_shape (NEW): beukhof fin_shape + quimbayo caudal_fin, one fish
-#     fin-shape vocabulary ('truncated'/'lanceolated' folded to truncate/lanceolate).
-#   - voltinism (NEW, per year): arthropod_traits voltinism + eupolltrait
-#     number_of_generations, both generations per year (verbatim count).
-#   - migration (avonet: sedentary/partial/full), flightless (birdbase: no/yes/
-#     partial), venomous (repttraits), sociality (eupolltrait bees: solitary/
-#     parasocial/eusocial, brood parasites and inquilines -> cleptoparasite).
-#   - Prokaryote traits from Madin: gram_stain, oxygen_metabolism (obligate
-#     variants folded in; microaerophilic/anaerobic tested before aerobic since
-#     both contain the "aero" substring), cell_shape (coccobacillus tested before
-#     its parts), optimal_growth_temperature (deg C) and genome_size (bp).
-#   - thermal_max widened with pottier heat_tolerance_c (amphibian CTmax/LT50),
-#     same degrees-C upper-thermal-limit concept as GlobTherm on disjoint taxa.
-# Eleventh wave (a focused pass on the remaining borderline high-fill columns):
-#   - wingspan (NEW, mm): leptraits wingspan_mm is MISLABELLED -- its values are
-#     cm, not mm (monarch stored 9.4 vs true ~94 mm wingspan; cabbage white 4.5
-#     vs ~45; swallowtail 7.7 vs ~77; all exactly 1/10), so it is multiplied by
-#     10. A grounding catch: the column header is wrong, the known-species
-#     cross-check fixes the unit.
-#   - leaf_length / leaf_width (NEW, mm): austraits, single-source, verbatim.
-#   - fungal_trophic_mode (NEW): funguild trophic_mode (pathotroph/saprotroph/
-#     symbiotroph, hyphenated multi-mode -> mixed) + fungal_traits primary_lifestyle
-#     mapped to the same three modes (*_saprotroph -> saprotroph, pathogen/parasite
-#     -> pathotroph, mycorrhizal/lichen/endophyte -> symbiotroph).
-#   - feeding_mode (beukhof fish), mouth_position (quimbayo fish), air_breathing
-#     (fishbase; Water/WaterAssumed -> none), motility (madin prokaryote; flagella/
-#     gliding/axial -> motile), lecty (eupolltrait bee pollen host breadth,
-#     polylectic/oligolectic).
-# Twelfth wave (multi-source life-history + fish growth, all shared-species
-# calibrated against the .vtr values before wiring):
-#   - interbirth_interval (NEW, yr): pantheria + combine (days /365.25) + amniote
-#     (years) + anage (days /365.25). Per-species ratios 1.00 across pantheria/
-#     combine (n=750) and combine/amniote (n=1301); median ~1.0 yr. Distinct from
-#     reproductive_frequency (interval, not rate).
-#   - teat_number (NEW, count): pantheria + combine, ratio 1.00 on 682 shared
-#     species (both integer teat counts, median 4).
-#   - population_density (NEW, individuals/km2): pantheria + combine (ratio 1.00,
-#     n=1026) + tetradensity. TetraDensity's per-locality records run ~1.3x below
-#     the species-level compilations -- same unit (n/km2), a biological/dataset
-#     offset not a unit error, so it joins and the median reducer absorbs it.
-#   - von_bertalanffy_linf (NEW, cm): beukhof length_infinity_cm + sharkipedia
-#     vbgf_linf_cm, both the VBGF asymptotic length in cm (ratio 1.13 on the 19
-#     shared species; overlap is thin because sharks skew large). Parallels the
-#     shipped von_bertalanffy_k.
-#   REJECTED this wave (the column name matched an existing trait but the values
-#   proved a different quantity -- a grounding catch): arthropod_traits
-#   thermal_maximum / thermal_minimum are NOT sources for thermal_max / thermal_min.
-#   arthropod thermal_maximum has median 14.5 and max 28.7 deg C -- a climatic
-#   niche edge (range/occurrence temperature), not an organismal CTmax (insect
-#   CTmax is 40-50 deg C). globtherm/arthropod ran 2.6x apart on the 18 shared
-#   species; the mismatch is definitional, so the arthropod thermal columns stay
-#   out of the tolerance trait.
-# Thirteenth wave (single-source morphology in underserved taxa, grounded on
-# distribution sanity -- median/range physically plausible in the claimed unit --
-# since each has no second source to calibrate against; unit taken verbatim from
-# the column name as with body_length / head_length):
-#   - forelimb_length / hindlimb_length (NEW, mm): huang_amph amphibian limbs
-#     (med 8.3 / 50 mm). forelimb carries a few near-zero negative records, dropped
-#     with num_pos.
-#   - elytra_length / antenna_length / pronotum_length (NEW, mm): saproxylic beetle
-#     morphology (med 2.7 / 1.3 / 1.1 mm, n~1250), the same source and treatment as
-#     the shipped head_length / head_width.
-#   - cell_length / cell_width / cell_biovolume (NEW, um / um3): rimet_phyto
-#     phytoplankton cell geometry (med 16 um / 7 um / 360 um3, n=1413), a new
-#     microalgae size dimension; no negatives or sentinels.
-#   - colony_diameter (NEW, cm) and corallite_width (NEW, mm): Coral Trait Database
-#     (med 100 cm / 3.1 mm), extending the thin coral coverage.
-#   SKIPPED this wave: eye_diameter (huang_amph) -- median 3.7 mm is plausible but
-#   max is 747 mm, an uncatchable magnitude error with no second source to
-#   cross-check. bee_ostwald morphology -- forewing_length has n=2, and thorax /
-#   hair length are thin (n~90) with itd_mm already covering bee body size. A
-#   cross-order forewing_length -- leptraits stores it in cm, odonata in mm, bee
-#   n=2, disjoint taxa, so no clean shared unit. octocoral colony_height /
-#   colony_width -- the column names carry no unit suffix and measure a different
-#   dimension than coral colony_diameter, so combining would be a definitional guess.
-# Fourteenth wave (single-source behavioural categoricals, grounded on vocabulary
-# clarity -- each column's values are a small, clean, self-explaining token set,
-# so no numeric calibration applies; taken verbatim, unmatched -> NA):
-#   - nesting_strategy (NEW): eupolltrait bee excavator / renter / mason (n=1822).
-#   - territoriality (NEW): odonata territorial / non-territorial (n=314).
-#   - mate_guarding (NEW): odonata contact (tandem) / noncontact (sentinel) / none
-#     (n=399).
-#   - flight_mode (NEW): odonata percher (sit-and-wait) / flier (patrolling), n=1067.
-#   SKIPPED this wave: nest_type. Its codebook IS decodable -- BIRDBASE's own
-#   "Legend"/"Nest Details" sheets define all 14 architecture codes (BU burrow,
-#   CP cup, CR crevice, CV tree cavity, DM dome, HC half-cup, NO no nest, O other
-#   bird's nest, PL platform, PN pendant, SA saucer, SC scrape, SP sphere, M mound;
-#   the 170 comma-combinations are multi-type nesters). But nest architecture is
-#   inherently MULTI-LABEL and already served at full fidelity by two doors:
-#   add_birdbase() surfaces birdbase_nest_type (the whole comma string, no loss) and
-#   add_nesttrait() surfaces NestTrait's one-hot neststr_* flags. The registry stores
-#   one categorical per species, so registering it would force a lossy collapse of
-#   both sources and duplicate two working doors -- zero harmonization gain (same
-#   door-vs-registry logic as economic_use below). Not
-#   registered: economic_use / useful_plants -- a single-source 0/1 use matrix
-#   (animal_food, human_food, medicines, ...) already fully surfaced by the
-#   add_useful_plants() door; the cross-source trait verb has nothing to harmonize
-#   on one source, so the door is its correct home. odonata habitat_openness left
-#   out as an odonate-jargon habitat descriptor, not a distinct behavioural axis.
-# Deliberately unregistered (the quantities are physically different, not one
-# harmonizable trait -- kept here so the decision is not silently relitigated):
-#   - ploidy: the candidate sources do not share a clean encoding -- GIFT is
-#     "n"/"2"/"2, n" (ambiguous), austraits is almost entirely "2", and
-#     tree_of_sex's predicted_ploidy is *modeled* (not measured), vertebrate-only
-#     (n=104, 0 plants / 0 inverts) and mixes clean 2/3/4 with junk codes (23, 234,
-#     12.5, 34) -- verified against the .vtr, not just the header. No groundable
-#     common scale, so ploidy stays unregistered (FloraWeb's chromosome/ploidy
-#     columns are empty, as noted above).
-#   - salinity (as a marine/tolerance trait): coral/octocoral seawater ppt ~32-35
-#     (n=2-3), pottier 0-4 tolerance index, and madin halophily categories are not
-#     one quantity. Baseflor's 0-9 soil indicator is handled above by feeding
-#     ellenberg_salt, its true scale; the marine remainder has no common unit.
+#     trait_0000838, ~2x lower); GRooT is fine-root.
+#   - rooting_depth: BROT rootdepth runs ~2x GRooT (maximum versus typical).
+#
+# A per-record caution flags individual rows instead of the whole source, via
+# nsrc(caution_col=, caution_fn=). PHYLACINE body mass uses it: parse_phylacine
+# keeps the source's Mass.Method as mass_method_class, and a phylogenetically
+# imputed or allometrically estimated mass is flagged for that species alone --
+# never dropped, never served as a measurement -- while PHYLACINE's measured
+# rows carry no caution.
+#
+# specific_root_area is GRooT-only, in cm^2/g. Three of its source papers
+# (Quanquan 2011, an unpublished MSc thesis; Mokany & Ash 2008; Chanteloup &
+# Bonis 2013) sit ~1000x below GRooT's standard (data-paper median 385.8) from a
+# compilation unit error upstream of GRooT's own conversion. The x1000
+# correction is grounded rather than guessed: Mokany & Ash's own SRA-SLA
+# regression (Fig 1B, log10 SRA = 1.019 + 0.024*(SLA - 18.208), SRA in m2/kg)
+# puts the real magnitude at ~10 m2/kg = ~100 cm2/g, and the stored values x1000
+# land in that range (22-538 cm2/g against the regression's 70-260). taxifydb's
+# parse_groot rescales those three papers, with standardized sources winning per
+# species: a species with any clean record keeps its clean median -- Mokany's
+# paper itself cautions that its pot-grown values differ from the field -- and
+# the rescaled papers fill only species no clean source covers. The result is
+# 529 species, median 386, none below 1. AusTraits is not a second source here
+# because it IS Mokany 2008.
+#
+#
+# ---- Traits kept apart -----------------------------------------------------
+#
+# Pairs that a column name would merge but a definition separates:
+#
+#   - age_at_maturity / age_at_first_reproduction / male_maturity: first
+#     reproduction runs ~1.2x later than female sexual maturity on shared
+#     species, and male maturity is a different quantity again.
+#   - incubation_period / gestation_incubation: 134 amniote species carry both
+#     an external egg phase and a retained phase, so they cannot be one column.
+#   - interbirth_interval / reproductive_frequency: an interval, not a rate.
+#   - thermal_max, thermal_min / climatic_temp_mean, climatic_temp_min,
+#     climatic_temp_max: see the climatic-niche family below.
+#   - lichen_growth_form / growth_form: thallus morphology, not tree/shrub/herb.
+#   - reproductive_strategy (lichen sexual/asexual) / reproductive_mode (animal
+#     oviparous/viviparous).
+#   - diel_vertical_migration (daily, zooplankton) / migration (seasonal, birds).
+#   - eive_* / ellenberg_*: EIVE is a statistical consensus (Dengler et al.
+#     2023) built from ~30 regional indicator systems, including the Ellenberg
+#     (FloraWeb) and Hill (Ecoflora) values that ellenberg_* already coalesces,
+#     so averaging it in would double-count. It stays a continuous 0-10 family
+#     of its own; ellenberg_* stays the classic ordinal regional family. EIVE
+#     is likewise not rescaled onto the 1-9 scale, which would need a grounded
+#     conversion that does not exist.
+#
+# The climatic-niche family (climatic_temp_mean, climatic_temp_min,
+# climatic_temp_max, all deg C) is the home for range-climate columns, kept
+# strictly apart from the organismal thermal_max / thermal_min. Both are deg C,
+# so the separation is by quantity: a range climate is bounded by dispersal,
+# competition and history and sits well inside what the animal survives --
+# fishtraits' warmest-month value is 0.88x the CTmax thermofresh measures on the
+# same species. Every source is pinned by its own documentation, because
+# range-climate columns are unusually easy to mistake for tolerance:
+#
+#   - climatic_temp_mean: arthropod_traits thermal_mean (WorldClim BIO1 averaged
+#     over 0.2-degree buffers around occurrences; Logghe et al. 2025 warn "these
+#     data should not be used as precise thermal limits ... this method
+#     calculates realised thermal niche") and repttraits mean_annual_temp_c
+#     (CHELSA, Karger et al. 2017, over the GARD ranges of Roll et al. 2017, per
+#     ReptTraits' own trait-source sheet). The taxa are disjoint, so the
+#     coalesce never blends two rasters for one species, and the medians are
+#     regionally right: 9.55 for NW European arthropods, 21.01 for global
+#     reptiles.
+#   - climatic_temp_min / climatic_temp_max: fishtraits min_temp_c and
+#     max_temp_c, the coldest-month (January) minimum and warmest-month (July)
+#     maximum at the range centroid, from PRISM 400-m grids per the source's
+#     FGDC definitions. Single-source, so distribution sanity carries them:
+#     min_temp_c median -2.7 with a -22.5 floor, max_temp_c median 32.0 with a
+#     20.4 floor, right for a US range climate.
+#
+# Two things deliberately DO coalesce across disjoint taxa, and the test is
+# whether the sources measure the identical quantity: climatic_temp_mean (both
+# an annual-mean surface, differing only in raster) and cell_length /
+# cell_width, where BacDive's prokaryote cells (median 2 x 0.6 um, a textbook
+# rod) join rimet_phyto's microalgae in the same um. Where the quantity differs,
+# disjoint taxa are a reason to refuse rather than to allow, because nothing
+# would ever surface the mismatch.
+#
+#
+# ---- Sources not registered ------------------------------------------------
+#
+# Kept here so the decisions are not silently relitigated.
+#
+# Wrong quantity behind a matching column name:
+#
+#   - arthropod_traits thermal_maximum / thermal_minimum are not thermal_max /
+#     thermal_min. Median 14.5 and maximum 28.7 deg C is a climatic niche edge,
+#     not an organismal CTmax (insect CTmax is 40-50); globtherm ran 2.6x apart
+#     on the 18 shared species. Nor are they climatic_temp_min / max: they are
+#     the spatial minimum and maximum of the ANNUAL MEAN surface across a
+#     species' occurrences, a niche breadth on the BIO1 axis, whereas the
+#     fishtraits pair is a within-year seasonal extreme at one point. The two
+#     differ by roughly 10 deg C for the same place (arthropod thermal_maximum
+#     medians 14.46, a NW European annual mean, where a July maximum is ~22).
+#     Only thermal_mean joins, because that one IS an annual mean; the rest
+#     stay with add_arthropod_traits().
+#   - fishtraits min_temp_c / max_temp_c are not thermal limits, for the reason
+#     above; the source files them under a "Temperature Tolerances" heading,
+#     which is what invites the misreading. min_temp_c reaches -22.5 deg C,
+#     impossible for a fish whose water freezes at 0.
+#   - eurobat aspectratioindex is not aspect_ratio: a bat's WING aspect ratio is
+#     a different measurement from the beukhof/quimbayo fish CAUDAL-FIN one.
+#   - FungalRoot elevation_* is the elevation of a genus-grain mycorrhizal
+#     sampling record (one number per genus: Acer 85 m, Acanthus 2 m), not a
+#     species elevational range limit as in birdbase/repttraits/globtherm; and
+#     elevation_max has 7 non-NA values, all degenerate at ~3300 m.
+#   - copepod_traits feeder_type is not foraging_mode: only "Ambush feeder" (27)
+#     and "Cruise feeder" (30) map to the active/ambush vocabulary, while the
+#     majority value "Feeding current" (94) is a third mode with no counterpart.
+#   - kew_cvalues genome_size_1c_pg does not join genome_size (madin, bp), even
+#     though 1 pg = 0.978 Gbp is a constant. A prokaryote genome size is one
+#     haploid chromosome; a plant 1C is the holoploid gametic complement and so
+#     scales with ploidy. Kew's own Triticum series shows it -- 6.20 pg at 2x
+#     (T. monococcum), 12.00 at 4x (T. turgidum), 17.30 at 6x (T. aestivum) --
+#     so T. aestivum's 1C spans three subgenomes where E. coli's spans one. The
+#     conversion does not calibrate either, scattering 0.80x (Vitis) to 2.17x
+#     (Arabidopsis) against published assemblies. Plant genome size stays behind
+#     add_kew_cvalues() as cval_genome_size_1c_pg, in its own unit.
+#
+# Unit or period that cannot be pinned:
+#
+#   - fecundity. The zooplankton database carries `fecundity` (median 458) AND a
+#     separate `clutchsize` (median 11.7), a 40x gap proving fecundity is a
+#     per-year or lifetime aggregate rather than the per-clutch count already
+#     shipped as clutch_litter_size. Fish fecundity (Beukhof, from FishBase) is
+#     unstandardized between annual and batch fecundity, so it has no pinnable
+#     period even single-source. Across the disjoint taxa the values span six
+#     orders of magnitude -- spider ~18 eggs/sac, zooplankton ~460, mussel
+#     ~89,000 glochidia/brood, maximum 8.3M -- with no shared species to
+#     calibrate. disperse_fecundity is out for the same reason.
+#   - offspring_size: egg diameter versus hatchling length is ambiguous between
+#     amphibio and beukhof, and neonate_mass / egg_mass already cover it.
+#     copepod_traits egg_diameter_um is out on the same gap, egg diameter not
+#     being the egg_length the amniote/repttraits/chelonians slots measure.
 #   - growth_rate: von Bertalanffy K is the one harmonizable slice and already
-#     ships as von_bertalanffy_k (beukhof, sharkipedia). Coral linear extension
-#     mm/yr, zooplankton per-day, and AnAge's Gompertz constant are physically
-#     different rates, not one unit, so growth_rate stays unregistered.
-# Fifteenth wave (BacDive (DSMZ) added as a second prokaryote source to the six
-# traits Madin already carried, roughly doubling species coverage; ~18.6k BacDive
-# species vs ~11k Madin):
-#   - gram_stain, oxygen_metabolism, cell_shape, motility: same canonical vocab as
-#     madin. oxygen_metabolism reuses oxymet_patterns (aerobe/anaerobe/facultative
-#     anaerobe/microaerophile all hit the same stems); cell_shape reuses (and this
-#     wave widened) cellshape_patterns for bacdive's ovoid/oval/ellipsoidal ->
-#     coccobacillus, sphere -> coccus, curved -> vibrio (none collide with madin's
-#     tokens, verified). motility gets its own map since bacdive is pre-normalized
-#     to motile / non-motile (madin's map keys on no/yes/flagella/...).
-#   - optimal_growth_temperature (deg C) and optimal_growth_ph (pH): shared-species
-#     ratio 1.00 vs madin (11,117 and 3,371 shared species) -- identical units,
-#     median coalesce.
-#   - cell_length / cell_width (um): bacdive prokaryote cells (med 2 x 0.6 um, a
-#     textbook rod) join rimet_phyto's microalgae on the same um unit (disjoint
-#     taxa, distribution-sanity grounded); the trait labels drop "(microalgae)".
-# Sixteenth wave (ITALIC 8.0 lichen descriptors, a taxon otherwise near-absent
-# from the trait registry; four NEW single-source categoricals grounded on the
-# crawled taxon-page vocabulary):
-#   - lichen_growth_form (NEW; crustose/foliose/fruticose/squamulose/leprose):
-#     kept SEPARATE from the plant growth_form trait (tree/shrub/herb) -- same
-#     column name, different concept (thallus morphology). Lichenicolous and
-#     non-lichenised entries are lifestyle categories, not thallus forms -> NA.
-#   - substrate (NEW; rock/bark/wood/soil/leaves): primary class of a multi-
-#     substrate record by priority (rock > bark > wood > soil > leaves).
-#   - photobiont (NEW; green algae/Trentepohlia/cyanobacteria). GROUNDING CATCH:
-#     the dominant value "green algae other than Trentepohlia" CONTAINS the
-#     substring "Trentepohlia", so a bare grepl("trentepohlia") would mislabel
-#     all ~185 green-algae species; the green-algae/cyanobacteria classes are
-#     tested before the bare Trentepohlia class.
-#   - reproductive_strategy (NEW; sexual/asexual): kept SEPARATE from the animal
-#     reproductive_mode trait (oviparous/viviparous). "mainly sexual, or asexual
-#     ..." keeps sexual; "mainly asexual, by soredia/isidia/fragmentation" -> asexual.
-#   All four mappers verified against the crawled ITALIC values. Requires the
-#   italic.vtr (enrichment-2026.07); source is CC BY-SA 4.0 per ITALIC 8.0.
-# Seventeenth wave (four never-mined trait databases opened at once -- three
-# whole taxa near-absent from the registry until now; every numeric widening is
-# a disjoint taxon grounded on distribution sanity, every categorical on the
-# source's own vocabulary):
-#   - Spiders (World Spider Trait DB, Pekar et al. 2021, CC BY 4.0, 9346 species):
-#     body_length (mm, med 5.0, join), activity_time (circadian_activity -- only
-#     the clean diurnal/nocturnal text tokens map; the source's numeric fuzzy-
-#     affinity codes fall to NA), and two NEW categoricals -- hunting_guild
-#     (Cardoso et al. 2011 8-guild scheme) and web_building (yes/no).
-#   - Reef fishes (Parravicini et al. 2020, 6910 species) widen diet_guild. The
-#     source ships no legend for its H/I/O/P/PK codes, so the ambiguous P/PK pair
-#     was disambiguated EMPIRICALLY against known species (Chromis / Dascyllus /
-#     Pseudanthias all PK = planktivore; Cephalopholis / Epinephelus / Sphyraena
-#     all P = piscivore). A first web lookup guessed the reverse; the species
-#     check corrected it. P -> carnivore, PK -> planktivore, and the guild vocab
-#     gains planktivore + detritivore.
-#   - Marine zooplankton (Global Zooplankton Trait DB, Pata & Hunt 2025, 4216
-#     species): body_length (mm, join), diet_guild (trophic_group primary token;
-#     suspension-feeder/parasite -> NA), and two NEW categoricals -- bioluminescence
-#     (yes/no) and diel_vertical_migration (yes/no; daily vertical movement, kept
-#     distinct from the bird seasonal `migration` trait).
-#   - Freshwater mussels (Hopper et al. 2023, 313 species) widen longevity (max_age;
-#     the ~190 yr maximum is Margaritifera, genuine), age_at_maturity (mature_age),
-#     body_length (max shell length, mm) and sexual_system (hermaphrodite flag:
-#     true -> hermaphrodite, false -> gonochoric).
-#   FECUNDITY + OFFSPRING_SIZE re-examined against the source papers this wave
-#   (not reflexively skipped) and STILL unregistered, now on hardened evidence:
-#   (1) the zooplankton DB carries `fecundity` (med 458) AND a separate `clutchsize`
-#   (med 11.7) -- a 40x gap proving "fecundity" is a per-year/lifetime aggregate,
-#   not the per-clutch count already shipped as clutch_litter_size; (2) fish
-#   fecundity (Beukhof, from FishBase) is unstandardized between annual and batch
-#   fecundity, so even single-source it has no pinnable unit/period (unlike the
-#   wave-13 single-source morphometrics); (3) across the disjoint taxa the values
-#   span six orders of magnitude (spider ~18 eggs/sac, zooplankton ~460, mussel
-#   ~89,000 glochidia/brood, max 8.3M) with no shared species to calibrate a common
-#   unit. offspring_size stays out for the same egg-vs-hatchling ambiguity noted in
-#   wave 9 (neonate_mass / egg_mass already cover it). disperse (462 European
-#   freshwater-invert genera) was left for a later wave: it is genus-keyed and all
-#   its columns are pre-binned ordinal ranges, not values the trait maps consume.
-#   Requires spider_traits/parravicini/zooplankton/sheld .vtr (enrichment-2026.07);
-#   spider_traits was also missing from both manifests (its add_spider_traits() door
-#   could not resolve) and is added here.
-# Eighteenth wave (FISHMORPH, the last un-mined morphology database; Brosse et al.
-# 2021, CC BY 4.0, 9043 freshwater fish). Nine NEW single-source numeric traits,
-# all dimensionless body-shape ratios taken verbatim (unit "index"), grounded on
-# distribution sanity + the source's own definitions (the wave-13 single-source
-# morphometrics pattern): body_elongation (length/depth, med 4.0), oral_gape_position
-# (0 = inferior .. 1 = superior, med 0.41), relative_eye_size (eye/head length,
-# med 0.39), vertical_eye_position (med 0.55), relative_maxillary_length (med 0.37),
-# body_lateral_shape (body/peduncle depth, med 0.57), pectoral_fin_position (med 0.27),
-# pectoral_fin_size (fin/body length, med 0.18), caudal_peduncle_throttling (med 2.4).
-# REJECTED by grounding: (1) FISHMORPH max_body_length is NOT a body_length source --
-# it IS the FishBase max length (median ratio exactly 1.000 across 8525 shared
-# species), the same-data trap as AusTraits==Mokany and lizard_traits==Oskyrko;
-# (2) oral_gape_position was NOT binned into the categorical mouth_position -- the
-# two share only 40 species and the index does not separate quimbayo's classes
-# (terminal spans 0.12-0.69, overlapping superior 0.30-0.80), so the bin cutoffs
-# cannot be grounded; the continuous index stays its own trait, lossless. Pure
-# registry edits: the fishmorph .vtr and add_fishmorph() door already carry every
-# column (enrichment-2026.07), so no rebuild or manifest change is needed.
-# Nineteenth wave (genus-keyed sources reach the trait verb + NestTrait nest
-# modalities). This wave's enabling change is an engine unlock: a registry source
-# may now set join_col = "genus", which add_trait() threads through .trait_join_one
-# to enrich_simple(join_col=) -- previously every trait-verb source joined on
-# accepted_name, so a genus-keyed source silently returned all-NA. That also fixes
-# a latent bug: fungal_trophic_mode's FungalTraits source (genus-keyed) was joining
-# on accepted_name and contributing nothing; it now carries join_col = "genus".
-# NEW traits: mycorrhizal_type (FungalRoot, Soudzilovskaia et al. 2020; 4188 plant
-# genera, majority-consensus AM/EcM/ErM/OM/NM + dual types, joined on genus;
-# textbook-correct end-to-end -- Abies/Betula/Quercus EcM, Pisum AM), and the
-# NestTrait (Chia et al. 2023, 12,615 birds) nest-modality categoricals
-# nest_structure / nest_site / nest_attachment, kept verbatim as pipe-delimited
-# multi-modal sets ("cup|dome") since a species genuinely uses several -- derived
-# at build time from the one-hot flag groups (taxifydb #5). DOOR-ONLY (not the
-# verb): disperse (Sarremejane et al. 2020, 462 European freshwater-invert genera).
-# Its build-time _mid numeric columns (body_size_cm, female_wing_mm, fecundity) and
-# the disperse_drift categorical are now surfaced by add_disperse(), but they stay
-# out of the cross-source verb: single-source coarse genus-level ordinal-bin
-# midpoints, so the door is their home (same call as economic_use/useful_plants),
-# and disperse_fecundity stays rejected for the wave-17 per-event-vs-per-year
-# reason regardless. Registry + door edits; the .vtr columns already exist
-# (enrichment-2026.07), so no rebuild.
-# The join_col unlock also surfaced two more latent bugs of the same kind (a
-# genus-keyed source silently all-NA through the verb), caught by a new guard
-# test that enumerates the genus-keyed enrichments and asserts join_col:
-#   - diet_guild's blanchard source (ant genus diet) lacked join_col; it is
-#     genus-keyed, so it now sets join_col = "genus" (Camponotus/Formica ->
-#     omnivore through the verb, matching add_blanchard()).
-#   - elevation_min / elevation_max had a FungalRoot source that is NOT a fix
-#     but a grounding rejection: FungalRoot's elevation_* is the elevation of a
-#     genus-grain mycorrhizal sampling record (one number per genus, e.g.
-#     Acer 85 m, Acanthus 2 m), not a species elevational range limit -- a
-#     different quantity from the birdbase/repttraits/globtherm species ranges;
-#     and elevation_max has 7 non-NA values, all degenerate at ~3300 m. Both
-#     FungalRoot elevation slots removed (413 -> 411 source-slots).
-# DOOR-ONLY (not the verb): edwards_phyto (Edwards et al. 2015, ~130 phytoplankton
-# species). Its columns are single-source phytoplankton nutrient physiology --
-# Droop/Monod uptake and growth parameters (mu/k/vmax/qmin/qmax) for ammonium,
-# nitrate and phosphorus, plus cell_volume (micron^3) and carbon_per_cell. No
-# other source carries nutrient-uptake kinetics, and cell_volume is not the same
-# quantity as the animal/plant body_size verbs, so nothing harmonizes to a shared
-# unit; add_edwards_phyto() surfaces them, the cross-source verb does not.
-# seed_mass gains a sixth-to-seventh source: kew_sid (Kew Seed Information
-# Database, ~42k species with a thousand-seed weight). A thousand-seed weight in
-# grams equals the per-seed mass in milligrams, so the map is identity -- grounded
-# on shared species against the existing mg sources: median(kew_tsw / seed_mass_mg)
-# = 1.00 vs diaz (n=23,277), bien (n=10,384), austraits (n=7,738, IQR exactly
-# [1,1]) and ecoflora (n=2,398). It roughly doubles seed_mass species coverage.
+#     ships as von_bertalanffy_k. Coral linear extension mm/yr, zooplankton
+#     per-day, and AnAge's Gompertz constant are physically different rates.
+#   - salinity as a marine trait: coral and octocoral seawater ppt ~32-35
+#     (n=2-3), pottier's 0-4 tolerance index, and madin's halophily categories
+#     are not one quantity. Baseflor's 0-9 soil indicator is the salvageable
+#     piece and feeds ellenberg_salt, its true scale.
+#   - ploidy: GIFT is "n"/"2"/"2, n" (ambiguous), austraits almost entirely "2",
+#     and tree_of_sex's predicted_ploidy is modeled rather than measured,
+#     vertebrate-only (n=104, no plants or invertebrates) and mixes clean 2/3/4
+#     with junk codes (23, 234, 12.5, 34) -- read off the .vtr, not the header.
+#   - GIFT leaf length and width: length x10 is plausible but width did not
+#     match AusTraits, so neither was guessed in.
+#   - A cross-order forewing_length: leptraits stores cm, odonata mm, bee_ostwald
+#     has n=2, and the taxa are disjoint.
+#   - octocoral colony_height / colony_width: the column names carry no unit and
+#     measure a different dimension from coral colony_diameter.
+#   - oral_gape_position was not binned into the categorical mouth_position: the
+#     two share only 40 species and the index does not separate quimbayo's
+#     classes (terminal spans 0.12-0.69, overlapping superior's 0.30-0.80), so
+#     the cutoffs cannot be grounded. The continuous index stays its own trait.
+#   - GIFT and BIEN carry only biotic/abiotic pollination, a coarser granularity
+#     than pollination_vector: "biotic" is not "insect" (a hummingbird-
+#     pollinated plant is biotic), so folding them in would assert a false
+#     vector. AusTraits' named insect taxa do map; its coarse biotic/abiotic and
+#     its vertebrate records stay NA.
+#   - fishtraits repro_guild (Balon codes A_1_1, A_1_2, ...) ships no legend, so
+#     decoding it would be a column-header guess.
+#
+# Too thin, empty, or an uncatchable error:
+#
+#   - LEDA leda_seed_mass_mg (values 1-4, a class code, not mg); AmphiBIO
+#     longevity_d (values are years); SeaLifeBase trophic_level, FloraWeb
+#     chromosome and ploidy, and LEDA leaf dry mass (all empty).
+#   - huang_amph eye_diameter: median 3.7 mm is plausible but the maximum is
+#     747 mm, a magnitude error with no second source to catch it.
+#   - bee_ostwald morphology: forewing_length has n=2, and thorax and hair
+#     length are thin (n~90) with itd_mm already covering bee body size.
+#
+# Better served by a door than by the verb. The cross-source verb exists to
+# harmonize; with one source there is nothing to harmonize, and a lossy collapse
+# would duplicate a working door:
+#
+#   - nest_type. Its codebook IS decodable -- BIRDBASE's own Legend and Nest
+#     Details sheets define all 14 architecture codes (BU burrow, CP cup, CR
+#     crevice, CV tree cavity, DM dome, HC half-cup, NO no nest, O other bird's
+#     nest, PL platform, PN pendant, SA saucer, SC scrape, SP sphere, M mound),
+#     and the 170 comma-combinations are multi-type nesters. But nest
+#     architecture is inherently multi-label and already served at full fidelity
+#     by add_birdbase() (the whole comma string) and add_nesttrait() (one-hot
+#     neststr_* flags). The registry stores one categorical per species.
+#   - economic_use / useful_plants: a single-source 0/1 use matrix (animal_food,
+#     human_food, medicines, ...) fully surfaced by add_useful_plants().
+#   - economic_cost: InvaCost's cumulative 2017-USD cost, one source, surfaced
+#     by add_invacost().
+#   - disperse (Sarremejane et al. 2020, 462 European freshwater-invert genera):
+#     single-source coarse genus-level ordinal-bin midpoints, surfaced by
+#     add_disperse().
+#   - edwards_phyto (Edwards et al. 2015, ~130 phytoplankton species): Droop and
+#     Monod nutrient uptake and growth parameters (mu, k, vmax, qmin, qmax for
+#     ammonium, nitrate and phosphorus), plus cell_volume and carbon_per_cell.
+#     No other source carries uptake kinetics, and cell_volume is not the
+#     quantity the body-size traits measure.
+#   - odonata habitat_openness: an odonate-jargon habitat descriptor, not a
+#     distinct behavioural axis.
+#
+# Build-only sources feed no trait, and the reason is reproducibility rather
+# than quality. Every source in this registry is a downloadable .vtr; a source
+# reachable only where taxifydb happens to be installed would make add_trait()
+# return a different number on two machines running the same code, silently.
+# chromosome_number therefore ships from kew_cvalues (9,375 species) alone even
+# though CCDB reaches 65,051 and its counts are now correct (taxifydb doubles
+# the gametic number CCDB's service reports; ratio against kew 1.0000, IQR
+# [1, 1] across 6140 shared species, 83.3% exact). The divergence a silent swap
+# would introduce is real, not cosmetic: the two compilations disagree on which
+# cytotype is typical for 6.1% of shared species -- Duchesnea indica 84 against
+# 14. CCDB is reached through add_ccdb(), as gmpd, plantatt, bryoatt and clopla
+# are through theirs.
+#
+#
+# ---- Engine notes ----------------------------------------------------------
+#
+# A source may set join_col = "genus", which add_trait() threads through
+# .trait_join_one() to enrich_simple(join_col=). Without it a genus-keyed source
+# joins on accepted_name and silently returns all-NA, so every genus-keyed
+# enrichment must set it: fungal_traits (fungal_trophic_mode), fungalroot
+# (mycorrhizal_type), blanchard (diet_guild). A guard test enumerates the
+# genus-keyed enrichments and asserts the flag.
+#
+# `caution` (the definition or method differs, unit correct) is distinct from
+# `note` (how the value was harmonized); both show in trait_info(), only
+# `caution` reaches the output.
+
+
+# Per-record caution text for a PHYLACINE body mass, keyed on the mass provenance
+# class (parse_phylacine's mass_method_class). Measured (`reported`) masses get
+# no caution; model-derived masses are flagged for that species only.
+.phylacine_mass_caution <- function(v) {
+  cls <- tolower(trimws(as.character(v)))
+  out <- rep(NA_character_, length(cls))
+  out[cls == "imputed"]   <- paste(
+    "PHYLACINE body mass is phylogenetically imputed for this species",
+    "(a model estimate, not a measurement).")
+  out[cls == "estimated"] <- paste(
+    "PHYLACINE body mass is estimated by allometric scaling for this species",
+    "(not a direct measurement).")
+  out
+}
 
 
 # Map raw categorical values to a canonical vocabulary through a named lookup
@@ -881,10 +844,24 @@
   # `caution` (default NA) flags a source whose unit is correct but whose
   # method/definition differs from the trait's reference source (e.g. maximum
   # vs fine-root diameter). It drives the method-aware coalesce in add_trait().
+  # `caution_col` + `caution_fn` flag INDIVIDUAL rows instead of the whole
+  # source: `caution_col` names a companion column in the same enrichment and
+  # `caution_fn` maps its per-species value to caution text (NA where none), so
+  # e.g. a PHYLACINE body mass that is model-imputed for one species is flagged
+  # for that species only, without cautioning the source's measured values. A
+  # per-record caution annotates provenance; it does not make the trait
+  # method-discordant (it stays out of the coalesce's complete/median switch).
+  # `group` pins the grain a source is read at, as a named length-1 vector
+  # (c(<group column> = <value>)). A .vtr that carries several rows per species
+  # -- one per group plus a species-level aggregate, e.g. gidias's
+  # affected_taxon -- is otherwise read by whichever row sorts first, which is
+  # not a contract. Sources on a single-grain .vtr leave it NULL.
   nsrc <- function(enr, col, cite, note, map = num, caution = NA_character_,
-                   join_col = "accepted_name") {
+                   join_col = "accepted_name", group = NULL,
+                   caution_col = NA_character_, caution_fn = NULL) {
     list(enrichment = enr, col = col, citation = cite, note = note,
-         map = map, caution = caution, join_col = join_col)
+         map = map, caution = caution, join_col = join_col, group = group,
+         caution_col = caution_col, caution_fn = caution_fn)
   }
 
   list(
@@ -999,14 +976,17 @@
         elton_traits = nsrc("elton_traits", "body_mass_g", "EltonTraits (Wilman et al. 2014)", "Grams."),
         avonet       = nsrc("avonet", "body_mass_g", "AVONET (Tobias et al. 2022)", "Grams."),
         anage        = nsrc("anage", "body_mass_g", "AnAge (Tacutu et al. 2018)", "Grams."),
-        phylacine    = nsrc("phylacine", "mass_g", "PHYLACINE (Faurby et al. 2018)", "Grams."),
+        phylacine    = nsrc("phylacine", "mass_g", "PHYLACINE (Faurby et al. 2018)", "Grams.",
+                            caution_col = "mass_method_class",
+                            caution_fn  = .phylacine_mass_caution),
         repttraits   = nsrc("repttraits", "body_mass_g", "ReptTraits (Oskyrko et al. 2024)", "Grams."),
         fishbase     = nsrc("fishbase", "body_mass_g", "FishBase (Froese & Pauly)", "Grams."),
         sealifebase  = nsrc("sealifebase", "body_mass_g", "SeaLifeBase (Palomares & Pauly)", "Grams."),
         frugivoria   = nsrc("frugivoria", "body_mass_g", "Frugivoria (Gerstner et al.)", "Grams."),
         pottier      = nsrc("pottier", "body_mass_g", "Pottier et al.", "Grams."),
         animaltraits = nsrc("animaltraits", "body_mass_kg", "AnimalTraits (Herberstein et al. 2022)", "kg converted to grams (x1000).", map = numk),
-        homerange    = nsrc("homerange", "body_mass_kg", "Broekman et al. HomeRange", "kg converted to grams (x1000).", map = numk)
+        homerange    = nsrc("homerange", "body_mass_kg", "Broekman et al. HomeRange", "kg converted to grams (x1000).", map = numk),
+        eurobat      = nsrc("eurobat", "body_mass_g", "EuroBaT (European bat traits)", "Grams (ratio 0.99 vs combine and 1.03 vs pantheria on shared species).")
       )
     ),
     longevity = list(
@@ -1020,6 +1000,8 @@
         chelonians = nsrc("chelonians", "max_lifespan_y", "TurtleTraits (Chelonians)", "Years."),
         amphibio   = nsrc("amphibio", "longevity_yr", "AmphiBIO (Oliveira et al. 2017)", "Maximum longevity, years."),
         beukhof    = nsrc("beukhof", "age_max", "Beukhof et al. 2019", "Maximum observed age, years (ratio 1.00 vs anage on shared species; the ~390 yr maximum is the Greenland shark, not a unit error)."),
+        fishtraits = nsrc("fishtraits", "longevity_yr", "FishTraits v14.3 (Frimpong & Angermeier 2009)", "Maximum age of US freshwater fish, years (ratio 1.00 vs anage on 295 shared species)."),
+        eurobat    = nsrc("eurobat", "max_longevity_yr", "EuroBaT (European bat traits)", "Maximum longevity, years (ratio 1.00 vs anage on 28 shared species)."),
         sheld      = nsrc("sheld", "max_age", "Freshwater Mussel Traits (Hopper et al. 2023)", "Maximum age, years (freshwater mussels; the ~190 yr maximum is Margaritifera, genuine).")
       )
     ),
@@ -1045,7 +1027,9 @@
         repttraits = nsrc("repttraits", "clutch_size", "ReptTraits (Oskyrko et al. 2024)", "Eggs per clutch."),
         amphibio   = nsrc("amphibio", "litter_size", "AmphiBIO (Oliveira et al. 2017)", "Eggs per clutch (amphibian clutches reach the thousands)."),
         chelonians = nsrc("chelonians", "clutch_size_mean", "TurtleTraits (Chelonians)", "Mean eggs per clutch (ratio 1.00 vs amniote on shared species)."),
-        birdbase   = nsrc("birdbase", "clutch_mean", "Birdbase", "Mean of the reported clutch min/max (ratio 1.00 vs amniote on 6781 shared species).")
+        birdbase   = nsrc("birdbase", "clutch_mean", "Birdbase", "Mean of the reported clutch min/max (ratio 1.00 vs amniote on 6781 shared species)."),
+        eurobat    = nsrc("eurobat", "litter_size", "EuroBaT (European bat traits)", "Offspring per litter (ratio 1.00 vs combine and pantheria on shared species)."),
+        zooplankton = nsrc("zooplankton", "clutchsize", "Global Zooplankton Trait DB (Pata & Hunt 2025)", "Eggs per clutch of marine zooplankton. Distinct from the source's fecundity column, which is a per-year/lifetime aggregate and stays unregistered.")
       )
     ),
     age_at_maturity = list(
@@ -1056,6 +1040,7 @@
         amphibio   = nsrc("amphibio", "age_maturity_y", "AmphiBIO (Oliveira et al. 2017)", "Years."),
         chelonians = nsrc("chelonians", "age_maturity_y", "TurtleTraits (Chelonians)", "Years (ratio 1.00 vs anage on shared species)."),
         beukhof    = nsrc("beukhof", "age_maturity", "Beukhof et al. 2019", "Age at maturity, years (ratio 1.00 vs anage on 198 shared species; a handful of deep-sea species exceed 50 yr)."),
+        fishtraits = nsrc("fishtraits", "maturity_age_yr", "FishTraits v14.3 (Frimpong & Angermeier 2009)", "Age at maturity of US freshwater fish, years (the years unit is confirmed against anage, whose days column runs 365x higher on 70 shared species; medians agree at 3 yr vs beukhof)."),
         sheld      = nsrc("sheld", "mature_age", "Freshwater Mussel Traits (Hopper et al. 2023)", "Age at maturity, years (freshwater mussels).")
       )
     ),
@@ -1319,6 +1304,38 @@
           map = function(v) .xw_cat(v, c(woody = "woody", herbaceous = "non-woody", variable = "variable")))
       )
     ),
+    # Invasive-species impact (IUCN EICAT / SEICAT). GIDIAS already stores the
+    # canonical category, so the map only validates the token; single-source for
+    # now but kept in the verb because further EICAT sources (an IUCN registry,
+    # taxon-specific assessments) coalesce onto the same ordinal categories.
+    environmental_impact = list(
+      label = "Environmental impact (EICAT)", kind = "categorical", unit = NA_character_,
+      vocab = c("MC", "MN", "MO", "MR", "MV", "DD"),
+      sources = list(
+        gidias = nsrc("gidias", "gidias_eicat_category", "Bacher et al. 2025 (GIDIAS)",
+                      "IUCN EICAT category: most severe magnitude among the species' negative environmental impacts (MC/MN/MO/MR/MV), or DD.",
+                      group = c(affected_taxon = "Any"),
+                      map = function(v) {
+                        u <- toupper(trimws(as.character(v)))
+                        u[!(u %in% c("MC", "MN", "MO", "MR", "MV", "DD"))] <- NA_character_
+                        u
+                      })
+      )
+    ),
+    socioeconomic_impact = list(
+      label = "Socio-economic impact (SEICAT)", kind = "categorical", unit = NA_character_,
+      vocab = c("MC", "MN", "MO", "MR", "DD"),
+      sources = list(
+        gidias = nsrc("gidias", "gidias_seicat_category", "Bacher et al. 2025 (GIDIAS)",
+                      "IUCN SEICAT category: most severe magnitude among the species' negative socio-economic impacts (MC/MN/MO/MR), or DD.",
+                      group = c(affected_taxon = "Any"),
+                      map = function(v) {
+                        u <- toupper(trimws(as.character(v)))
+                        u[!(u %in% c("MC", "MN", "MO", "MR", "DD"))] <- NA_character_
+                        u
+                      })
+      )
+    ),
     photosynthetic_pathway = list(
       label = "Photosynthetic pathway", kind = "categorical", unit = NA_character_,
       vocab = c("c3", "c4", "cam", "c3-c4", "c3-cam"),
@@ -1477,6 +1494,9 @@
         parravicini  = list(enrichment = "parravicini", col = "trophic_guild",
                           citation = "Parravicini et al. 2020", note = "Reef-fish guild codes (legend verified empirically): H herbivore, I invertivore, O omnivore, P piscivore -> carnivore, PK planktivore.",
                           map = function(v) .xw_cat(v, parra_guild)),
+        eurobat      = list(enrichment = "eurobat", col = "diet_type",
+                          citation = "EuroBaT (European bat traits)", note = "European bats; insectivorous -> invertivore, frugivorous -> frugivore.",
+                          map = function(v) .xw_grep(v, diet_patterns)),
         zooplankton  = list(enrichment = "zooplankton", col = "trophic_group",
                           citation = "Global Zooplankton Trait DB (Pata & Hunt 2025)", note = "Marine zooplankton; primary token of a compound value (carnivore/omnivore/herbivore/detritivore/planktivore); suspension-feeder and parasite -> NA.",
                           map = function(v) .xw_grep(v, diet_patterns))
@@ -1998,6 +2018,14 @@
         huang_amph = nsrc("huang_amph", "hindlimb_length_mm", "Huang et al. amphibian morphology", "Amphibian hindlimb length, mm.", map = num_pos)
       )
     ),
+    forearm_length = list(
+      label = "Forearm length", kind = "numeric", unit = "mm", vocab = NULL,
+      sources = list(
+        combine   = nsrc("combine", "adult_forearm_length_mm", "COMBINE (Soria et al. 2021)", "Adult forearm length, mm (the standard bat body measurement)."),
+        pantheria = nsrc("pantheria", "x8_1_adultforearmlen_mm", "PanTHERIA (Jones et al. 2009)", "Adult forearm length, mm (ratio 1.00 vs combine on 972 shared species)."),
+        eurobat   = nsrc("eurobat", "forearm_length_mm", "EuroBaT (European bat traits)", "Forearm length, mm (ratio 1.01 vs combine and 1.00 vs pantheria on shared species).")
+      )
+    ),
     elytra_length = list(
       label = "Elytra length", kind = "numeric", unit = "mm", vocab = NULL,
       sources = list(
@@ -2090,6 +2118,12 @@
       label = "Genome size (prokaryote)", kind = "numeric", unit = "bp", vocab = NULL,
       sources = list(
         madin = nsrc("madin", "genome_size_bp", "Madin et al. 2020 (prokaryote traits)", "Genome size, base pairs.")
+      )
+    ),
+    chromosome_number = list(
+      label = "Chromosome number (2n)", kind = "numeric", unit = "count", vocab = NULL,
+      sources = list(
+        kew_cvalues = nsrc("kew_cvalues", "chromosome_2n", "Kew Plant DNA C-values 7.1 (Pellicer & Leitch 2020)", "Somatic chromosome number (2n) of vascular plants, verified against textbook counts (Zea mays 20, Oryza sativa 24, Pisum sativum 14, Triticum aestivum 42).")
       )
     ),
     optimal_growth_ph = list(
@@ -2411,14 +2445,40 @@
     thermal_max = list(
       label = "Upper thermal limit", kind = "numeric", unit = "deg C", vocab = NULL,
       sources = list(
-        globtherm = nsrc("globtherm", "thermal_max_c", "GlobTherm (Bennett et al. 2018)", "Upper thermal tolerance (CTmax / UTNZ / lethal temperature), degrees C."),
-        pottier   = nsrc("pottier", "heat_tolerance_c", "Pottier et al. 2022", "Amphibian upper thermal tolerance (CTmax / LT50), degrees C.")
+        globtherm   = nsrc("globtherm", "thermal_max_c", "GlobTherm (Bennett et al. 2018)", "Upper thermal tolerance (CTmax / UTNZ / lethal temperature), degrees C."),
+        pottier     = nsrc("pottier", "heat_tolerance_c", "Pottier et al. 2022", "Amphibian upper thermal tolerance (CTmax / LT50), degrees C."),
+        thermofresh = nsrc("thermofresh", "ctmax", "Freshwater thermal-tolerance database (Bayat et al., Zenodo 14056760)", "Critical thermal maximum (CTmax) of freshwater fish, invertebrates and amphibians, degrees C (ratio 1.00 vs globtherm on 135 shared species). The source's lethal limits (lt50 / ltmax) are separate columns and are left out, so one record type feeds this trait.")
       )
     ),
     thermal_min = list(
       label = "Lower thermal limit", kind = "numeric", unit = "deg C", vocab = NULL,
       sources = list(
-        globtherm = nsrc("globtherm", "thermal_min_c", "GlobTherm (Bennett et al. 2018)", "Lower thermal tolerance, degrees C.")
+        globtherm   = nsrc("globtherm", "thermal_min_c", "GlobTherm (Bennett et al. 2018)", "Lower thermal tolerance, degrees C."),
+        thermofresh = nsrc("thermofresh", "ctmin", "Freshwater thermal-tolerance database (Bayat et al., Zenodo 14056760)", "Critical thermal minimum (CTmin) of freshwater fish, invertebrates and amphibians, degrees C (ratio 1.00 vs globtherm on 16 shared species).")
+      )
+    ),
+
+    ## ---- Climatic niche: the climate where a species lives, not what it can
+    ## tolerate physiologically. Kept strictly apart from thermal_max/thermal_min
+    ## (organismal CTmax/CTmin): a species' range climate is bounded by dispersal,
+    ## competition and history, so it sits well inside its tolerance.
+    climatic_temp_mean = list(
+      label = "Mean annual temperature of range", kind = "numeric", unit = "deg C", vocab = NULL,
+      sources = list(
+        arthropod_traits = nsrc("arthropod_traits", "thermal_mean", "Logghe et al. 2025 (NW European arthropod traits)", "Mean annual temperature (WorldClim BIO1) averaged over 0.2-degree buffers around the species' occurrences, degrees C. The source calls this a realised thermal niche and warns it is not a thermal limit."),
+        repttraits       = nsrc("repttraits", "mean_annual_temp_c", "ReptTraits (Oskyrko et al. 2024)", "Mean annual temperature over the species' range, degrees C, from CHELSA (Karger et al. 2017) on the GARD ranges (Roll et al. 2017) per the source's own trait-source sheet.")
+      )
+    ),
+    climatic_temp_min = list(
+      label = "Coldest-month temperature of range", kind = "numeric", unit = "deg C", vocab = NULL,
+      sources = list(
+        fishtraits = nsrc("fishtraits", "min_temp_c", "FishTraits (Frimpong & Angermeier 2009)", "30-year average minimum January temperature at the range centroid, degrees C, read from PRISM 400-m grids per the source's FGDC field definition. A range climate, not a cold tolerance: it reaches -22.5 deg C, well below the freezing point of the water the fish lives in.")
+      )
+    ),
+    climatic_temp_max = list(
+      label = "Warmest-month temperature of range", kind = "numeric", unit = "deg C", vocab = NULL,
+      sources = list(
+        fishtraits = nsrc("fishtraits", "max_temp_c", "FishTraits (Frimpong & Angermeier 2009)", "30-year average maximum July temperature at the range centroid, degrees C, read from PRISM 400-m grids per the source's FGDC field definition. A range climate, not a heat tolerance: it runs at 0.88x the CTmax thermofresh measures on the same species.")
       )
     ),
 
@@ -2575,8 +2635,7 @@
       )
     ),
 
-    ## ---- nineteenth wave: NestTrait bird nest modalities + genus-keyed
-    ##      mycorrhizal type (validates the trait verb's join_col unlock) ------
+    ## ---- bird nest modalities + genus-keyed mycorrhizal type --------------
     nest_structure = list(
       label = "Nest structure (birds)", kind = "categorical", unit = NA_character_,
       vocab = c("scrape", "platform", "cup", "dome", "dome_tunnel",
@@ -2664,20 +2723,35 @@
 # source that is unavailable (not installed, no download, no build) is skipped
 # with a warning and returns NULL, so add_trait() still works from the rest.
 .trait_join_one <- function(x, enrichment, col, kind, join_col = "accepted_name",
-                            verbose = TRUE) {
+                            group = NULL, verbose = TRUE) {
   tmp  <- ".__taxify_trait_raw__"
   na_t <- stats::setNames(
     list(if (kind == "numeric") NA_real_ else NA_character_), tmp)
   res <- tryCatch(
-    enrich_simple(
-      x, enrichment_name = enrichment,
-      col_map      = stats::setNames(col, tmp),
-      source_label = enrichment,
-      na_types     = na_t,
-      join_col     = join_col,
-      expose_all   = FALSE,
-      verbose      = FALSE
-    ),
+    if (is.null(group)) {
+      enrich_simple(
+        x, enrichment_name = enrichment,
+        col_map      = stats::setNames(col, tmp),
+        source_label = enrichment,
+        na_types     = na_t,
+        join_col     = join_col,
+        expose_all   = FALSE,
+        verbose      = FALSE
+      )
+    } else {
+      # A grain-pinned source (see nsrc's `group`): one group, so the value
+      # lands in an unsuffixed `tmp` exactly as the ungrouped path leaves it.
+      enrich_by_group(
+        x, enrichment_name = enrichment,
+        group_col    = names(group),
+        groups       = unname(group),
+        value_cols   = stats::setNames(col, tmp),
+        source_label = enrichment,
+        na_types     = na_t,
+        expose_all   = FALSE,
+        verbose      = FALSE
+      )
+    },
     error = function(e) {
       if (verbose) {
         warning(sprintf(
@@ -2689,6 +2763,43 @@
   )
   if (is.null(res)) return(NULL)
   res[[tmp]]
+}
+
+
+# Fetch one numeric source's value plus its within-source min/max, where the
+# .vtr stores them as <col>_min / <col>_max (built by taxifydb wherever a source
+# has several records per species). The source's unit map is applied to all
+# three. Missing spread columns come back all-NA, so min/max fall back to the
+# point value -- the source then contributes only to the cross-source range, and
+# the same code path deepens automatically once a rebuilt .vtr carries the
+# stored spread. pmin/pmax guard against a non-monotonic map swapping the bounds.
+.trait_join_spread <- function(x, enrichment, col, join_col = "accepted_name",
+                               map = identity, verbose = TRUE) {
+  cm   <- c(.v = col, .lo = paste0(col, "_min"), .hi = paste0(col, "_max"))
+  na_t <- list(.v = NA_real_, .lo = NA_real_, .hi = NA_real_)
+  res <- tryCatch(
+    enrich_simple(
+      x, enrichment_name = enrichment,
+      col_map = cm, source_label = enrichment,
+      na_types = na_t, join_col = join_col,
+      expose_all = FALSE, verbose = FALSE
+    ),
+    error = function(e) {
+      if (verbose) {
+        warning(sprintf(
+          "add_trait(): source '%s' unavailable (%s); skipping.",
+          enrichment, conditionMessage(e)), call. = FALSE)
+      }
+      NULL
+    }
+  )
+  if (is.null(res)) return(NULL)
+  v  <- map(res[[".v"]])
+  lo <- map(res[[".lo"]])
+  hi <- map(res[[".hi"]])
+  lo[is.na(lo)] <- v[is.na(lo)]        # no stored lower bound -> the value
+  hi[is.na(hi)] <- v[is.na(hi)]        # no stored upper bound -> the value
+  list(value = v, min = pmin(lo, hi), max = pmax(lo, hi))
 }
 
 
@@ -2782,6 +2893,25 @@
 }
 
 
+# Reduce the per-source lower/upper bounds (in priority order) to one spread per
+# row: the smallest lower bound and largest upper bound across every source that
+# supplied a value there. With no stored within-source spread each source's
+# min/max equal its point value, so this returns the cross-source range; with
+# stored spread it widens to the extremes actually observed in any source.
+.coalesce_spread <- function(per_min, per_max) {
+  n  <- length(per_min[[1L]])
+  Lo <- do.call(cbind, per_min)
+  Hi <- do.call(cbind, per_max)
+  mn <- vapply(seq_len(n), function(i) {
+    r <- Lo[i, ]; r <- r[!is.na(r)]; if (!length(r)) NA_real_ else min(r)
+  }, numeric(1L))
+  mx <- vapply(seq_len(n), function(i) {
+    r <- Hi[i, ]; r <- r[!is.na(r)]; if (!length(r)) NA_real_ else max(r)
+  }, numeric(1L))
+  list(min = mn, max = mx)
+}
+
+
 # Build the per-row `<trait>_caution` vector for a coalesced trait, or NULL when
 # no caution applies. `cvec` is the named per-source caution text (NA where the
 # source carries none). Two cases:
@@ -2831,6 +2961,32 @@
     hit <- !is.na(v)
     piece <- sprintf("[%s] %s", s, cvec[[s]])
     out[hit] <- ifelse(is.na(out[hit]), piece, paste(out[hit], piece, sep = " | "))
+  }
+  if (all(is.na(out))) NULL else out
+}
+
+
+# Merge per-record source cautions (`perrec`, named by source, each a length-n
+# text vector NA where no caution) into an existing caution vector `cr` (or NULL).
+# In coalesce mode pass `contributors` = the coalesced source label per row so a
+# source's caution fires only where it actually contributed to the reported
+# value; in wide mode pass NULL (each source's text is already gated to where it
+# supplied a value). Returns NULL when nothing is flagged.
+.merge_perrec_caution <- function(cr, perrec, contributors, n) {
+  if (!length(perrec)) return(cr)
+  out <- if (is.null(cr)) rep(NA_character_, n) else cr
+  for (s in names(perrec)) {
+    txt <- perrec[[s]]
+    if (!is.null(contributors)) {
+      inrow <- vapply(seq_len(n), function(i) {
+        cs <- contributors[i]
+        !is.na(cs) && s %in% strsplit(cs, ",", fixed = TRUE)[[1L]]
+      }, logical(1L))
+      txt[!inrow] <- NA_character_
+    }
+    hit <- !is.na(txt)
+    out[hit] <- ifelse(is.na(out[hit]), txt[hit],
+                       paste(out[hit], txt[hit], sep = " | "))
   }
   if (all(is.na(out))) NULL else out
 }

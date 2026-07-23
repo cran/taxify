@@ -1,3 +1,814 @@
+# taxify 0.4.0
+
+## Breaking: `backend` is renamed to `backbone` throughout the API (issue #24)
+
+* Two real concepts had one name. A `backbone` is a data source and its `.vtr`
+  file; a `backend` is the `taxify_backend` S3 handle that knows how to read
+  one. The name-string layer conflated them -- `install_backbones(backends =)`
+  and `backbone_path(backend)` collided inside single lines. `backbone` now
+  names the data source and its name string everywhere, `backend` names the S3
+  handle only, and `resolve_backend()` is the single crossing point between
+  them.
+
+* **This breaks existing code, with no aliases.** `taxify(backend = "wfo")` is
+  now `taxify(backbone = "wfo")`, and the same for `synonyms()`, `children()`,
+  `upstream()`, `downstream()`, `id2name()`, `reconcile()`, `comm2sci()`,
+  `sci2comm()`, `class2tree()`, `lowest_common()` and `taxify_download()`.
+  `install_backbones(backends =)` becomes `install_backbones(backbones =)`.
+
+* The `backend` output column is renamed to `backbone` in `taxify()`,
+  `taxify_long()`, `reconcile()`, `inspect()` and `taxify_register_coverage()`.
+  A lockfile's `backends` key becomes `backbones`, so a lockfile written before
+  this release no longer loads.
+
+* Three other conflations went with it. `comm2sci()` and `sci2comm()` returned
+  the accepted name as `scientific_name`; it is `accepted_name`, the name every
+  other verb uses. Their `query` column and `parse_name()`'s `input` and
+  `upstream()`'s `query` are all the caller's input string, so they are all
+  `input_name` now. `register_enrichment()`'s `source` argument is the
+  human-readable description, which `enrich_simple()` already called
+  `source_label`; the key is `name`.
+
+* `bb_path` and `vtr_path` named the same value; it is `vtr_path` everywhere.
+
+* Not renamed: the `backends` key inside `inst/manifest.json`, and the
+  `backend` column inside the published `backend_coverage.vtr`. Both are
+  serialized schemas that `taxifydb` writes and taxify only reads, so renaming
+  them is a coordinated release rather than a rename. The runtime translates at
+  the boundary, and `taxify_register_coverage()` reports `backbone`.
+
+## An example fixture was keyed at the wrong level
+
+* `add_fungal_traits()` joins on `genus`, but the bundled example database
+  shipped a `fungal_traits.vtr` keyed on `canonical_name` with no `genus`
+  column, so its own documented example errored. The fixture is rebuilt from
+  the released asset at genus grain.
+
+## The performance and size figures are measured, and generated from the manifest (issue #19)
+
+* The README's headline "1,862x faster than WorldFlora" had nothing in the
+  repository behind it, and neither did the memory figures in the large-scale
+  vignette. Both are now produced by committed scripts --
+  `scripts/benchmark-worldflora.R` and `scripts/benchmark-memory.R` -- which
+  write their runs to JSON alongside package versions and the backbone
+  snapshot. On 1,000 names that each carry a one-character typo, taxify takes
+  18.8 s against WorldFlora's 4,192 s, both reading the same Zenodo Darwin Core
+  archive; exact matching is 2.2 s against 17.1 s.
+
+* The invented console output is gone from the large-scale vignette. The timing
+  chunks show how to measure rather than asserting a number that was never run,
+  and the memory section reports resident set size, which is what a backbone
+  actually costs -- `gc()` sees only a fraction of it, since vectra reads the
+  `.vtr` through the operating system. Opening a backbone costs 1.8 to 2.2 times
+  its `.vtr` size, and a 5,000-name all-fuzzy pass adds 1.3 GB against WFO.
+
+* Backbone row counts, download sizes and the enrichment count are generated
+  from `inst/manifest.json` and taxify's own backbone registry, between HTML
+  comment markers, by `scripts/sync-readme-stats.R`. The hand-kept copies had
+  drifted up to 4.1x (WFO listed at 400k names against 1.6M, its download at
+  ~120 MB against 797 MB). A `manifest-docs` workflow fails if a block goes
+  stale.
+
+* Smaller: the `taxify()` match-type list in the README was missing
+  `hybrid_formula`, and the Euro+Med row count in the backends vignette still
+  described the 2020 build.
+
+## The genus register is downloaded, not built locally (issue #21)
+
+* The register carries the `kingdom_group`, `taxon_group` and `life_form` that
+  `taxify()` reports, and it was built on each machine from whichever backbones
+  that machine happened to have installed. Two users running identical code
+  therefore got different labels for the same name. `genus_register.vtr` and
+  `backend_coverage.vtr` are now built by `taxifydb` over a fixed backbone set,
+  published, and resolved through the same chain as any other asset: disk,
+  download, then a local build. Every install reads the same 496,127 genera.
+
+* The build pipeline itself -- the thirteen genus extractors, kingdom
+  normalization and inference, the GBIF hierarchy walk, and the family
+  life-form table -- moved to `taxifydb` (about 1,900 lines).
+  `taxify_build_register()` remains as an escape hatch that delegates there,
+  and `taxify_download("register")` fetches the published pair.
+
+* The register now lives at `<data_dir>/genus_register/latest/` rather than
+  `<data_dir>/unified/latest/`, so it follows the same versioned layout as
+  every backbone and picks up a new release through the usual version check.
+
+## Offline mode (`options(taxify.offline = TRUE)`)
+
+* Confines taxify to what is on disk plus the bundled manifest: no version
+  checks, no downloads, no build-from-source that would fetch a raw dataset. A
+  `file://` manifest URL still resolves. The test suite runs under it, which is
+  what makes a run independent of any release published between two runs.
+
+## A new asset resolves against a manifest that predates it
+
+* The fetched manifest is served from the default branch, so it lags a release
+  that adds an asset. An entry the remote does not carry now falls back to the
+  copy bundled with the installed package instead of failing to resolve. Where
+  both carry a key the remote still wins, so a version bump reaches an
+  already-installed package as before.
+
+## Name cleaning keeps Title-Case and all-caps epithets (issue #8)
+
+* `clean_names()` stripped a capitalized specific epithet as if it were an
+  author, so `"Quercus Robur"` cleaned to `"Quercus"` and then matched the
+  genus rather than the species. Trailing authorship is now removed by token
+  position: the token after the genus is the specific epithet whatever its
+  case, so Title-Case (`"Quercus Robur"`) and all-caps legacy (`"QUERCUS
+  ROBUR"`) binomials keep their epithet, while a genus followed by an author
+  (`"Rosa L."`) still reduces to the bare genus. Internal-capital author
+  abbreviations (`"Picea abies (L.) H.Karst."`, `"Solidago canadensis
+  A.Gray"`), which the previous pattern left in the cleaned name, are removed
+  too.
+
+## reconcile() no longer reports case variants as merges (issue #11)
+
+* A name paired with its own case variant (`c("Quercus robur", "QUERCUS
+  ROBUR")`) was flagged as a many-to-one merge, because the merge detector
+  grouped on the raw input string while the status comparison used the
+  normalized form. Input distinctness is now measured in the same normalized
+  space, so a case- or spelling-only variant counts as one input; genuine
+  merges are unchanged.
+
+## lowest_common() ignores blank rank values (issue #15)
+
+* A backbone that stores `""` (rather than `NA`) for an unresolved rank could
+  make `lowest_common()` report the blank as the shared ancestor. Empty rank
+  values are now treated as unresolved, so the most recent common ancestor
+  falls through to the next rank every taxon actually shares.
+
+## Reverse verbs default to the installed backbone set (issue #24)
+
+* `synonyms()`, `children()`, `downstream()`, `upstream()` and `id2name()`
+  defaulted to a single hardcoded backbone (`"wfo"` or `"col"`), so on a fresh
+  install `synonyms("Quercus robur")` triggered a WFO download the default
+  backbone set does not include. They now default to `backend = NULL`, which
+  resolves to the highest-priority installed backbone, matching `taxify()`,
+  `reconcile()` and `comm2sci()`.
+
+## inspect() no longer flags valid congeners as typos (issue #10)
+
+* `near_duplicate_targets()` measures the edit-distance and length gates on the
+  epithet, not the whole binomial, so `"Carex flava"` is no longer flagged as a
+  near-duplicate of `"Carex flacca"`. A genuine one-edit epithet typo still
+  fires.
+
+## enrich_simple() surfaces join and column gaps (issue #12)
+
+* An explicitly requested `join_col` absent from the `.vtr` now errors instead
+  of silently falling back to `canonical_name` (the mechanism behind past
+  all-NA doors), and a mapped column absent from the schema warns, naming the
+  enrichment and column, rather than attaching a silent all-NA column. The
+  diagnostic is gated off the bundled example database.
+
+## add_combine() preserves metadata and provenance (issue #13)
+
+* A new `[.taxify_result` method carries `taxify_meta` through subsetting, so
+  `add_combine()` (and any manual subset) no longer strips it. Reported columns
+  are selected by exact set, so an already-imputed value is never mislabelled as
+  a measurement.
+
+## Lockfile and summary robustness (issue #14)
+
+* `summary()` no longer errors on an enrichment entry without a version;
+  `taxify_restore()` reports a distinct `"unverified"` status when nothing could
+  be compared (instead of a false `"ok"`), and tolerates zero-length lockfile
+  fields.
+
+## Enrichment metadata and example-database safety (issue #16)
+
+* `download_enrichment()` copies `license`, `available_groups` and `citation`
+  into the installed `meta.json` (licence is no longer `NA` for downloaded
+  enrichments); `ensure_enrichment()` refuses to download an unbundled
+  enrichment into the example database.
+* The bundled manifest now carries `group_col` for all seven grouped
+  enrichments (`griis`, `gidias`, `alien_first_records`, `wcvp`,
+  `marine_distribution`, `common_names`, `glonaf`), and
+  `enrichment_groups()` falls back to the manifest when the installed
+  `meta.json` lacks it. A grouped enrichment installed before the metadata was
+  copied reported itself as ungrouped with no way to recover, because
+  `available_groups` had a manifest fallback and `group_col` did not.
+
+## Fuzzy matching picks the closest candidate (issue #23)
+
+* Candidate ranking had no distance term: `score_candidates()` ordered by
+  status, rank, validity, epithet and then `taxonID`, so among several fuzzy
+  candidates the winner was decided by ID and a farther name could beat a
+  nearer one. `"Carex flavaa"` resolved to `Carex flacca` (distance 0.167)
+  while `Carex flava` (0.083) was in range, and the two were reported
+  ambiguous although one was strictly closer. Distance now sorts first, so the
+  nearest name wins and ambiguity is declared only among equidistant
+  candidates. Exact matching is unaffected.
+* `dedup_fuzzy_targets()` ran once per fuzzy pass, so a query dropped by the
+  genus-blocked pass competed again in the prefix-blocked fallback and claimed
+  the backbone row the first pass had already taken. The claimed rows are now
+  carried forward, so two queries can no longer collapse onto one row.
+* Measured over the full 34,589-name EVA-to-WFO corpus, fuzzy accepted-name
+  agreement rises from 0.9152 to 0.9172 and WFO-ID agreement from 0.8031 to
+  0.8050, against a 0.0009 fall in match rate.
+
+## An executable accuracy corpus (issue #23)
+
+* `tests/e2e/test-asaas-validation.R` asserted nothing: it printed its
+  agreement rates with `cat()`, so a matching regression reported a worse
+  number and passed, and it read from a hardcoded `J:/` path. It now locates
+  the corpus through `TAXIFY_ASAAS_CORPUS`, asserts floors on match rate and
+  on accepted-name, family, genus and WFO-ID agreement over the whole corpus,
+  and asserts both sides of the fuzzy trade so neither recall nor precision
+  can erode unnoticed. Divergence is split into backbone drift, the corpus
+  hybrid-formula convention, and genuine misses, and only the last is capped.
+  See `tests/e2e/README.md` for the baseline and how to read a disagreement.
+* Assertions that could not fail were replaced: the trait-registry vocabulary
+  check drove every crosswalk with `NA` only, `test-doors.R` accepted one
+  populated column out of twenty, `children()` case-insensitivity held at zero
+  rows, `summary()` was matched with `grepl("3", .)`, and the multi-backend
+  fallback test used fixtures that both carried the species. Self-fulfilling
+  comparisons in `test-default-backend.R`, `test-add-trait.R`, `test-region.R`,
+  `test-gap-verbs.R` and `test-new-verbs.R` now assert independent literals.
+* New coverage for ITIS (a member of the first-run backbone set that had no
+  test at all), `add_common_names()`, `add_wcvp(region=)`, `add_glonaf()`,
+  `add_alien_first_records()`, `install_backbones()`, and `taxify_restore()`'s
+  `version_drift` / `content_drift` / `missing` branches. Negative and
+  threshold-boundary fuzzy tests cover equidistant candidates, typos that must
+  not resolve to a close-but-wrong species, and the accept/reject flip.
+
+## Authorship tiebreak and fuzzy validation (issue #17)
+
+* The authorship homonym tiebreak writes the accepted taxon's genus/family, not
+  the rejected synonym's, so a disambiguated homonym carries a consistent
+  lineage and life-form. `fuzzy_join` errors now warn instead of silently
+  returning no matches, and `taxify()` validates `fuzzy` and `fuzzy_threshold`.
+
+## Internals: backend registry and shared enrichment join (issues #20, #22)
+
+* The 15 `backend-*.R` clones collapse into one registry-driven factory; adding
+  a backbone is now a registry row plus a manifest entry. The three
+  backend-info doors (`add_wfo_info()` / `add_gbif_info()` / `add_col_info()`)
+  share one `enrich_from_backbone()` helper, and `add_data()` uses a vectorized,
+  typed-NA join keyed on `accepted_id`.
+
+## taxifydb is required at 0.1.19 or newer
+
+* The register fallback calls `taxifydb::build_register()`, which taxifydb
+  added during 0.1.18 rather than at its start, so a 0.1.18 built before that
+  point satisfied an unversioned dependency and then failed the call. `Suggests`
+  now names `taxifydb (>= 0.1.19)`, the first version whose number identifies
+  code that carries the function.
+
+## Documentation (issues #18, #19)
+
+* Every `\donttest` example now runs offline against the example database or is
+  `\dontrun`, so `R CMD check --run-donttest` never triggers a download. UTF-8
+  BOMs removed from three R files and three vignettes; `taxify()`'s `@return`
+  documents all 26 columns; the FISHMORPH trait list matches the columns
+  `add_fishmorph()` emits.
+
+## The fallback chain reaches every backbone again (issue #9)
+
+* A name whose genus the leading backbone did not cover was marked
+  `"out_of_scope"` and then skipped by every backbone behind it, because the
+  fallback loop only retried rows whose `match_type` was `NA`. The chain ended
+  at whichever backbone happened to be first. The package's own documented
+  example, `taxify(c("Quercus robur", "Panthera leo"), backend = c("wfo",
+  "gbif"))`, returned *Panthera leo* as `out_of_scope` without ever consulting
+  GBIF.
+
+* The default `backend = NULL` path was hit hardest, since COL leads the
+  priority order: on a full install 41.4% of register genera (207,980 of
+  502,088) sit outside COL's coverage, and every one of them is carried by a
+  backbone further down the chain. 14,354 of those are marine genera that never
+  reached WoRMS, so `region=` could not constrain a marine name COL does not
+  list. `taxify("Parvocaris samnitica")` now resolves through WoRMS instead of
+  returning `out_of_scope`.
+
+* `"out_of_scope"` means what the documentation always said it meant: no
+  backbone in the query covers the genus. The per-backbone mark still runs, so
+  the abbreviated-genus and fuzzy stages are still skipped for a backbone that
+  cannot carry the name (which also stops a spurious fuzzy near-match there
+  from outranking the exact match waiting further down the chain), but it is
+  released again for any name another backbone in the chain still covers. A
+  single-backend query is unchanged.
+
+* `backend` and `backbone_version` now name only the rows a backbone lookup
+  actually resolved. They were stamped whenever `match_type` was non-`NA`, which
+  swept in the verdicts a backbone never produced: an `out_of_scope` row read
+  the leading backend's name and its resolved version even though no lookup
+  found it there. Selecting `result[result$backend == "wfo", ]` then counted
+  those rows, so a per-backbone hit rate over-reported every backbone in the
+  chain. `"exact"`, `"exact_ci"`, `"fuzzy"` and `"abbrev"` carry the two
+  columns; `"out_of_scope"`, `"hybrid_formula"` and `"none"` leave them `NA`.
+
+## The marine region assets ship (issue #21)
+
+* 0.3.20 added the marine range providers but the data they read did not exist
+  yet, so the marine path stayed inert for everyone. Both assets are now
+  published and registered in the manifest, and `region=` / `coords=` constrain
+  marine matches out of the box.
+
+* New `meow` boundary entry: 196,807 polygon vertices across all 232 Marine
+  Ecoregions of the World, resolved through `download_backbone()` the way
+  `wgsrpd` is. Reference geometry, so it does not join the taxonomic backbone
+  set that `list_backbones()` reports.
+
+* New `marine_distribution` enrichment entry: WoRMS distribution records rolled
+  up to MEOW ecoregions, keyed on `canonical_name` with a `region_code` and a
+  native/introduced status, the marine counterpart of the WCVP range table.
+
+* `taxify_regions()` lists both vocabularies `region=` accepts, and gains a
+  `scheme` argument (`"all"`, `"wgsrpd"`, `"meow"`) and a `scheme` column. It
+  resolved marine names as soon as the asset was installed but only ever listed
+  the botanical crosswalk, and the warning for an unrecognised region pointed
+  users there. MEOW rows reuse the three name columns, since the two schemes
+  nest the same way: ecoregion as `name`, province as `level2_name`, realm as
+  `level1_name`. Marine rows appear only when the asset is installed, which is
+  also when they resolve.
+
+# taxify 0.3.20
+
+## Region filtering generalizes beyond plants (issue #21)
+
+* `region=` and `coords=` now constrain fuzzy matching for marine taxa, not
+  only vascular plants. When the `marine_distribution` asset is installed,
+  `region_range_sets()` unions two providers behind the unchanged arguments:
+  WCVP (plants, keyed on TDWG Level 3 `tdwg_code`) and the marine distribution
+  table (keyed on MEOW ecoregion `region_code`). Each resolved region code is
+  routed to its provider by vocabulary -- alphabetic TDWG codes to WCVP, numeric
+  MEOW `ECO_CODE`s to the marine table -- through one shared engine, so a
+  plant-only query never touches the marine asset and vice versa.
+
+* `region=` accepts MEOW ecoregion codes and ecoregion / province / realm names
+  (a province or realm expands to its member ecoregions), resolved from the
+  installed marine asset. `coords=` maps points to MEOW ecoregions by
+  point-in-polygon against a new `meow.vtr` boundary set, unioned with the
+  WGSRPD botanical lookup, so a coastal coordinate can resolve to both a
+  botanical region and a marine ecoregion. The point-in-polygon machinery is
+  now scheme-generic across the botanical and marine boundary sets.
+
+* Marine support is inert until the `marine_distribution` enrichment is
+  installed: the plant-only default path is unchanged.
+
+## Five more name verbs
+
+* `parse_name()` decomposes a name into its parts -- genus, specific epithet,
+  infraspecific rank and epithet, authorship, hybrid status, open-nomenclature
+  qualifier, and the canonical form -- without matching against a backbone, the
+  role `rgbif::name_parse()` or gnparser fill. It reuses the same cleaning
+  pipeline `taxify()` runs, so a name breaks apart the way it matches.
+* `upstream()` returns the higher classification (ancestors) of a taxon as a
+  tidy long frame, one row per rank from kingdom down to genus; `to =` restricts
+  it to a single rank ("what family is this in?"). The ancestor-direction
+  complement of `downstream()`.
+* `sci2comm()` resolves scientific names to their common (vernacular) names --
+  the forward complement of `comm2sci()`, reading the bundled `common_names`
+  data offline. `resolve = TRUE` (default) taxifys the input to its accepted
+  name first.
+* `reconcile()` reports how a checklist maps onto a backbone's current
+  treatment, classifying each name as `unchanged`, `synonym`, `misspelling`,
+  `ambiguous`, or `unresolved`, and flagging many-to-one merges where several
+  inputs collapse onto one accepted name -- a checklist-migration summary.
+* `taxify_lock()` / `taxify_restore()` write and verify a reproducibility
+  lockfile: `taxify_lock()` serializes the resolved backbones and enrichment
+  layers (name, version, content id, download date) behind a result to JSON, and
+  `taxify_restore()` compares a lockfile to the current install and reports
+  `ok` / `version_drift` / `content_drift` / `missing`.
+
+## Authorship-aware homonym disambiguation
+
+* When an ambiguous match (a homonym such as *Pinus abies* L. vs Thunb.) carries
+  an author in the input, `taxify()` now resolves it to the single
+  author-matching accepted target instead of returning the tie. The tiebreak
+  only touches ambiguous author-bearing rows; the fast path and every
+  unambiguous result are unchanged.
+
+## Bug fixes
+
+* Resolved an `R CMD check` warning about an unresolvable `taxifydb::build_meow`
+  reference. The scheme's boundary builder is now looked up by name at run time,
+  so the marine builder is used when taxifydb provides it and skipped cleanly
+  when it does not.
+
+# taxify 0.3.19
+
+## Five new name-resolution verbs
+
+* `comm2sci()` resolves common (vernacular) names to scientific names -- the
+  reverse of `add_common_names()`. Reads the bundled `common_names` data
+  offline; `resolve = TRUE` runs the matches through `taxify()` and returns an
+  enrichable `taxify_result`.
+* `id2name()` looks a backend ID (a GBIF key, ITIS TSN, WoRMS AphiaID, ...) back
+  up to its name, rank, classification, and accepted-name resolution -- the
+  inverse of the `taxon_id` / `accepted_id` columns `taxify()` emits.
+* `downstream()` lists every accepted taxon at a chosen rank (species by
+  default) beneath a higher taxon, where `children()` gives only the immediate
+  level.
+* `class2tree()` assembles a taxonomy tree (Newick, plus an `ape` `phylo` object
+  when `ape` is installed) from a set of resolved names, and `lowest_common()`
+  reports the deepest rank at which a set of names shares a common ancestor.
+
+## Cross-kingdom disambiguation on `taxify()`
+
+* `taxify(..., kingdom = )` restricts matches to one or more kingdoms
+  (`"animals"`, `"plants"`, `"fungi"`, ...), so a name shared across kingdoms (a
+  *Prunella* that is both a bird and a plant) resolves to the intended one. A
+  match whose kingdom is wrong is passed on to the next backbone in the fallback
+  chain; the kingdom is read from the backbone where it stores one, falling back
+  to the genus register otherwise.
+
+# taxify 0.3.18
+
+## Documentation
+
+* The README now notes that the backbones are pre-built by the companion
+  taxifydb package, and updates the enrichment-layer count to match
+  `list_enrichments()`.
+
+# taxify 0.3.17
+
+## A downloaded backbone reports the version it actually contains
+
+* Downloading a backbone into a slot that was previously built from source no
+  longer keeps reporting the old built version. `download_backbone()` now clears
+  the stale `.meta` build sidecar it leaves behind, restoring the invariant that
+  a downloaded backbone carries only its `meta.json`. Previously the leftover
+  `.meta` shadowed `meta.json` in `format_backbone_version()`, so a freshly
+  downloaded release (e.g. Euro+Med 2026.07) was still labelled with the old
+  built version (2020.1) in the `backbone_version` output column.
+
+## meta.json and manifest reads tolerate a UTF-8 BOM
+
+* A `meta.json` or manifest carrying a leading UTF-8 byte-order mark (as written
+  by Windows PowerShell's `Set-Content` / `Out-File`) no longer emits an
+  "illegal byte-order-mark" warning on every version read. All meta.json and
+  manifest reads strip a leading BOM before parsing.
+
+# taxify 0.3.16
+
+## The genus register is reachable and builds from what you have
+
+* `taxify_build_register()` is now exported. It builds the unified genus
+  register from the backbones you have installed and is the front door for the
+  `life_form` / `kingdom_group` / `taxon_group` output columns, out-of-scope
+  detection, and `inspect()`'s no-backbone checks. Previously the only builder
+  was internal, so `taxify_load_register()` on a fresh setup pointed users at a
+  function they could not call, and the manifest's register entry was a Zenodo
+  placeholder that never resolved. `taxify_download("register")` is a
+  convenience alias for it.
+
+* Building the register no longer force-downloads every known backbone. It
+  unions only the backbones actually installed (via the new internal
+  `installed_backbone_path()`), matching the documented "union of installed
+  backends" behaviour instead of silently pulling several gigabytes.
+
+## Backbone version reflects the installed data, not a static default
+
+* The build-from-source shims no longer pass a hardcoded version label into
+  `taxifydb::build_<name>()`; taxifydb stamps its own current version. A backbone
+  built from source is now labelled with the data it actually contains, not a
+  constant that drifts as releases advance.
+
+* `format_backbone_version()` falls back to the download-time `meta.json`
+  (the manifest version) before the backend constructor's static default, so a
+  downloaded backbone reports the version it was downloaded at.
+
+* Manifest: the `reptiledb` backbone points at the `reptiledb-2026.07` release
+  (byte-identical to 2026.06) and records its content id; the placeholder
+  `register` entry is removed.
+
+# taxify 0.3.15
+
+## `add_gidias()` can ask what a species impacts
+
+* GIDIAS scores each impact record against an affected native taxon, so
+  `add_gidias(group = )` reads impact at that grain: *Felis catus* is `"MO"`
+  against invertebrates (reduced populations) where the default is `"MV"`, the
+  global extinctions it drove among vertebrates. 28% of species with an
+  affected taxon recorded impact two or more of the five groups
+  (`Plant`, `Invertebrate`, `Vertebrate`, `Microbe`, `Fungi`), so for those the
+  species-level category is the most severe impact on anything, not the impact
+  on each thing. `enrichment_groups("gidias")` lists them; several groups
+  suffix the columns, as `add_alien_first_records()` does for countries.
+
+* `add_gidias()` with no `group` is unchanged: it reads the `"Any"` grain, the
+  same all-records summary it returned before, with the same columns. `"Any"`
+  is the only grain carrying SEICAT and the impact records with no affected
+  taxon recorded, so `gidias_seicat_category` is `NA` on the other groups.
+  Requires the rebuilt `gidias` enrichment.
+
+* `cols` now works on the grouped doors even when the source carries no columns
+  beyond the curated set, which previously ignored it.
+
+## Citations carry an access date
+
+* A source harvested live from a server is not identified by its year: two
+  harvests a year apart share it. `format_bibtex_entry()` now emits the
+  citation's `note` field, so an access date recorded in the manifest reaches
+  the BibTeX entry. Entries carrying no `note` are unchanged.
+
+# taxify 0.3.14
+
+## A wrong temperature reached users, and is fixed
+
+* FishTraits shipped a `-1` missing-data code in its two temperature columns, so
+  90 introduced fish (goldfish, zebrafish, brown trout) reported a July maximum
+  of -1 degrees C, which is impossible in the conterminous US. `add_fishtraits()`
+  surfaced it as `ft_min_temp_c` / `ft_max_temp_c`. The rebuilt data reads NA for
+  those species, and the warmest-month value now bottoms out at a believable
+  20.4 degrees C. Species whose January minimum genuinely is -1 keep it.
+* The same source also used "." for an absent text value, which reached
+  `ft_itis_tsn` and `ft_common_name`, and produced five unusable rows named
+  after a family ("Percidae ."). Both are cleaned.
+* The corrected data ships under the existing release, and taxify refreshes a
+  stale local copy once, on its own, the first time you use it.
+
+## The range climate gains its minimum and maximum
+
+* New `climatic_temp_min` and `climatic_temp_max` (degrees C): the coldest-month
+  and warmest-month temperature at a species' range centroid, from FishTraits.
+  They join `climatic_temp_mean` in the climatic-niche family, which stays apart
+  from the organismal `thermal_max` / `thermal_min`. Largemouth bass shows why
+  the split earns its keep: its range tops out at 32.0 degrees C while it can
+  survive 33.5. These were held back until the `-1` code above was fixed.
+
+## Plant chromosome numbers
+
+* `chromosome_number` reported a count nobody had measured, and is fixed.
+  *Arabidopsis thaliana* read 15 and *Acer campestre* 39, from species recorded
+  at more than one cytotype: Kew holds a diploid 2n = 10 and a tetraploid 2n = 20
+  for *Arabidopsis*, and averaging them lands on 15, which is in neither record.
+  The value is now the base cytotype (10 and 26 for those two), and the range
+  across cytotypes is reported in `chromosome_number_min` /
+  `chromosome_number_max`, so nothing is lost. 421 species change value, and
+  every value now comes from a real record.
+* An odd chromosome number is still reported wherever Kew measured one. A
+  triploid carries an odd 2n by definition (Tahiti lime is 2n = 3x = 27), as do
+  aneuploid hybrids and the gametophytic counts of mosses and liverworts.
+* Kew's plant genome size is a continuous measurement and is unaffected.
+* Every Kew value can now be traced to the paper it was measured in.
+  `add_kew_cvalues(cols = "all")` attaches `cval_original_reference` and
+  `cval_estimation_method`, both populated for every species, covering 941
+  distinct papers. Where a species carries records from several papers, all are
+  listed, as with *Arabidopsis thaliana* ("Bennett et al.,2003; Schmuths
+  et al.,2004").
+* The estimation method is worth reading before comparing genome sizes. 9,015
+  species were measured by flow cytometry and 3,391 by Feulgen densitometry,
+  which are different measurements, and 97 species carry both.
+* The corrected data ships under the existing release, and taxify refreshes a
+  stale local copy once, on its own, the first time you use it.
+* New `add_ccdb()`: somatic chromosome numbers from the Chromosome Counts
+  Database for 65,051 plant species, with the range of cytotypes each spans.
+  CCDB states no licence, so taxify publishes no copy; the door builds it on your
+  machine through taxifydb, like the other build-only sources.
+* The `chromosome_number` trait continues to come from Kew alone. CCDB covers
+  seven times more species, but a source reachable only where a build tool is
+  installed would make `add_trait()` return a different number on two machines
+  running the same code.
+* Kew's plant genome size stays behind `add_kew_cvalues()` in picograms rather
+  than joining the prokaryote `genome_size` trait in base pairs. The picogram to
+  base-pair conversion is a constant, but a plant 1C value counts every subgenome
+  a polyploid carries, while a bacterial genome size counts one chromosome.
+
+# taxify 0.3.13
+
+## Four sources taxify cannot redistribute now have doors
+
+* New `add_gmpd()` (Global Mammal Parasite Database 2.0: per-host parasite
+  richness, counts by parasite type, mean prevalence), `add_plantatt()`
+  (British and Irish vascular plants: Ellenberg values, maximum height,
+  life-form/woodiness/status codes), `add_bryoatt()` (the bryophyte companion --
+  a group otherwise almost absent from the bundled traits), and `add_clopla()`
+  (CLO-PLA clonal and bud-bank traits of the Central European flora, 29 codes
+  kept verbatim).
+* These four state no usable licence, so taxify publishes no copy of them and
+  they carry no manifest entry. The door builds the data from the original
+  source on your own machine through taxifydb, which is required for them and
+  errors with an install instruction when absent. taxify redistributes none of
+  the data; cite the sources when you use them.
+
+## Climatic niche is now separate from thermal tolerance
+
+* New `climatic_temp_mean`: the mean annual temperature of a species' range, in
+  degrees C, from the NW European arthropod dataset (WorldClim BIO1 over
+  occurrence buffers) and ReptTraits (CHELSA over GARD ranges). It is kept
+  strictly apart from `thermal_max` / `thermal_min`, which are organismal CTmax
+  and CTmin: a range climate is bounded by dispersal, competition and history,
+  so it sits well inside what an animal can survive.
+
+## New traits
+
+* `forearm_length` (mm): the standard bat measurement, from COMBINE, PanTHERIA
+  and the European bat dataset (the first two carried it for 1130 and 1012
+  species without any trait reaching it).
+* `chromosome_number` (2n): from the Kew Plant DNA C-values database.
+* `thermal_max` / `thermal_min` gain the freshwater thermal-tolerance database
+  (CTmax and CTmin of freshwater fish, invertebrates and amphibians).
+* `body_mass`, `longevity`, `clutch_litter_size` and `diet_guild` gain the
+  European bat dataset; `longevity` and `age_at_maturity` gain FishTraits;
+  `clutch_litter_size` gains the zooplankton per-clutch egg count.
+
+# taxify 0.3.12
+
+## Default backend is now every installed backbone
+
+* `taxify(backend = NULL)` (the new default) matches against **every installed
+  backbone** as a first-match fallback chain, instead of only WFO. A name is
+  resolved by the first backbone that matches it in priority order -- COL, then
+  the domain authorities (marine, vascular plants, fungi, algae, fishes,
+  reptiles), then the broad aggregators (GBIF, ITIS, NCBI, OTT) -- so cross-
+  kingdom input works without knowing which backbone to name, and disagreement
+  cases resolve to the more current treatment (e.g. `Macropus rufus` ->
+  `Osphranter rufus`). It is a first-match pick, not a consensus vote (a vote
+  would regress toward the most conservative treatment across backbones that
+  copy one another); use `mode = "wide"` / `"agreement"` to see disagreement.
+* On a fresh setup with nothing installed, the first `taxify()` call downloads a
+  default set once -- **COL, GBIF, and ITIS** -- covering all kingdoms with a
+  genuine cross-backbone agreement signal. Pre-install a different set with the
+  new `install_backbones()`, or set it via
+  `options(taxify.default_backbones = ...)`. The priority order is configurable
+  with `options(taxify.backbone_priority = ...)`.
+* New exported `install_backbones()` downloads one or more backbones for offline
+  use (defaults to the first-run set).
+* Naming a `backend` explicitly is unchanged, so existing calls keep working;
+  only the unset default moved off WFO.
+
+## COMBINE: one door fills imputed gaps and tags provenance
+
+* `add_combine()` is now the full COMBINE door rather than a thin alias of
+  `add_combine_reported()`. It attaches the reported (measured) values and fills
+  each still-missing cell from COMBINE's phylogenetically imputed table, so a
+  single call reaches COMBINE's fullest coverage. A measurement is never
+  overwritten -- the reported value wins and the model only fills gaps -- and a
+  companion `combine_<trait>_src` column tags every cell as `"reported"`,
+  `"imputed"`, or `NA`, keeping the measured-vs-modelled distinction explicit
+  per cell. `add_combine_reported()` (measured only) and `add_combine_imputed()`
+  (the imputed table on its own) are unchanged. Runtime-only; no data rebuild.
+
+# taxify 0.3.11
+
+## Genus-resolved enrichment joins
+
+* `add_cefas_btrait()` now joins on `genus`. The Cefas benthic-traits database
+  codes traits at genus level, so the previous species-level join returned `NA`
+  for every species; it now annotates every species in a coded genus.
+* `add_epa_freshwater()` now uses a species-first, genus-fallback join. The US
+  EPA Freshwater Biological Traits Database records each trait at the finest
+  resolution available, so a species keeps its species-level values and any
+  trait still missing is filled from the taxon's genus-level row (a species
+  value is never overwritten). This is a new `genus_fallback` option on the
+  shared enrichment engine, available to any mixed-resolution source.
+
+# taxify 0.3.10
+
+## Five more trait sources
+
+* Five enrichments that had working parsers but had never been released now have
+  doors: `add_kew_cvalues()` (plant genome size, chromosome number and ploidy
+  from the Kew Plant DNA C-values database, CC BY), `add_copepod_traits()`
+  (marine copepod body size, egg and clutch traits, Brun et al. 2017, CC BY 3.0),
+  `add_fishtraits()` (United States freshwater-fish life history, temperature and
+  salinity tolerance, and conservation traits, Frimpong & Angermeier 2009, public
+  domain), `add_epa_freshwater()` (freshwater-invertebrate functional traits, US
+  EPA, public domain), and `add_cefas_btrait()` (North-West European shelf
+  benthic biological traits, Cefas, OGL v3.0). Each is source-prefixed
+  (`cval_`, `cop_`, `ft_`, `epa_`, `cefas_`) and takes `cols = "all"` for the
+  full column set.
+
+## Documentation and metadata
+
+* The reference index now lists `add_combine_reported()`, `add_combine_imputed()`,
+  `enrichment_groups()`, and the low-level building blocks.
+* `thermofresh`, `ramond`, `freshwater_insects_conus`, and `eurobat` are flagged
+  static in the manifest, so their version is not re-checked each session.
+
+# taxify 0.3.9
+
+## Invasion impact (EICAT / SEICAT)
+
+* `add_gidias()` joins per-species invasion-impact aggregates from GIDIAS
+  (Bacher et al. 2025, CC BY 4.0), the IPBES invasive-species assessment's
+  global impact compilation. Each species carries its IUCN EICAT
+  environmental-impact category (`gidias_eicat_category`, `MC`/`MN`/`MO`/`MR`/`MV`,
+  or `DD`) and SEICAT socio-economic-impact category (`gidias_seicat_category`),
+  each the most severe magnitude among the species' documented negative impacts,
+  alongside the driving mechanism, affected well-being constituents, realms, and
+  record and source counts. Only the derived per-species aggregates are
+  distributed, not the raw impact records.
+
+* `add_trait()` gains two categorical traits, `"environmental_impact"` (EICAT)
+  and `"socioeconomic_impact"` (SEICAT), so invasion impact reconciles across
+  sources the way every other trait does. GIDIAS is the first source; the
+  ordinal categories are shared so further EICAT assessments can coalesce onto
+  them later.
+
+# taxify 0.3.8
+
+## Economic cost of invasions
+
+* `add_invacost()` joins per-species economic-cost aggregates from InvaCost
+  (Diagne et al. 2020, CC BY 4.0): `invacost_cost_total_usd` (cumulative
+  documented 2017-USD cost), `invacost_cost_n` (number of estimates), and the
+  dominant `invacost_cost_type`.
+
+## PHYLACINE mass is not silently model-derived
+
+* `add_phylacine()` surfaces `phylacine_mass_method` and
+  `phylacine_mass_method_class`, recording whether a body mass is measured
+  (`reported`), allometrically `estimated`, or phylogenetically `imputed`.
+* `add_trait("body_mass")` now flags model-derived PHYLACINE masses per species:
+  where PHYLACINE contributes an imputed or estimated mass, `body_mass_caution`
+  explains it for that species only; measured masses are left unflagged. A trait
+  registry source can attach such a per-record caution via `caution_col` /
+  `caution_fn`, distinct from the existing whole-source method caution.
+
+# taxify 0.3.7
+
+## Compare backbones in one call
+
+* `taxify()` gains a `mode` argument. With more than one `backend`, the default
+  `mode = "fallback"` is the usual fallback chain, while `mode = "wide"` consults
+  every backbone for every name and adds one `accepted_<backbone>` column plus a
+  logical `all_agree`, and `mode = "agreement"` adds `n_backbones_matched`,
+  `n_distinct_accepted`, and `all_agree`. Both are a strict superset of the
+  standard result (a single `accepted_name`, still pipeable into the `add_*()`
+  enrichments), so a backbone disagreement, such as GBIF keeping `Macropus rufus`
+  where the Catalogue of Life resolves it to `Osphranter rufus`, is visible in
+  one call instead of querying each backbone by hand.
+
+## Discovering group values
+
+* `enrichment_groups()` lists the group values a grouped enrichment door can
+  filter on, the way `enrichment_cols()` lists a door's columns. It answers "what
+  country / region / language codes are valid?" for `add_griis(country=)`,
+  `add_wcvp(region=)`, `add_common_names(lang=)`, and
+  `add_alien_first_records(country=)`.
+
+## Aggregate trait resolution
+
+* An aggregate query (`"Rubus fruticosus agg."`, `"... s.l."`) now falls back to
+  the nominal binomial's trait when a source carries no aggregate-level value.
+  Aggregate-level values are still used first where present; the binomial is a
+  pragmatic stand-in, not a real aggregate-level measurement. This also fixes a
+  preserve-fell-back aggregate (one with no dedicated aggregate taxon in the
+  backbone) reaching its binomial's traits.
+
+* The fallback is on by default and can be turned off per call with
+  `aggregate_trait_fallback = FALSE`, or globally with
+  `options(taxify.aggregate_trait_fallback = FALSE)`, which keeps a resolved
+  aggregate without aggregate-level data as `NA`.
+
+* `options(taxify.trait_provenance = TRUE)` now adds a character
+  `<enrichment>_basis` column (`"primary"` a same-level hit, `"aggregate"` a
+  species inheriting its aggregate's value, `"binomial"` an aggregate standing
+  in on its binomial) in place of the earlier logical `<enrichment>_inherited`
+  flag, so the basis of every filled value is explicit.
+
+# taxify 0.3.6
+
+## Hybrid matching
+
+* Hybrid names are handled by type instead of being reduced to their first
+  component. `taxify()` gains a `hybrid_type` column (`"nothogenus"`,
+  `"nothospecies"`, `"formula"`, or `NA`).
+
+* Hybrid formulas (`"Salix alba × Salix fragilis"`) no longer resolve to a
+  single species. Previously the cross was silently cut to its first parent and
+  returned as an exact match to `Salix alba`; now the cross row carries
+  `match_type = "hybrid_formula"` with `NA` backbone-match columns. The parent
+  binomials, and their accepted names, are available on demand via
+  `add_hybrid_info()`, which now adds `hybrid_parent_1`, `hybrid_parent_2`,
+  `hybrid_parent_1_accepted`, and `hybrid_parent_2_accepted`.
+
+* The same-genus formula shorthand is recognized: `"Salix alba × fragilis"`
+  (second parent written as a bare epithet) parses to parents `"Salix alba"` and
+  `"Salix fragilis"`.
+
+* Nothogenus names match backbones that store the multiplication sign.
+  `"× Cupressocyparis leylandii"` previously returned `NA` against backbones
+  whose canonical form keeps the sign (e.g. `"× Cupressocyparis leylandii"`);
+  matching now tries the `"× Genus ..."` and `"×Genus ..."` forms alongside the
+  sign-stripped binomial. Nothospecies (`"Quercus × hispanica"`) continue to
+  match as before.
+
+# taxify 0.3.5
+
+## Discovery
+
+* New `list_backbones()` lists every supported taxonomic backbone with its scope,
+  name count, download size, version, install status, and source, mirroring
+  `list_enrichments()`. New `taxify_databases()` stacks the backbones and
+  enrichments into one overview so the full breadth is one call away. A canonical
+  backbone registry now backs `resolve_backend()`, `installed_backbones()`, and
+  these verbs, so the supported set cannot drift between them.
+
+* A "Databases" pkgdown article lists every backbone, enrichment, and trait,
+  generated from the shipped manifest so it stays current.
+
+## Backbones
+
+* The LCVP and WCVP backbones are downloadable as pre-built `.vtr` files. They
+  previously had no published release and could only be built from source; both
+  are now in the manifest (`lcvp-3.0.1`, `wcvp-2026.06`), so all fifteen
+  backbones resolve without `taxifydb` installed.
+
 # taxify 0.3.4
 
 ## Bug fixes

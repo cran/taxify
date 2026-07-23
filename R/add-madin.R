@@ -30,8 +30,8 @@
 #' trait data. Scientific Data 7:170. \doi{10.1038/s41597-020-0497-4}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Escherichia coli", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Escherichia coli", backbone = "gbif") |>
 #'   add_madin()
 #' }
 #'

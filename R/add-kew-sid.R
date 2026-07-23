@@ -30,10 +30,12 @@
 #' \url{https://ser-sid.org/}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Quercus robur", backend = "gbif") |>
+#' old <- options(taxify.data_dir = taxify_example_data())
+#'
+#' taxify("Quercus robur", backbone = "gbif") |>
 #'   add_kew_sid()
-#' }
+#'
+#' options(old)
 #'
 #' @export
 add_kew_sid <- function(x, cols = NULL, verbose = TRUE) {

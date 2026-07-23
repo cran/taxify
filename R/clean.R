@@ -27,14 +27,74 @@
 # Parenthesized authorship: (L.), (Aiton) etc.
 .author_parens_pattern <- "\\([A-Z][a-z\u00e9.&\\s]*\\)"
 
-# Trailing authorship: "L.", "Sm.", "ex DC.", "(Aiton) Sm." etc.
-# Capital letter followed by optional lowercase + period, possibly chained
-# with ex/in/&.
-.author_trailing_pattern <- paste0(
-  "\\s+[A-Z][a-z\u00e9.]*\\.?",
-  "(?:\\s+(?:ex|in|&)\\s+[A-Z][a-z\u00e9.]*\\.?)*",
-  "$"
-)
+# A plain Latin letter-word: an initial letter then one or more letters (either
+# case, Latin-1 accents) or a hyphen -- minimum length 2, and no period, "&",
+# bracket, digit, or lone initial. Case-agnostic, so a Title-Case or all-caps
+# legacy epithet ("Robur", "ROBUR") still qualifies. A token failing this
+# ("L.", "DC.", "H.Karst.", "A.Gray", a bare "L") is authorship, never an
+# epithet. Classes kept as \uXXXX to keep the source ASCII.
+.epithet_word_pattern <- "^[A-Za-z][A-Za-z\u00c0-\u00ff-]+$"
+# An all-lowercase word: reads the name's case regime and spots a Capitalized
+# trailing author in an otherwise-lowercase name.
+.lower_word_pattern <- "^[a-z\u00df-\u00ff-]+$"
+
+#' Strip trailing authorship from a cleaned name (token-based)
+#'
+#' The specific epithet is the token immediately after the genus and is kept
+#' whatever its case, so a Title-Case or all-caps legacy binomial ("Quercus
+#' Robur", "QUERCUS ROBUR", "Panthera Leo") is never mistaken for a genus plus
+#' author; a genus followed instead by an author-shaped token ("Rosa L.")
+#' reduces to the bare genus. From the third token on, further epithets
+#' (infraspecific) are kept and the author citation is dropped from the first
+#' token that begins it. The two are told apart by case regime: when the
+#' specific epithet is lowercase (standard formatting), a Capitalized later
+#' token is an author ("Rosa canina dumalis Baker" -> "Rosa canina dumalis");
+#' when the epithet is itself upper/Title-case (legacy all-caps data), case
+#' cannot separate them, so only a token carrying a period, "&", or a bracket
+#' ends the name. Parenthesized authorship is removed by the caller beforehand.
+#'
+#' @param s Character vector (already qualifier- and parenthesized-author-
+#'   stripped).
+#' @return `s` with trailing authorship removed.
+#' @noRd
+strip_trailing_authorship <- function(s) {
+  out <- s
+  # Trim so the split yields no leading/trailing empty tokens, then tokenize
+  # once. A basionym author that slipped past the parenthesized-author strip
+  # (internal capital, e.g. "(Siebold & Zucc.)") is caught here too.
+  toks_list <- strsplit(trimws(s), "\\s+", perl = TRUE)
+  lens <- lengths(toks_list)
+  multi <- which(lens >= 2L)
+  if (length(multi) == 0L) return(out)
+
+  # Two vectorized token tests over every token in the multi-token names.
+  flat    <- unlist(toks_list[multi], use.names = FALSE)
+  is_word  <- grepl(.epithet_word_pattern, flat, perl = TRUE)
+  is_lower <- grepl(.lower_word_pattern, flat, perl = TRUE)
+  ends   <- cumsum(lens[multi])
+  starts <- ends - lens[multi] + 1L
+
+  for (k in seq_along(multi)) {
+    i <- multi[k]
+    b <- starts[k]                       # flat index of this name's token 1
+    keep <- 1L
+    if (is_word[b + 1L]) {               # token 2 is the specific epithet
+      keep <- 2L
+      regime_lower <- is_lower[b + 1L]
+      if (lens[i] >= 3L) {
+        for (j in 3:lens[i]) {
+          tj <- b + j - 1L
+          author <- !is_word[tj] || (regime_lower && !is_lower[tj])
+          if (author) break else keep <- j
+        }
+      }
+    }
+    if (keep < lens[i]) {
+      out[i] <- paste(toks_list[[i]][seq_len(keep)], collapse = " ")
+    }
+  }
+  out
+}
 
 # ---- Qualifier canonicalization (single source of truth) ----
 #
@@ -197,6 +257,7 @@ normalize_aggregate_name <- function(name, rank = NULL) {
 clean_one <- function(name) {
   if (is.na(name) || !nzchar(trimws(name))) {
     return(list(cleaned = NA_character_, is_hybrid = FALSE,
+                hybrid_type = NA_character_,
                 qualifier = NA_character_, qualifier_position = NA_character_,
                 is_aggregate = FALSE, genus_only = FALSE,
                 hybrid_name = NA_character_, genus_abbrev = FALSE))
@@ -224,6 +285,7 @@ clean_one <- function(name) {
   # Detect hybrid markers (before stripping anything else)
   hybrid <- detect_hybrid(s)
   is_hybrid <- hybrid$is_hybrid
+  hybrid_type <- hybrid$hybrid_type
   s <- hybrid$stripped
 
   # Multi-word / spaced concept markers (s.l., s.str., sensu lato/stricto)
@@ -251,8 +313,8 @@ clean_one <- function(name) {
   # Strip parenthesized authorship
   s <- gsub(.author_parens_pattern, " ", s, perl = TRUE)
 
-  # Strip trailing authorship
-  s <- gsub(.author_trailing_pattern, "", s, perl = TRUE)
+  # Strip trailing authorship (token-based; never consumes the epithet)
+  s <- strip_trailing_authorship(s)
 
   # Strip remaining brackets and numbers
   s <- gsub("\\([^)]*\\)", " ", s)
@@ -275,14 +337,22 @@ clean_one <- function(name) {
     genus_only <- TRUE
   }
 
-  # For nothospecies hybrids, build "Genus \u00d7 epithet" form for backbone matching
+  # Backbone display form: nothospecies "Genus \u00d7 epithet", nothogenus
+  # "\u00d7 Genus ...". Matching tries this alongside the sign-stripped `cleaned`.
   hybrid_name <- NA_character_
-  if (is_hybrid && !is.na(hybrid$hybrid_type) &&
-      hybrid$hybrid_type == "nothospecies") {
+  if (is_hybrid && identical(hybrid_type, "nothospecies")) {
     parts_h <- strsplit(s, " ", fixed = TRUE)[[1L]]
     if (length(parts_h) >= 2L) {
       hybrid_name <- paste(parts_h[1L], "\u00d7", paste(parts_h[-1L], collapse = " "))
     }
+  } else if (is_hybrid && identical(hybrid_type, "nothogenus") && nzchar(s)) {
+    hybrid_name <- paste("\u00d7", s)
+  }
+
+  # A formula is not a single backbone taxon; drop the cleaned name so the
+  # matcher skips it (parents resolve separately).
+  if (is_hybrid && identical(hybrid_type, "formula")) {
+    s <- NA_character_
   }
 
   # Flag an abbreviated genus (e.g. "Q. robur"): first token is a single letter
@@ -291,10 +361,10 @@ clean_one <- function(name) {
   genus_abbrev <- !is_hybrid && grepl(" ", s, fixed = TRUE) &&
     grepl("^[A-Za-z]\\.?$", first_tok)
 
-  list(cleaned = s, is_hybrid = is_hybrid, qualifier = qualifier,
-       qualifier_position = qpos, is_aggregate = is_aggregate,
-       genus_only = genus_only, hybrid_name = hybrid_name,
-       genus_abbrev = genus_abbrev)
+  list(cleaned = s, is_hybrid = is_hybrid, hybrid_type = hybrid_type,
+       qualifier = qualifier, qualifier_position = qpos,
+       is_aggregate = is_aggregate, genus_only = genus_only,
+       hybrid_name = hybrid_name, genus_abbrev = genus_abbrev)
 }
 
 
@@ -335,9 +405,14 @@ clean_names <- function(x) {
     s <- sub(lead_pat, "", s, perl = TRUE, ignore.case = TRUE)
   }
 
-  # Detect hybrids \u2014 must be per-element due to tokenization logic
+  # Detect hybrids \u2014 must be per-element due to tokenization logic.
+  # Formula parents are parsed here only to build the full-formula lookup key
+  # below; they are internal (not emitted as columns). Downstream trait code
+  # re-derives them from `original` on demand.
   is_hybrid <- logical(n)
   hybrid_type <- rep(NA_character_, n)
+  parent_1 <- rep(NA_character_, n)
+  parent_2 <- rep(NA_character_, n)
   has_marker <- grepl(.hybrid_sign, s, fixed = TRUE) |
     grepl("(^|\\s)[xX](\\s|$)", s)
   if (any(has_marker & !na_mask)) {
@@ -346,6 +421,11 @@ clean_names <- function(x) {
       h <- detect_hybrid(s[j])
       is_hybrid[j] <- h$is_hybrid
       hybrid_type[j] <- h$hybrid_type
+      if (isTRUE(h$is_hybrid) && identical(h$hybrid_type, "formula")) {
+        pf <- parse_hybrid_formula(s[j])
+        parent_1[j] <- pf$parent_1
+        parent_2[j] <- pf$parent_2
+      }
       s[j] <- h$stripped
     }
   }
@@ -380,8 +460,8 @@ clean_names <- function(x) {
   # Strip parenthesized authorship
   s <- gsub(.author_parens_pattern, " ", s, perl = TRUE)
 
-  # Strip trailing authorship
-  s <- gsub(.author_trailing_pattern, "", s, perl = TRUE)
+  # Strip trailing authorship (token-based; never consumes the epithet)
+  s <- strip_trailing_authorship(s)
 
   # Strip remaining brackets and numbers
   s <- gsub("\\([^)]*\\)", " ", s)
@@ -409,7 +489,10 @@ clean_names <- function(x) {
   genus_abbrev <- !is_hybrid & word_count >= 2L &
     grepl("^[A-Za-z]\\.?$", abbrev_first)
 
-  # Build hybrid_name for nothospecies
+  # Build the backbone display form of a hybrid name, which backbones store with
+  # the multiplication sign retained: nothospecies as "Genus x epithet"
+  # ("Quercus x hispanica") and nothogenus as "x Genus ..." ("x Cupressocyparis
+  # leylandii"). Matching tries this alongside the sign-stripped `cleaned` form.
   hybrid_name <- rep(NA_character_, n)
   notho_mask <- is_hybrid & !is.na(hybrid_type) &
     hybrid_type == "nothospecies" & word_count >= 2L
@@ -419,6 +502,22 @@ clean_names <- function(x) {
       paste(p[1L], "\u00d7", paste(p[-1L], collapse = " "))
     }, character(1L))
   }
+  ng_mask <- is_hybrid & !is.na(hybrid_type) &
+    hybrid_type == "nothogenus" & word_count >= 1L & !is.na(s)
+  if (any(ng_mask)) {
+    hybrid_name[ng_mask] <- paste("\u00d7", s[ng_mask])
+  }
+
+  # For a formula, hybrid_name holds the full parent-expanded formula
+  # ("Genus1 e1 \u00d7 Genus2 e2"), the form a backbone would store if it carries the
+  # cross as a name. The matcher tries this first (Pass 1b); the cleaned name is
+  # dropped so the truncating passes cannot re-collapse the cross to parent 1.
+  formula_mask <- is_hybrid & !is.na(hybrid_type) & hybrid_type == "formula"
+  fm <- formula_mask & !is.na(parent_1) & !is.na(parent_2)
+  if (any(fm)) {
+    hybrid_name[fm] <- paste(parent_1[fm], "\u00d7", parent_2[fm])
+  }
+  s[formula_mask] <- NA_character_
 
   # NA out the ones that were originally NA/empty
   s[na_mask] <- NA_character_
@@ -434,6 +533,7 @@ clean_names <- function(x) {
     original           = x,
     cleaned            = s,
     is_hybrid          = is_hybrid,
+    hybrid_type        = hybrid_type,
     qualifier          = qualifier,
     qualifier_position = qpos,
     is_aggregate       = is_aggregate,

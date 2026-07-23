@@ -27,8 +27,8 @@
 #' Collections Fungus-Host Dataset. Ag Data Commons. doi:10.15482/USDA.ADC/1524414
 #'
 #' @examples
-#' \donttest{
-#' taxify("Puccinia graminis", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Puccinia graminis", backbone = "gbif") |>
 #'   add_usda_fungus_host()
 #' }
 #'

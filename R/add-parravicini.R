@@ -17,8 +17,8 @@
 #' \doi{10.1371/journal.pbio.3000702}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Zebrasoma scopas", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Zebrasoma scopas", backbone = "gbif") |>
 #'   add_parravicini()
 #' }
 #'

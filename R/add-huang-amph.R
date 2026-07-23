@@ -19,8 +19,8 @@
 #' \doi{10.6084/m9.figshare.21159229}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Bufo bufo", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Bufo bufo", backbone = "gbif") |>
 #'   add_huang_amph()
 #' }
 #'

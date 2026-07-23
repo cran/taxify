@@ -41,8 +41,8 @@ Coverage: ~7.3k spider species. Morphometry is sexually dimorphic in spiders;
 the value here is the across-record median and is not split by sex.
 }
 \examples{
-\donttest{
-taxify("Araneus diadematus", backend = "gbif") |>
+\dontrun{
+taxify("Araneus diadematus", backbone = "gbif") |>
   add_spider_traits()
 }
 

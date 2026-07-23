@@ -32,8 +32,8 @@
 #' \doi{10.6084/m9.figshare.21777161}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Myotis myotis", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Myotis myotis", backbone = "gbif") |>
 #'   add_eurobat()
 #' }
 #'

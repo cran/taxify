@@ -19,8 +19,8 @@
 #' beetles. Dryad. \doi{10.5061/dryad.2fqz612p3}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Rhysodes sulcatus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Rhysodes sulcatus", backbone = "gbif") |>
 #'   add_saproxylic()
 #' }
 #'

@@ -28,8 +28,8 @@ Source: Arctic Traits Database (Degen & Faulwetter 2019, University
 of Vienna PHAIDRA, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Astarte borealis", backend = "gbif") |>
+\dontrun{
+taxify("Astarte borealis", backbone = "gbif") |>
   add_arctic_traits()
 }
 

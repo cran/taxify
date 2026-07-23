@@ -1,7 +1,7 @@
 # ---- Citation helpers ----
 #
 # cite() prints and optionally writes citations for all data sources used
-# in a taxify_result (backends + enrichments + taxify itself).
+# in a taxify_result (backbones + enrichments + taxify itself).
 
 
 #' Cite data sources used in a taxify result
@@ -15,11 +15,13 @@
 #' @return `x`, invisibly (pipe-friendly).
 #'
 #' @examples
-#' \donttest{
-#' result <- taxify("Quercus robur", backend = "wfo")
+#' old <- options(taxify.data_dir = taxify_example_data())
+#'
+#' result <- taxify("Quercus robur", backbone = "wfo")
 #' result |> cite()
 #' result |> cite(file = tempfile(fileext = ".bib"))
-#' }
+#'
+#' options(old)
 #'
 #' @export
 cite <- function(x, file = NULL) {
@@ -81,9 +83,9 @@ collect_citations <- function(meta) {
   manifest <- tryCatch(fetch_manifest(), error = function(e) NULL)
 
   # 2. Backends
-  backends <- meta$backend
-  if (!is.null(backends) && length(backends) > 0L) {
-    for (be in backends) {
+  backbones <- meta$backbone
+  if (!is.null(backbones) && length(backbones) > 0L) {
+    for (be in backbones) {
       cit <- extract_manifest_citation(manifest, "backends", be)
       if (!is.null(cit)) {
         citations <- c(citations, list(cit))
@@ -237,6 +239,9 @@ format_bibtex_entry <- function(cit) {
   add_field("pages",   cit$pages)
   add_field("doi",     cit$doi)
   add_field("url",     cit$url)
+  # Carries the access date for sources harvested live from a server, where
+  # the year alone does not identify what was retrieved.
+  add_field("note",    cit$note)
 
   paste0(
     sprintf("@%s{%s,\n", bib_type, key),
@@ -255,13 +260,13 @@ cite_footer <- function(meta) {
   parts <- character(0L)
 
   # Backends
-  backends <- meta$backend
-  if (!is.null(backends)) {
+  backbones <- meta$backbone
+  if (!is.null(backbones)) {
     version <- meta$version %||% ""
-    if (length(backends) == 1L && nzchar(version)) {
-      parts <- c(parts, sprintf("%s %s", toupper(backends), version))
+    if (length(backbones) == 1L && nzchar(version)) {
+      parts <- c(parts, sprintf("%s %s", toupper(backbones), version))
     } else {
-      parts <- c(parts, paste(toupper(backends), collapse = " + "))
+      parts <- c(parts, paste(toupper(backbones), collapse = " + "))
     }
   }
 

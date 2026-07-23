@@ -43,8 +43,8 @@ physiological data with no cross-source analogue, so it is surfaced through
 this door rather than the cross-source \code{\link[=add_trait]{add_trait()}} verb.
 }
 \examples{
-\donttest{
-taxify("Thalassiosira pseudonana", backend = "gbif") |>
+\dontrun{
+taxify("Thalassiosira pseudonana", backbone = "gbif") |>
   add_edwards_phyto()
 }
 

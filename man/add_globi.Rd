@@ -42,8 +42,8 @@ Partner counts are resolved to accepted names before counting, so synonymous
 partners are not double-counted.
 }
 \examples{
-\donttest{
-taxify("Apis mellifera", backend = "gbif") |>
+\dontrun{
+taxify("Apis mellifera", backbone = "gbif") |>
   add_globi()
 }
 

@@ -19,8 +19,8 @@
 #' Octocoral Trait Database v2.2. Zenodo. \doi{10.5281/zenodo.14228404}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Gorgonia ventalina", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Gorgonia ventalina", backbone = "gbif") |>
 #'   add_octocoral()
 #' }
 #'

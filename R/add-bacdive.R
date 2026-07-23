@@ -33,8 +33,8 @@
 #' doi:10.1093/nar/gkab961
 #'
 #' @examples
-#' \donttest{
-#' taxify("Escherichia coli", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Escherichia coli", backbone = "gbif") |>
 #'   add_bacdive()
 #' }
 #'

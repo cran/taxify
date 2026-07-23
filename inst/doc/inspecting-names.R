@@ -26,7 +26,7 @@ knitr::opts_chunk$set(
 # inspect(names, backbones = TRUE)
 
 ## -----------------------------------------------------------------------------
-# taxify(names, backend = c("wfo", "gbif")) |>
+# taxify(names, backbone = c("wfo", "gbif")) |>
 #   inspect()
 
 ## -----------------------------------------------------------------------------

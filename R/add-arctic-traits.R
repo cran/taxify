@@ -19,8 +19,8 @@
 #' \doi{10.25365/phaidra.49}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Astarte borealis", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Astarte borealis", backbone = "gbif") |>
 #'   add_arctic_traits()
 #' }
 #'

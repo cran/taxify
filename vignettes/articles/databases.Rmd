@@ -1,0 +1,106 @@
+---
+title: "Databases: every backbone, enrichment, and trait"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", echo = FALSE)
+library(taxify)
+
+# Render from the manifest that ships with this build, so the tables always match
+# the installed package and need no network. list_backbones() / list_enrichments()
+# read the session manifest cache; point it at the bundled copy.
+mp <- system.file("manifest.json", package = "taxify")
+if (nzchar(mp)) {
+  bundled <- jsonlite::read_json(mp, simplifyVector = FALSE)
+  assign("manifest", bundled, envir = taxify:::.taxify_env)
+}
+
+link <- function(url) {
+  # Some source_url values are bare DOIs (10.xxxx/...) rather than full URLs;
+  # render those through doi.org so the link is absolute, not relative to /articles/.
+  href <- ifelse(is.na(url) | grepl("^https?://", url), url,
+          ifelse(grepl("^10\\.[0-9]", url), paste0("https://doi.org/", url),
+                 paste0("https://", url)))
+  ifelse(is.na(url) | !nzchar(url), "", sprintf("[source](%s)", href))
+}
+```
+
+```{=html}
+<style>
+/* This page only: the manifest tables are wide, so widen the layout and let the
+   tables use the extra room. The max-width cap is a no-op on narrow screens
+   (the container is already smaller than the cap there), so no media query is
+   needed. Prose keeps a readable line length. */
+/* !important overrides Bootstrap's responsive .container max-width, which is set
+   inside a min-width media query and would otherwise cap this page. */
+.container.template-article { max-width: 1560px !important; }
+.template-article main > p,
+.template-article main > div.sourceCode { max-width: 900px; }
+.template-article main table { width: 100%; }
+</style>
+```
+
+taxify resolves names against local taxonomic **backbones** and joins external
+**enrichment** datasets that carry **traits**. This page lists all three, straight
+from the manifest this version ships. In an R session, the same content is one call
+away:
+
+```{r echo = TRUE, eval = FALSE}
+taxify_databases()   # backbones + enrichments in one frame
+list_backbones()     # the taxonomic backbones
+list_enrichments()   # the trait / status datasets
+list_traits()        # the cross-source trait vocabulary add_trait() draws on
+```
+
+## Taxonomic backbones
+
+Each is a pre-built `.vtr` downloaded once and matched locally. Pass several to
+`taxify()` and they form a fallback chain.
+
+```{r}
+bb <- list_backbones(verbose = FALSE)
+bb$source <- link(bb$source)
+knitr::kable(
+  bb[, c("name", "scope", "n_names", "size_mb", "version", "source")],
+  col.names = c("Backbone", "Scope", "Names", "MB", "Version", ""),
+  format.args = list(big.mark = ","),
+  align = c("l", "l", "r", "r", "l", "l")
+)
+```
+
+## Enrichment datasets
+
+Each `add_<source>()` door joins one dataset to a `taxify()` result on the accepted
+name. `add_trait()` gathers a single trait across every source that carries it. Browse
+a dataset's columns in R with `enrichment_cols("<name>")`.
+
+```{r}
+en <- list_enrichments(verbose = FALSE)
+en <- en[order(en$name), ]
+tc <- ifelse(is.na(en$trait_cols), "", en$trait_cols)
+en$n_cols <- vapply(strsplit(tc, ",\\s*"),
+                    function(x) sum(nzchar(x)), integer(1))
+en$source_url <- link(en$source_url)
+knitr::kable(
+  en[, c("name", "version", "nrow", "n_cols", "source_url")],
+  col.names = c("Enrichment", "Version", "Rows", "Columns", ""),
+  format.args = list(big.mark = ","),
+  align = c("l", "l", "r", "r", "l"),
+  row.names = FALSE
+)
+```
+
+## Cross-source traits
+
+Name one trait; `add_trait()` finds and harmonizes it from the sources below.
+
+```{r}
+tr <- list_traits()
+tr <- tr[order(tr$trait), ]
+knitr::kable(
+  tr[, c("trait", "label", "kind", "unit", "n_sources", "sources")],
+  col.names = c("Trait", "Label", "Kind", "Unit", "Sources", "From"),
+  align = c("l", "l", "l", "l", "r", "l"),
+  row.names = FALSE
+)
+```

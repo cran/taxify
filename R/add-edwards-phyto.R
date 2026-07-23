@@ -35,8 +35,8 @@
 #' community level. Ecology 96(9):2554-2564. \doi{10.1890/14-2252.1}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Thalassiosira pseudonana", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Thalassiosira pseudonana", backbone = "gbif") |>
 #'   add_edwards_phyto()
 #' }
 #'

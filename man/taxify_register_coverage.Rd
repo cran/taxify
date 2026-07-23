@@ -2,7 +2,7 @@
 % Please edit documentation in R/register.R
 \name{taxify_register_coverage}
 \alias{taxify_register_coverage}
-\title{Show backend coverage for a genus}
+\title{Show backbone coverage for a genus}
 \usage{
 taxify_register_coverage(genus)
 }
@@ -10,11 +10,11 @@ taxify_register_coverage(genus)
 \item{genus}{Character scalar. The genus name to query.}
 }
 \value{
-A data.frame with columns \code{genus}, \code{backend}, \code{version},
+A data.frame with columns \code{genus}, \code{backbone}, \code{version},
 \code{date_added}. Returns a zero-row data.frame if the genus is not found
-in any backend.
+in any backbone.
 }
 \description{
-Queries \code{backend_coverage.vtr} to determine which backends contain the
+Queries \code{backend_coverage.vtr} to determine which backbones contain the
 given genus, along with the backbone version at time of indexing.
 }

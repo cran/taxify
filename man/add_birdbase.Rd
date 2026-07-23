@@ -45,8 +45,8 @@ Source: BIRDBASE (Sekercioglu et al. 2025, figshare, CC BY 4.0).
 Coverage: ~11.6k bird species.
 }
 \examples{
-\donttest{
-taxify("Struthio camelus", backend = "gbif") |>
+\dontrun{
+taxify("Struthio camelus", backbone = "gbif") |>
   add_birdbase()
 }
 

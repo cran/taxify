@@ -18,8 +18,8 @@
 #' Dryad. \doi{10.5061/dryad.st6sc}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Camponotus pennsylvanicus", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Camponotus pennsylvanicus", backbone = "gbif") |>
 #'   add_blanchard()
 #' }
 #'

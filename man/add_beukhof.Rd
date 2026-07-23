@@ -28,8 +28,8 @@ Source: Beukhof et al. (2019) marine fish trait collection (PANGAEA,
 CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Gadus morhua", backend = "gbif") |>
+\dontrun{
+taxify("Gadus morhua", backbone = "gbif") |>
   add_beukhof()
 }
 

@@ -17,8 +17,8 @@
 #' \doi{10.5061/dryad.15pm5qc}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Calopteryx splendens", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Calopteryx splendens", backbone = "gbif") |>
 #'   add_odonata()
 #' }
 #'

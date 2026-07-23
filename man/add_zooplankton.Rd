@@ -29,8 +29,8 @@ Source: Pata & Hunt global marine zooplankton trait database
 (Zenodo, CC-BY-SA 4.0).
 }
 \examples{
-\donttest{
-taxify("Calanus finmarchicus", backend = "gbif") |>
+\dontrun{
+taxify("Calanus finmarchicus", backbone = "gbif") |>
   add_zooplankton()
 }
 

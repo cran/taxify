@@ -36,8 +36,8 @@ CC BY-SA 4.0. Lichens are otherwise almost absent from the bundled trait
 databases.
 }
 \examples{
-\donttest{
-taxify("Xanthoria parietina", backend = "gbif") |>
+\dontrun{
+taxify("Xanthoria parietina", backbone = "gbif") |>
   add_italic()
 }
 

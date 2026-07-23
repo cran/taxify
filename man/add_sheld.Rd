@@ -27,8 +27,8 @@ by \code{accepted_name}.
 Source: SHELD (Hopper et al. 2023, Scientific Data, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Lampsilis cardium", backend = "gbif") |>
+\dontrun{
+taxify("Lampsilis cardium", backbone = "gbif") |>
   add_sheld()
 }
 

@@ -43,8 +43,8 @@ Coverage: 358 turtle and tortoise species. Numeric values reported as
 "min-max" ranges in the source are reduced to their midpoint.
 }
 \examples{
-\donttest{
-taxify("Chelonia mydas", backend = "gbif") |>
+\dontrun{
+taxify("Chelonia mydas", backbone = "gbif") |>
   add_chelonians()
 }
 

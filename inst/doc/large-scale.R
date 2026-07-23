@@ -17,25 +17,20 @@ knitr::opts_chunk$set(
 # 
 # # Exact + fuzzy (default)
 # t_fuzzy <- system.time(
-#   result_fuzzy <- taxify(species_list, backend = "wfo", fuzzy = TRUE)
+#   result_fuzzy <- taxify(species_list, backbone = "wfo", fuzzy = TRUE)
 # )
 # 
 # # Exact only
 # t_exact <- system.time(
-#   result_exact <- taxify(species_list, backend = "wfo", fuzzy = FALSE)
+#   result_exact <- taxify(species_list, backbone = "wfo", fuzzy = FALSE)
 # )
 # 
 # t_fuzzy["elapsed"]
-# #> elapsed
-# #>   18.4
-# 
 # t_exact["elapsed"]
-# #> elapsed
-# #>    2.1
 
 ## -----------------------------------------------------------------------------
 # # Pass 1: exact only
-# result <- taxify(species_list, backend = "wfo", fuzzy = FALSE)
+# result <- taxify(species_list, backbone = "wfo", fuzzy = FALSE)
 # 
 # # How many names remain unmatched?
 # n_unmatched <- sum(result$match_type == "none")
@@ -44,7 +39,7 @@ knitr::opts_chunk$set(
 # # Pass 2: fuzzy only on the unmatched subset
 # if (n_unmatched > 0) {
 #   unmatched_names <- result$input_name[result$match_type == "none"]
-#   fuzzy_result <- taxify(unmatched_names, backend = "wfo", fuzzy = TRUE)
+#   fuzzy_result <- taxify(unmatched_names, backbone = "wfo", fuzzy = TRUE)
 # 
 #   # Merge back
 #   matched_rows <- fuzzy_result$match_type != "none"
@@ -57,26 +52,22 @@ knitr::opts_chunk$set(
 # # 8,000 names: ~6,000 plants, ~1,500 fish, ~500 invertebrates
 # t_wfo_first <- system.time(
 #   result_a <- taxify(survey_names,
-#                      backend = c("wfo", "col"),
+#                      backbone = c("wfo", "col"),
 #                      fuzzy = TRUE)
 # )
 # t_wfo_first["elapsed"]
-# #> elapsed
-# #>   25.3
 # 
 # # Reversed order: COL first, WFO second
 # t_col_first <- system.time(
 #   result_b <- taxify(survey_names,
-#                      backend = c("col", "wfo"),
+#                      backbone = c("col", "wfo"),
 #                      fuzzy = TRUE)
 # )
 # t_col_first["elapsed"]
-# #> elapsed
-# #>   41.7
 
 ## -----------------------------------------------------------------------------
 # # Match names
-# result <- taxify(species_list, backend = "gbif")
+# result <- taxify(species_list, backbone = "gbif")
 # 
 # # Save result
 # saveRDS(result, "matched_names.rds")
@@ -84,7 +75,6 @@ knitr::opts_chunk$set(
 # # Free the backbone from memory
 # taxify_clear_cache()
 # 
-# # Now ~800 MB of RAM is available for downstream work
 # gc()
 
 ## -----------------------------------------------------------------------------
@@ -100,7 +90,7 @@ knitr::opts_chunk$set(
 # results <- lapply(seq_along(chunks), function(i) {
 #   message(sprintf("Chunk %d/%d (%d names)...",
 #                   i, length(chunks), length(chunks[[i]])))
-#   taxify(chunks[[i]], backend = "wfo", fuzzy = TRUE, verbose = FALSE)
+#   taxify(chunks[[i]], backbone = "wfo", fuzzy = TRUE, verbose = FALSE)
 # })
 # 
 # # Combine
@@ -114,7 +104,7 @@ knitr::opts_chunk$set(
 # 
 # for (i in seq_along(chunks)) {
 #   message(sprintf("Chunk %d/%d", i, length(chunks)))
-#   res <- taxify(chunks[[i]], backend = "wfo",
+#   res <- taxify(chunks[[i]], backbone = "wfo",
 #                 fuzzy = TRUE, verbose = FALSE)
 #   saveRDS(res, file.path(output_dir,
 #                          sprintf("chunk_%04d.rds", i)))
@@ -130,7 +120,7 @@ knitr::opts_chunk$set(
 #   out_file <- file.path(output_dir, sprintf("chunk_%04d.rds", i))
 #   if (file.exists(out_file)) next
 #   message(sprintf("Chunk %d/%d", i, length(chunks)))
-#   res <- taxify(chunks[[i]], backend = "wfo",
+#   res <- taxify(chunks[[i]], backbone = "wfo",
 #                 fuzzy = TRUE, verbose = FALSE)
 #   saveRDS(res, out_file)
 # }
@@ -163,25 +153,25 @@ knitr::opts_chunk$set(
 # # with conservation status and trait enrichments
 # 
 # # Backbones
-# taxify_download_vtr(c("wfo", "col"))
+# taxify_download(c("wfo", "col"))
 # 
 # # Enrichments
 # taxify_download_enrichment(c(
-#   "conservation_status",
-#   "woodiness",
+#   "iucn",
+#   "zanne",
 #   "eive",
 #   "elton_traits"
 # ))
 # 
 # # Now the analysis can run fully offline
-# result <- taxify(species_list, backend = c("wfo", "col"))
+# result <- taxify(species_list, backbone = c("wfo", "col"))
 # result <- add_iucn(result)
 # result <- add_zanne(result)
 
 ## -----------------------------------------------------------------------------
 # list_enrichments()
 # #>                name version    nrow static
-# #> 1 conservation_status 2026.04   59583  FALSE
+# #> 1 iucn 2026.04   59583  FALSE
 # #> 2               griis 2026.04   98131  FALSE
 # #> 3                wcvp 2026.04 1973234  FALSE
 # #> 4                eive     1.0   14835   TRUE
@@ -192,7 +182,7 @@ knitr::opts_chunk$set(
 ## -----------------------------------------------------------------------------
 # # Pattern for 500,000+ names with enrichments
 # for (i in seq_along(chunks)) {
-#   res <- taxify(chunks[[i]], backend = "wfo",
+#   res <- taxify(chunks[[i]], backbone = "wfo",
 #                 fuzzy = TRUE, verbose = FALSE)
 #   res <- add_iucn(res, verbose = FALSE)
 #   res <- add_zanne(res, verbose = FALSE)
@@ -201,10 +191,10 @@ knitr::opts_chunk$set(
 
 ## -----------------------------------------------------------------------------
 # # Tight threshold for clean input
-# result <- taxify(clean_names, backend = "wfo",
+# result <- taxify(clean_names, backbone = "wfo",
 #                  fuzzy = TRUE, fuzzy_threshold = 0.1)
 # 
 # # Integer threshold: at most 2 edits, period
-# result <- taxify(noisy_names, backend = "wfo",
+# result <- taxify(noisy_names, backbone = "wfo",
 #                  fuzzy = TRUE, fuzzy_threshold = 2L)
 

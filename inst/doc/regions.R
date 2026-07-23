@@ -49,3 +49,13 @@ knitr::opts_chunk$set(
 # # browse the full table
 # head(taxify_regions())
 
+## -----------------------------------------------------------------------------
+# taxify(c("Carcinus maenus", "Gadus morhua"), region = "North Sea")
+
+## -----------------------------------------------------------------------------
+# head(taxify_regions("Temperate Northern Atlantic", scheme = "meow"))
+
+## -----------------------------------------------------------------------------
+# # central North Sea
+# taxify(field_names, coords = c(3.0, 56.0))
+

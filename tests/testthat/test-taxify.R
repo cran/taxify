@@ -2,10 +2,17 @@
 # These use a mock backbone injected via the cache.
 
 setup_mock_backend <- function() {
-  # Create mock backbone and inject path into cache
-  bb_path <- mock_backbone_vtr()
+  # Pin a per-test hermetic data dir holding only a wfo mock on disk, so the
+  # default backbone (backbone = NULL) resolves to exactly wfo regardless of any
+  # data-dir state another test file leaves in the option. Scoped to the calling
+  # test_that() block. The same mock is cached, which ensure_backbone() prefers.
+  vtr_path <- mock_backbone_vtr()
+  dd <- tempfile("dd_taxify_")
+  dir.create(file.path(dd, "wfo", "latest"), recursive = TRUE, showWarnings = FALSE)
+  file.copy(vtr_path, file.path(dd, "wfo", "latest", "wfo.vtr"))
+  withr::local_options(list(taxify.data_dir = dd), .local_envir = parent.frame())
   be <- wfo_backend()
-  set_backbone_path(be$name, bb_path)
+  set_backbone_path(be$name, vtr_path)
   be
 }
 
@@ -19,7 +26,7 @@ test_that("taxify returns correct schema", {
                      "taxon_id", "accepted_id", "rank", "family",
                      "genus", "epithet", "authorship", "accepted_authorship",
                      "is_synonym", "is_hybrid", "match_type", "fuzzy_dist",
-                     "backend", "backbone_version", "life_form")
+                     "backbone", "backbone_version", "life_form")
   expect_true(all(expected_cols %in% names(result)),
               info = paste("Missing cols:", paste(setdiff(expected_cols, names(result)),
                                                   collapse = ", ")))
@@ -32,7 +39,7 @@ test_that("taxify matches known species", {
   expect_equal(result$accepted_name, "Quercus robur")
   expect_equal(result$match_type, "exact")
   expect_false(result$is_synonym)
-  expect_equal(result$backend, "wfo")
+  expect_equal(result$backbone, "wfo")
 })
 
 test_that("taxify resolves synonyms", {
@@ -74,7 +81,7 @@ test_that("taxify handles unmatched names", {
   expect_equal(result$match_type, "none")
   expect_true(is.na(result$matched_name))
   expect_true(is.na(result$accepted_name))
-  expect_true(is.na(result$backend))
+  expect_true(is.na(result$backbone))
 })
 
 test_that("taxify handles multiple inputs", {
@@ -91,6 +98,86 @@ test_that("taxify with fuzzy = FALSE skips fuzzy", {
   setup_mock_backend()
   result <- taxify("Quercus robus", fuzzy = FALSE, verbose = FALSE)
   expect_equal(result$match_type, "none")
+})
+
+test_that("taxify does not collapse a hybrid formula to its first parent", {
+  setup_mock_backend()
+  result <- taxify("Salix alba x Salix fragilis", verbose = FALSE)
+  expect_equal(result$match_type, "hybrid_formula")
+  expect_true(result$is_hybrid)
+  expect_equal(result$hybrid_type, "formula")
+  # no false single-taxon match to Salix alba; the cross is named by its two
+  # (resolved) parents instead
+  cross <- paste0("Salix alba ", intToUtf8(0x00D7), " Salix fragilis")
+  expect_equal(result$matched_name, cross)
+  expect_equal(result$accepted_name, cross)
+  # parent columns are not in the default output (they live in add_hybrid_info)
+  expect_false("hybrid_parent_1" %in% names(result))
+})
+
+test_that("taxify matches a nothogenus via the sign-stripped form", {
+  setup_mock_backend()
+  result <- taxify("x Festulolium", verbose = FALSE)
+  expect_equal(result$match_type, "exact")
+  expect_equal(result$matched_name, "Festulolium")
+  expect_true(result$is_hybrid)
+  expect_equal(result$hybrid_type, "nothogenus")
+})
+
+test_that("taxify matches a nothospecies", {
+  setup_mock_backend()
+  result <- taxify("Quercus x hispanica", verbose = FALSE)
+  expect_equal(result$matched_name, "Quercus hispanica")
+  expect_true(result$is_hybrid)
+  expect_equal(result$hybrid_type, "nothospecies")
+})
+
+test_that("taxify matches a sign-only hybrid via the hybrid backbone-form pass", {
+  # A backbone that stores hybrids only with the multiplication sign retained
+  # (as WFO / COL do), with no sign-stripped row to fall back on.
+  sx <- intToUtf8(0x00D7)  # multiplication sign, kept out of the source as ASCII
+  notho_genus <- paste0(sx, " Cupressocyparis leylandii")
+  notho_sp    <- paste0("Salix ", sx, " rubens")
+  df <- mock_backbone_df()
+  extra <- df[c(1L, 1L), ]
+  extra$canonical_name <- c(notho_genus, notho_sp)
+  extra$taxon_id <- c("wfo-9001", "wfo-9002")
+  extra$taxon_rank <- c("SPECIES", "SPECIES")
+  extra$taxonomic_status <- c("ACCEPTED", "ACCEPTED")
+  extra$accepted_name_usage_id <- c(NA_character_, NA_character_)
+  extra$family <- c("Cupressaceae", "Salicaceae")
+  extra$genus <- c("Cupressocyparis", "Salix")
+  extra$specific_epithet <- c("leylandii", "rubens")
+  extra$authorship <- c(NA_character_, NA_character_)
+  extra$infraspecific_epithet <- c(NA_character_, NA_character_)
+
+  df2 <- rbind(df, extra)
+  df2 <- precompute_keys(df2, "canonical_name", "genus", "specific_epithet")
+  df2 <- embed_accepted(df2, id_col = "taxon_id",
+                        acc_id_col = "accepted_name_usage_id",
+                        name_col = "canonical_name", family_col = "family",
+                        genus_col = "genus", status_col = "taxonomic_status",
+                        authorship_col = "authorship")
+  df2 <- df2[order(df2$genus, na.last = TRUE), ]
+  rownames(df2) <- NULL
+  tmp <- tempfile(fileext = ".vtr")
+  vectra::write_vtr(df2, tmp, batch_size = 50000L)
+
+  be <- wfo_backend()
+  set_backbone_path(be$name, tmp)
+
+  result <- taxify(c("x Cupressocyparis leylandii", "Salix x rubens"),
+                   verbose = FALSE)
+  # Nothogenus: only the sign form exists, so the plain-form pass cannot match
+  # it -- it resolves through the hybrid backbone-form pass, where the name
+  # carries a hybrid sign ahead of the genus.
+  expect_equal(result$match_type[1L], "exact")
+  expect_equal(result$matched_name[1L], notho_genus)
+  expect_equal(result$hybrid_type[1L], "nothogenus")
+  # Nothospecies stored with the sign ("Genus [x] epithet").
+  expect_equal(result$match_type[2L], "exact")
+  expect_equal(result$matched_name[2L], notho_sp)
+  expect_equal(result$hybrid_type[2L], "nothospecies")
 })
 
 test_that("taxify strips authorship before matching", {
@@ -124,6 +211,34 @@ test_that("taxify rejects empty input", {
   expect_error(taxify(character(0)), "at least one element")
 })
 
+test_that("taxify validates fuzzy and fuzzy_threshold", {
+  old <- options(taxify.data_dir = taxify_example_data())
+  on.exit(options(old), add = TRUE)
+
+  # A non-numeric threshold used to slip through and silently return
+  # match_type "none"; it must error instead.
+  expect_error(
+    taxify("Quercus robus", fuzzy_threshold = "0.2", verbose = FALSE),
+    "fuzzy_threshold"
+  )
+  expect_error(
+    taxify("Quercus robus", fuzzy_threshold = 1.5, verbose = FALSE),
+    "fuzzy_threshold"
+  )
+  expect_error(
+    taxify("Quercus robus", fuzzy_threshold = c(0.1, 0.2), verbose = FALSE),
+    "fuzzy_threshold"
+  )
+  expect_error(
+    taxify("Quercus robus", fuzzy = "yes", verbose = FALSE),
+    "fuzzy"
+  )
+  expect_error(
+    taxify("Quercus robus", fuzzy = NA, verbose = FALSE),
+    "fuzzy"
+  )
+})
+
 
 # ---- taxify_result class and metadata ----
 
@@ -135,7 +250,7 @@ test_that("taxify() returns a taxify_result with taxify_meta attribute", {
   expect_s3_class(result, "taxify_result")
   meta <- attr(result, "taxify_meta")
   expect_type(meta, "list")
-  expect_true(all(c("backend", "n_input", "match_tally",
+  expect_true(all(c("backbone", "n_input", "match_tally",
                     "out_of_scope_tally", "life_form_tally") %in% names(meta)))
 })
 
@@ -169,10 +284,12 @@ test_that("summary.taxify_result() produces output and returns invisibly", {
   out <- capture.output(ret <- summary(result))
   # Should produce lines of output
   expect_true(length(out) > 0L)
-  # Should mention the backend
+  # Should mention the backbone
   expect_true(any(grepl("WFO", out, ignore.case = TRUE)))
-  # Should mention name count
-  expect_true(any(grepl("3", out)))
+  # The submitted count is read off its own line, so a wrong tally fails rather
+  # than being satisfied by any stray digit elsewhere in the digest.
+  submitted_line <- grep("names submitted", out, value = TRUE)[1]
+  expect_match(submitted_line, "\\|\\s+3 names submitted")
   # Returns invisibly (same object)
   expect_identical(ret, result)
 })
@@ -194,12 +311,12 @@ test_that("summary.taxify_result() shows out_of_scope line when present", {
 
   # WFO covers Quercus but not Boletus, so Boletus is out_of_scope. Mock the
   # coverage file so the test does not depend on a real coverage .vtr.
-  cov_path <- mock_coverage_vtr(genus = "Quercus", backend = "wfo")
+  cov_path <- mock_coverage_vtr(genus = "Quercus", backbone = "wfo")
   clear_coverage_cache()
   on.exit(clear_coverage_cache(), add = TRUE)
 
   result <- with_mocked_bindings(
-    coverage_vtr_path = function() cov_path,
+    ensure_coverage = function(verbose = TRUE) cov_path,
     taxify(c("Quercus robur", "Boletus edulis"), fuzzy = FALSE, verbose = FALSE)
   )
 

@@ -1,9 +1,17 @@
 # Tests for add_data() — custom data enrichment via backbone matching
 
 setup_mock_backend <- function() {
-  bb_path <- mock_backbone_vtr()
+  # Pin a per-test hermetic data dir holding only a wfo mock on disk, so the
+  # default backbone (backbone = NULL) resolves to exactly wfo regardless of any
+  # data-dir state another test file leaves in the option. Scoped to the calling
+  # test_that() block. The same mock is cached, which ensure_backbone() prefers.
+  vtr_path <- mock_backbone_vtr()
+  dd <- tempfile("dd_adddata_")
+  dir.create(file.path(dd, "wfo", "latest"), recursive = TRUE, showWarnings = FALSE)
+  file.copy(vtr_path, file.path(dd, "wfo", "latest", "wfo.vtr"))
+  withr::local_options(list(taxify.data_dir = dd), .local_envir = parent.frame())
   be <- wfo_backend()
-  set_backbone_path(be$name, bb_path)
+  set_backbone_path(be$name, vtr_path)
   be
 }
 
@@ -55,6 +63,74 @@ test_that("add_data returns NA for unmatched rows", {
   enriched <- add_data(result, traits, species_col = "species", verbose = FALSE)
   expect_equal(enriched$height[1L], 30)
   expect_true(is.na(enriched$height[2L]))
+})
+
+
+test_that("add_data keeps the source column type when nothing overlaps", {
+  setup_mock_backend()
+  # result species and data species both match the backbone but are disjoint,
+  # so the joined column is all-NA -- it must still be numeric, not logical.
+  result <- taxify("Pinus sylvestris", verbose = FALSE)
+
+  traits <- data.frame(
+    species = "Quercus robur",
+    height  = 30,
+    stringsAsFactors = FALSE
+  )
+
+  enriched <- add_data(result, traits, species_col = "species", verbose = FALSE)
+  expect_true("height" %in% names(enriched))
+  expect_type(enriched$height, "double")
+  expect_true(all(is.na(enriched$height)))
+})
+
+
+# ---- Grouped join ----
+
+test_that("add_data grouped join pivots on accepted_id", {
+  setup_mock_backend()
+  result <- taxify(c("Quercus robur", "Pinus sylvestris"), verbose = FALSE)
+
+  # Quercus pedunculata is a synonym of Quercus robur: the grouped join must
+  # resolve it to the same accepted_id as the accepted-name row in result.
+  traits <- data.frame(
+    species = c("Quercus pedunculata", "Pinus sylvestris"),
+    country = c("AT", "DE"),
+    status  = c("native", "invasive"),
+    stringsAsFactors = FALSE
+  )
+
+  enriched <- add_data(result, traits, species_col = "species",
+                       group_col = "country", verbose = FALSE)
+  expect_true(all(c("status_AT", "status_DE") %in% names(enriched)))
+  # Q. robur (row 1) enriched via the Q. pedunculata synonym, in AT.
+  expect_equal(enriched$status_AT[1L], "native")
+  expect_true(is.na(enriched$status_AT[2L]))
+  # Pinus sylvestris (row 2) in DE.
+  expect_equal(enriched$status_DE[2L], "invasive")
+  expect_true(is.na(enriched$status_DE[1L]))
+})
+
+
+test_that("add_data(group_col, groups = NA) does not error", {
+  setup_mock_backend()
+  result <- taxify(c("Quercus robur", "Pinus sylvestris"), verbose = FALSE)
+
+  traits <- data.frame(
+    species = c("Quercus robur", "Quercus robur", "Pinus sylvestris"),
+    country = c("AT", "DE", "AT"),
+    status  = c("native", "invasive", "native"),
+    stringsAsFactors = FALSE
+  )
+
+  expect_error(
+    enriched <- add_data(result, traits, species_col = "species",
+                         group_col = "country", groups = NA, verbose = FALSE),
+    NA
+  )
+  # groups = NA resolves no group, so the single status column is created and
+  # left NA rather than erroring.
+  expect_true("status" %in% names(enriched))
 })
 
 

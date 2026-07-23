@@ -17,8 +17,8 @@
 #' ranges. Dryad. \doi{10.5061/dryad.d2547d85x}
 #'
 #' @examples
-#' \donttest{
-#' taxify("Panthera leo", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Panthera leo", backbone = "gbif") |>
 #'   add_homerange()
 #' }
 #'

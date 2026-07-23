@@ -18,8 +18,8 @@
 #' (edi.1220.5).
 #'
 #' @examples
-#' \donttest{
-#' taxify("Ramphastos toco", backend = "gbif") |>
+#' \dontrun{
+#' taxify("Ramphastos toco", backbone = "gbif") |>
 #'   add_frugivoria()
 #' }
 #'

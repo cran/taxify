@@ -33,8 +33,8 @@ Source: Robinson et al. (2010) HOSTS, Natural History Museum, London (CC0).
 Lepidoptera only; ~24k species with at least one recorded hostplant.
 }
 \examples{
-\donttest{
-taxify("Papilio machaon", backend = "gbif") |>
+\dontrun{
+taxify("Papilio machaon", backbone = "gbif") |>
   add_hosts()
 }
 

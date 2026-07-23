@@ -25,8 +25,8 @@ Source: Parravicini et al. (2020) reef-fish trophic guilds (PLoS
 Biology, CC-BY 4.0).
 }
 \examples{
-\donttest{
-taxify("Zebrasoma scopas", backend = "gbif") |>
+\dontrun{
+taxify("Zebrasoma scopas", backbone = "gbif") |>
   add_parravicini()
 }
 
