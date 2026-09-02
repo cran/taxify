@@ -95,6 +95,21 @@
 # globtherm (135 and 16 shared); longevity and clutch_litter_size from eurobat,
 # fishtraits and chelonians; incubation_period (amniote / chelonians, 1.05).
 #
+# Categorical sources joined on agreement across shared species rather than a
+# ratio: AusTraits sex_type against tree_of_sex sexual_system, 87% of 572 shared
+# (hermaphrodite 250, dioecious 141, monoecious 105), which roughly doubles that
+# trait's plant coverage; AusTraits resprouting_capacity against BROT resp_fire,
+# 86% of 113; BIRDBASE primary_diet against AVONET trophic_niche, 77% of 12,294,
+# where the residual is a scheme difference (aquatic predator against
+# invertebrate) rather than the near-exact match a shared lineage would produce.
+#
+# Two sources of one trait registered with no shared species at all, where the
+# quantity is pinned by definition and the medians are the only cross-check:
+# p50 (AusTraits -3.41 MPa over 77 species, BROT -3.46 over 46; Australian
+# against Mediterranean floras). This is the climatic_temp_mean situation, not
+# the salinity one -- water potential at 50% loss of stem conductivity is a
+# standardized measurement, so an empty overlap leaves the unit unambiguous.
+#
 # Sources joined at a ratio that is a real offset rather than a unit error:
 # von_bertalanffy_k (beukhof / sharkipedia, 0.88); von_bertalanffy_linf
 # (beukhof / sharkipedia, 1.13, thin overlap because sharks skew large);
@@ -218,6 +233,11 @@
 #   - reproductive_strategy (lichen sexual/asexual) / reproductive_mode (animal
 #     oviparous/viviparous).
 #   - diel_vertical_migration (daily, zooplankton) / migration (seasonal, birds).
+#   - wing_morph / flightless: wing morphology is three-state, and its middle
+#     state is the informative one -- a wing-dimorphic carabid produces both a
+#     long-winged and a short-winged form, so it is neither flighted nor
+#     flightless. flightless asks a bird whether it can fly at all, which
+#     admits a yes/no/partial answer to a different question.
 #   - eive_* / ellenberg_*: EIVE is a statistical consensus (Dengler et al.
 #     2023) built from ~30 regional indicator systems, including the Ellenberg
 #     (FloraWeb) and Hill (Ecoflora) values that ellenberg_* already coalesces,
@@ -263,6 +283,17 @@
 # ---- Sources not registered ------------------------------------------------
 #
 # Kept here so the decisions are not silently relitigated.
+#
+# Licence, not data quality:
+#
+#   - GlobalAnts (GLAD; Parr et al. 2017, 9056 ant species over 4416 sites) is
+#     the obvious ant trait source and cannot be bundled. Its Intellectual
+#     Property Guidelines, modelled on TRY, gate access behind a per-project
+#     application, let a contributor require co-authorship on anything using
+#     their rows, and state in section 4: "Redistribution of trait data received
+#     via GLAD is not allowed, unless expressly permitted by the respective data
+#     contributor(s)." Nothing here is arguable at the margin, so no door and no
+#     .vtr; ants stay covered only where the cross-taxon sources reach them.
 #
 # Wrong quantity behind a matching column name:
 #
@@ -343,6 +374,39 @@
 #     its vertebrate records stay NA.
 #   - fishtraits repro_guild (Balon codes A_1_1, A_1_2, ...) ships no legend, so
 #     decoding it would be a column-header guess.
+#   - chowdhury red_list_iucn is not conservation_status. It restates the German
+#     national Red List in IUCN letters rather than reporting a global
+#     assessment: crossed against red_list_germany over all 382 species it is
+#     perfectly diagonal, * to LC (222), 1 to CR (12), 2 to EN (35), 3 to VU
+#     (56), V to NT (49), with no off-diagonal cell and two values (R to "rare",
+#     G to "Threatened to an unknown extend") that are not IUCN categories at
+#     all. National and global extinction risk are different quantities -- a
+#     species can be critically endangered at its German range edge and of least
+#     concern across its range -- so both columns stay with add_chowdhury().
+#   - eberswalde contributes nothing to the verb, though its door carries eight
+#     columns. Its size, wing class and range-centre latitude are carabids.org
+#     verbatim -- the deposit's README says so ("size = mean size (body length,
+#     mm) ... Source: Homburg et al. (2014) / carabids.org", likewise wings and
+#     latitude) and the data agree exactly: over the 19 species shared with
+#     chowdhury all 19 sizes are identical and all 19 wing classes match, with
+#     no off-diagonal cell. That is the same-data trap with the source's own
+#     documentation as the evidence rather than a ratio. What is left is a
+#     24-year abundance trend on 13 plots, a drought sensitivity and Sustek's
+#     humidity code -- single-source local results over 27 species, which is
+#     what a door is for.
+#   - arthropod_traits body_size_mm is not body_length, because the column
+#     changes definition by taxon and nothing in the .vtr says which. For
+#     spiders it is a true body length (ratio 1.000 against spider_traits over
+#     437 shared species) and for carabids likewise (1.014 against chowdhury
+#     over 333), but for Lepidoptera it is forewing length: across 50 species
+#     shared with leptraits it is 0.515 of the wingspan (IQR 0.47-0.54), where a
+#     butterfly's body is nearer a third of its span. Vanessa atalanta reads
+#     29.0 mm against a 55 mm span, its forewing. A registry map sees one column
+#     and cannot separate the taxa, and the .vtr carries no order or class, so
+#     splitting or per-record cautioning the Lepidoptera rows is a taxifydb
+#     build-time change (gcol33/taxifydb#40). Until then the column stays with
+#     add_arthropod_traits(). Its feeding_guild, which is taxon-independent, is
+#     registered.
 #
 # Too thin, empty, or an uncatchable error:
 #
@@ -380,6 +444,29 @@
 #     quantity the body-size traits measure.
 #   - odonata habitat_openness: an odonate-jargon habitat descriptor, not a
 #     distinct behavioural axis.
+#   - octocoral tentacles_per_polyp: constant. Its minimum, median and maximum
+#     are all 8 across 3,606 species, because eight tentacles is the defining
+#     character of Octocorallia. A column with one value carries no information.
+#   - octocoral feeding_mechanism: effectively constant, 3,603 of 3,604 records
+#     "suspension feeder".
+#   - octocoral type_of_skeleton: 21 free-text morphological descriptions ("No
+#     axis, unconsolidated sclerites embedded in tissue"), not a vocabulary.
+#     Collapsing them is curation that belongs upstream, in the parser.
+#   - octocoral colony_height / colony_width: unlabelled unit, and a different
+#     dimension from the coral colony_diameter already registered.
+#   - bet life_strategy: single-letter codes (c, p, l, s, a, f) with no legend
+#     in the .vtr. During's bryophyte life strategies are a known scheme, but
+#     decoding the letters from domain memory is the column-header rung of the
+#     evidence ladder, which is never enough on its own. Same call as nest_type
+#     before its codebook was found.
+#     (bet's four one-hot substrate flags were on this list until taxifydb
+#     collapsed them to a primary `substrate` column at build time, the way
+#     NestTrait's one-hot nest flags were; bet is now a substrate source.)
+#   - coral_traits skeletal_density_g_cm3: 55 species, and not comparable to the
+#     wood_density it superficially resembles.
+#   - brot barkthick: mixes a thin/thick call with numeric ranges written as
+#     "10.0|19.3" in one column over 91 species; the encodings cannot be
+#     separated by unit, so AusTraits carries bark_thickness alone.
 #
 # Build-only sources feed no trait, and the reason is reproducibility rather
 # than quality. Every source in this registry is a downloadable .vtr; a source
@@ -453,6 +540,37 @@
 }
 
 
+# AusTraits records flowering as a 12-character y/n string, one character per
+# month starting at January ("nnnnnnnnyyyn" is September to November). A
+# southern-hemisphere season wraps the year boundary, so "yynnnnnnnnny" is
+# December to February, not January to December: the flowering window is the
+# longest CIRCULAR run of "y", read off two concatenated years. Returns a
+# two-column matrix of start and end month; the trait slots take one column
+# each. Computed over distinct values and matched back, because a handful of
+# strings cover tens of thousands of rows.
+.austraits_flower_window <- function(v) {
+  s <- tolower(trimws(as.character(v)))
+  s[!is.na(s) & !nzchar(s)] <- NA_character_
+  u <- unique(s[!is.na(s)])
+  lut <- matrix(NA_real_, nrow = length(u), ncol = 2L)
+  for (k in seq_along(u)) {
+    if (!grepl("^[yn]{12}$", u[k])) next
+    m <- strsplit(u[k], "", fixed = TRUE)[[1]] == "y"
+    if (!any(m)) next
+    if (all(m)) { lut[k, ] <- c(1, 12); next }
+    r   <- rle(rep(m, 2L))
+    idx <- which(r$values)
+    len <- pmin(r$lengths[idx], 12L)
+    b   <- idx[which.max(len)]
+    run <- min(r$lengths[b], 12L)
+    st0 <- if (b == 1L) 1L else sum(r$lengths[seq_len(b - 1L)]) + 1L
+    lut[k, ] <- c(((st0 - 1L) %% 12L) + 1L, ((st0 + run - 2L) %% 12L) + 1L)
+  }
+  i <- match(s, u)
+  cbind(lut[i, 1L], lut[i, 2L])
+}
+
+
 # The registry. Sources are listed in default coalesce-priority order.
 .trait_registry <- function() {
 
@@ -509,10 +627,87 @@
   cm2mm_p <- function(v) num_pos(v) * 10                            # cm -> mm, negatives dropped
   d2y     <- function(v) num_pos(v) / 365.25                        # days -> years, negatives dropped
   mgcm2g  <- function(v) num(v) / 1000       # mg/cm^3 -> g/cm^3 (stem specific density)
+  # Huber value: cm^2 sapwood per m^2 leaf -> dimensionless m^2/m^2. Measured,
+  # not assumed: 79 of the 208 species the hydraulics compilation shares with
+  # AusTraits are equal to the last digit once converted.
+  cm2m2   <- function(v) num(v) * 1e-4
   # A categorical source used verbatim: trim, empty string -> NA. Used for the
   # NestTrait columns, whose values are already pipe-delimited multi-modal tokens
   # (e.g. "tree|cliff_bank") that must be preserved, not collapsed to one token.
   chr_verbatim <- function(v) { s <- trimws(as.character(v)); s[!nzchar(s)] <- NA_character_; s }
+
+  # AusTraits flowering window, one column of .austraits_flower_window() each.
+  aus_flr_start <- function(v) .austraits_flower_window(v)[, 1L]
+  aus_flr_end   <- function(v) .austraits_flower_window(v)[, 2L]
+
+  # Resprouting after fire. AusTraits is a clean token set; a record listing
+  # both states ("fire_killed resprouts") is a species observed either way, so
+  # it reads as partial and the combined patterns are tested first. BROT's
+  # resp_fire mixes three encodings in one column -- yes/no, an ordinal
+  # high/low/variable, and the percentage of individuals resprouting -- so the
+  # numeric arm is handled before the regex arm rather than through it.
+  resprout_patterns <- c(
+    "partial"                                   = "partial",
+    "fire_killed.*resprouts|resprouts.*fire_killed" = "partial",
+    "resprout"                                  = "resprouter",
+    "fire_killed"                               = "non_resprouter")
+  brot_resprout <- function(v) {
+    s   <- tolower(trimws(as.character(v)))
+    n   <- suppressWarnings(as.numeric(s))
+    out <- rep(NA_character_, length(s))
+    # The percentage arm: 0 is no resprouting, anything above it resprouts.
+    out[!is.na(n) & n <= 0] <- "non_resprouter"
+    out[!is.na(n) & n >  0] <- "resprouter"
+    out[is.na(n)] <- .xw_grep(s[is.na(n)], c(
+      "^no$"             = "non_resprouter",
+      "variable|^low$"   = "partial",
+      "^yes$|^high$"     = "resprouter"))
+    out
+  }
+
+  # Soil seed-bank persistence. BROT stores "persistence|method", so only the
+  # first token is the class; AusTraits' "widely_dispersed" is a dispersal
+  # statement rather than a persistence class and falls through to NA.
+  seedbank_patterns <- c(
+    "long.?persistent"  = "long_persistent",
+    "short.?persistent" = "short_persistent",
+    "mid.?persistent"   = "persistent",
+    "persistent"        = "persistent",
+    "transient"         = "transient")
+
+  # Bryophyte growth architecture (During's life-form scheme). Kept apart from
+  # the vascular-plant life_form and growth_form traits for the same reason
+  # lichen_growth_form is: it is a different scheme over a different structure,
+  # and merging the vocabularies would make "turf" and "hemicryptophyte"
+  # comparable terms.
+  # The seven values BET actually carries. During's published scheme has more
+  # (fan, pendant, tail), but a vocabulary term the source never emits is a
+  # guess about the data rather than a reading of it.
+  bryoform_patterns <- c(
+    "turf" = "turf", "cushion" = "cushion", "weft" = "weft",
+    "dendroid" = "dendroid", "rosette" = "rosette", "annual" = "annual",
+    "mat" = "mat")
+
+  # Bird primary habitat (BIRDBASE's own 14-term vocabulary, taken verbatim
+  # in lower case).
+  # All fourteen values BIRDBASE carries, lower-cased and otherwise untouched --
+  # including "artificial", its own term for human-modified habitat, which is
+  # kept rather than renamed to a tidier "urban" the source never says.
+  birdhab_patterns <- c(
+    "forest" = "forest", "woodland" = "woodland", "shrub" = "shrub",
+    "grassland" = "grassland", "savanna" = "savanna", "wetland" = "wetland",
+    "riparian" = "riparian", "coastal" = "coastal", "sea" = "sea",
+    "rocky" = "rocky", "plains" = "plains", "artificial" = "artificial",
+    "desert" = "desert", "bamboo" = "bamboo")
+
+  # BIRDBASE primary diet onto the shared diet_guild vocabulary. Fish maps to
+  # carnivore because the vocabulary has no piscivore term, the same call the
+  # parravicini P code already takes.
+  birddiet_lookup <- c(
+    "invertebrate" = "invertivore", "fruit" = "frugivore", "seed" = "granivore",
+    "nectar" = "nectarivore", "omnivore" = "omnivore", "herbivore" = "herbivore",
+    "plant" = "herbivore", "vertebrate" = "carnivore", "fish" = "carnivore",
+    "carnivore" = "carnivore", "scavenger" = "scavenger")
 
   # Categorical crosswalks for the added traits (grounded on the sources'
   # distinct values). Flower colour takes the first colour word of a possibly
@@ -562,7 +757,25 @@
     "frugivor"                    = "frugivore",
     "granivor"                    = "granivore",
     "nectarivor"                  = "nectarivore",
-    "scaveng"                     = "scavenger")
+    "scaveng"                     = "scavenger",
+    "fungivor"                    = "fungivore")
+  # Wing morphology, three-state. Dimorphic species produce both a long-winged
+  # and a short-winged form, and which form dominates is the question carabid
+  # dispersal ecology asks, so it is a class of its own rather than a midpoint
+  # or a missing value. Kept in the source's plain terms; macropterous and
+  # brachypterous are the entomological synonyms.
+  wing_lookup <- c("long-winged" = "long-winged", "macropterous" = "long-winged",
+                   "short-winged" = "short-winged", "brachypterous" = "short-winged",
+                   "dimorphic" = "dimorphic", "wing-dimorphic" = "dimorphic")
+  # Chowdhury's seven German carabid habitat classes onto primary_habitat. Five
+  # are the vocabulary's own terms. "open" is added to it: open habitat
+  # (Offenland -- arable, grassland, heath, sand) is the modal class at 142 of
+  # 382 species, and narrowing it to "grassland" would assert a vegetation type
+  # the source does not. Eurytopic states niche breadth rather than a habitat,
+  # and "Special habitats" is a residual bin, so both stay NA.
+  carabhab_lookup <- c("coastal" = "coastal", "forest" = "forest",
+                       "open" = "open", "riparian" = "riparian",
+                       "wetland" = "wetland")
   # Parravicini reef-fish trophic guild codes. The source ships no legend, so
   # the P/PK pair was disambiguated empirically against known species (Chromis /
   # Dascyllus / Pseudanthias all PK = planktivores; Cephalopholis / Epinephelus /
@@ -980,8 +1193,10 @@
                             caution_col = "mass_method_class",
                             caution_fn  = .phylacine_mass_caution),
         repttraits   = nsrc("repttraits", "body_mass_g", "ReptTraits (Oskyrko et al. 2024)", "Grams."),
-        fishbase     = nsrc("fishbase", "body_mass_g", "FishBase (Froese & Pauly)", "Grams."),
-        sealifebase  = nsrc("sealifebase", "body_mass_g", "SeaLifeBase (Palomares & Pauly)", "Grams."),
+        fishbase     = nsrc("fishbase", "body_mass_g", "FishBase (Froese & Pauly)", "Grams.",
+                            caution = "FishBase Weight is the maximum published weight, not an adult mean."),
+        sealifebase  = nsrc("sealifebase", "body_mass_g", "SeaLifeBase (Palomares & Pauly)", "Grams.",
+                            caution = "SeaLifeBase Weight is the maximum published weight, not an adult mean."),
         frugivoria   = nsrc("frugivoria", "body_mass_g", "Frugivoria (Gerstner et al.)", "Grams."),
         pottier      = nsrc("pottier", "body_mass_g", "Pottier et al.", "Grams."),
         animaltraits = nsrc("animaltraits", "body_mass_kg", "AnimalTraits (Herberstein et al. 2022)", "kg converted to grams (x1000).", map = numk),
@@ -1081,7 +1296,72 @@
         pottier     = nsrc("pottier", "svl_mm", "Pottier et al. 2022", "Snout-vent length, mm."),
         spider_traits = nsrc("spider_traits", "body_length_mm", "World Spider Trait DB (Pekar et al. 2021)", "Total body length, mm (across-record median, not split by sex; distribution-sanity grounded, disjoint taxon)."),
         zooplankton = nsrc("zooplankton", "body_length_max_mm", "Global Zooplankton Trait DB (Pata & Hunt 2025)", "Maximum body length, mm (gelatinous colonial chains reach ~1 m)."),
-        sheld       = nsrc("sheld", "max_length_mm", "Freshwater Mussel Traits (Hopper et al. 2023)", "Maximum shell length, mm (freshwater mussels).")
+        sheld       = nsrc("sheld", "max_length_mm", "Freshwater Mussel Traits (Hopper et al. 2023)", "Maximum shell length, mm (freshwater mussels)."),
+        chowdhury   = nsrc("chowdhury", "body_length_mm", "Chowdhury et al. 2025 (German carabids)",
+                           paste("Mean body length of 382 German ground beetles, the only",
+                                 "beetle source the verb carries. Grounded transitively: it",
+                                 "runs 1.014 against arthropod_traits' beetle values over 333",
+                                 "shared species, and those are themselves 1.000 against",
+                                 "spider_traits' measured body lengths over 437. Recorded on a",
+                                 "0.5 mm grid, so it is coarser than the sources around it --",
+                                 "a precision limit, not a different measurement.")),
+        finand      = nsrc("finand", "body_length_mm", "Finand & Kotze 2025 (Helsinki carabids)",
+                           paste("34 Helsinki species, and the one carabid source measured",
+                                 "from specimens rather than compiled: 0.9946 against",
+                                 "arthropod_traits over 28 shared species (IQR 0.985-1.008)",
+                                 "with only 7.1% exactly equal. A whole-body length despite",
+                                 "the terse column name -- elytra would sit near 0.6 of these",
+                                 "values, and Cychrus caraboides reads 16.9 mm against a",
+                                 "published 14-19.")),
+        alpine_carabids = nsrc("alpine_carabids", "body_length_mm",
+                           "Chamberlain et al. 2020 (Alpine carabids)",
+                           paste("185 species of the Italian Alps, the fauna the lowland",
+                                 "compilations miss. Runs 1.03 against chowdhury over 92",
+                                 "shared species and against arthropod_traits over 91 --",
+                                 "the same quantity, and far enough from 1.000 not to be the",
+                                 "verbatim copy eberswalde is, though it shares their",
+                                 "carabids.org ancestry.")),
+        betsi_collembola_body_length = nsrc("betsi_collembola_body_length", "betsi_body_length_mm",
+                           "BETSI Collembola body length (Bonfanti 2018)",
+                           paste("Per-species median body length of springtails from the BETSI",
+                                 "2017 export, 1,374 species: the European-compendia floor for",
+                                 "Collembola, a disjoint taxon from the sources above. Agrees",
+                                 "with ellers body size at r = 0.96 over 262 shared species and",
+                                 "with plazi at r = 0.906.")),
+        plazi_collembola_body_length = nsrc("plazi_collembola_body_length", "plazi_body_length_mm",
+                           "Plazi Collembola body length",
+                           paste("Median body length mined from Plazi taxonomic treatments, 998",
+                                 "species. Tracks the BETSI floor at r = 0.906 (Spearman 0.955)",
+                                 "over the 35 shared species and adds 963 species BETSI does not",
+                                 "cover.")),
+        monograph_collembola_body_length = nsrc("monograph_collembola_body_length", "monograph_body_length_mm",
+                           "Collembola monograph body length",
+                           paste("Median body length re-extracted from three Collembola",
+                                 "monographs (Stach 1957, Hopkin 2007, Bretfeld 1999), 481",
+                                 "species: an extraction independent of BETSI, reaching Stach's",
+                                 "Neelidae and Dicyrtomidae that fall outside BETSI's coverage.")),
+        ellers_collembola = nsrc("ellers_collembola", "ellers_body_size_mm",
+                           "Collembola traits (Ellers et al. 2018)",
+                           paste("Body size of 278 European Collembola from the openly licensed",
+                                 "Ellers et al. compilation; runs r = 0.96 against the BETSI",
+                                 "body-length floor over 262 shared species.")),
+        betsi_collembola_traits = nsrc("betsi_collembola_traits", "body_length_mm",
+                           "Collembola traits (Lu et al. 2025)",
+                           paste("Maximum body length of 26 Collembola from Lu et al. 2025,",
+                                 "BETSI-derived; the smallest springtail source, coalesced by",
+                                 "median with the others."))
+      )
+    ),
+    elytra_width = list(
+      label = "Elytra width", kind = "numeric", unit = "mm", vocab = NULL,
+      sources = list(
+        imageomics_neon = nsrc("imageomics_neon", "elytra_width_mm",
+                           "Imageomics 2018-NEON-beetles",
+                           paste("Maximum elytra width of North American ground beetles, cm",
+                                 "converted to mm. Single-source: saproxylic carries a body",
+                                 "width but no elytra width. Grounded on the ratio to its own",
+                                 "elytra length, median 1.79 across species (range",
+                                 "1.34-2.25), the shape of a carabid elytron."))
       )
     ),
     metabolic_rate = list(
@@ -1169,15 +1449,179 @@
     flowering_start = list(
       label = "Flowering start (month)", kind = "numeric", unit = "month (1-12)", vocab = NULL,
       sources = list(
-        baseflor = nsrc("baseflor", "flower_begin_month", "Baseflor (Julve, Catminat)", "Month 1-12."),
-        ecoflora = nsrc("ecoflora", "flower_begin_month_uk", "Ecoflora (Fitter & Peat 1994)", "Month 1-12.")
+        baseflor  = nsrc("baseflor", "flower_begin_month", "Baseflor (Julve, Catminat)", "Month 1-12."),
+        ecoflora  = nsrc("ecoflora", "flower_begin_month_uk", "Ecoflora (Fitter & Peat 1994)", "Month 1-12."),
+        austraits = nsrc("austraits", "flowering_time", "AusTraits (Falster et al. 2021)",
+                         "First month of the longest circular run of flowering months in AusTraits' 12-character y/n string. Circular because a southern-hemisphere season wraps December to February.",
+                         map = aus_flr_start)
       )
     ),
     flowering_end = list(
       label = "Flowering end (month)", kind = "numeric", unit = "month (1-12)", vocab = NULL,
       sources = list(
-        baseflor = nsrc("baseflor", "flower_end_month", "Baseflor (Julve, Catminat)", "Month 1-12."),
-        ecoflora = nsrc("ecoflora", "flower_end_month_uk", "Ecoflora (Fitter & Peat 1994)", "Month 1-12.")
+        baseflor  = nsrc("baseflor", "flower_end_month", "Baseflor (Julve, Catminat)", "Month 1-12."),
+        ecoflora  = nsrc("ecoflora", "flower_end_month_uk", "Ecoflora (Fitter & Peat 1994)", "Month 1-12."),
+        austraits = nsrc("austraits", "flowering_time", "AusTraits (Falster et al. 2021)",
+                         "Last month of the longest circular run of flowering months in AusTraits' 12-character y/n string.",
+                         map = aus_flr_end)
+      )
+    ),
+
+    ## ---- fire response and regeneration -----------------------------------
+    resprouting = list(
+      label = "Resprouting after fire", kind = "categorical", unit = NA_character_,
+      vocab = c("resprouter", "partial", "non_resprouter"),
+      sources = list(
+        austraits = list(enrichment = "austraits", col = "resprouting_capacity",
+                     citation = "AusTraits (Falster et al. 2021)",
+                     note = "resprouts / fire_killed / partial_resprouting; a record listing both states is read as partial.",
+                     map = function(v) .xw_grep(v, resprout_patterns)),
+        brot      = list(enrichment = "brot", col = "resp_fire",
+                     citation = "BROT 2.0 (Tavsanoglu & Pausas 2018)",
+                     note = paste("Three encodings in one column: yes/no, an ordinal high/low/variable,",
+                                  "and the percentage of individuals resprouting. The numeric arm is",
+                                  "read first (0 non-resprouter, above 0 resprouter). Agrees with",
+                                  "AusTraits on 86% of 113 shared species."),
+                     map = brot_resprout)
+      )
+    ),
+    serotiny = list(
+      label = "Serotiny", kind = "categorical", unit = NA_character_,
+      vocab = c("serotinous", "non_serotinous"),
+      sources = list(
+        austraits = list(enrichment = "austraits", col = "serotiny",
+                     citation = "AusTraits (Falster et al. 2021)",
+                     note = "Canopy seed storage; the graded serotiny_low/moderate/high records all read as serotinous.",
+                     map = function(v) .xw_grep(v, c(
+                       "not_serotinous"        = "non_serotinous",
+                       "serotin"               = "serotinous")))
+        # BROT serotinylevel (8 species) and canopyseedbank (11) are too thin to
+        # register, and BROT's own values are a 0-49 percentage rather than the
+        # presence call AusTraits makes.
+      )
+    ),
+    soil_seed_bank = list(
+      label = "Soil seed-bank persistence", kind = "categorical", unit = NA_character_,
+      vocab = c("transient", "short_persistent", "persistent", "long_persistent"),
+      sources = list(
+        austraits = list(enrichment = "austraits", col = "seedbank_longevity_class",
+                     citation = "AusTraits (Falster et al. 2021)",
+                     note = "Persistence class; widely_dispersed is a dispersal statement rather than a persistence class and falls through to NA.",
+                     map = function(v) .xw_grep(v, seedbank_patterns)),
+        brot      = list(enrichment = "brot", col = "soil_seed_bank",
+                     citation = "BROT 2.0 (Tavsanoglu & Pausas 2018)",
+                     note = "Stored as persistence|method; only the first token is the class, and BROT's mid-persistent folds into persistent.",
+                     caution = paste("BROT and AusTraits classify seed-bank persistence by different",
+                                     "operational definitions -- burial depth and trial duration differ",
+                                     "between the compilations -- and agree on only 67% of 48 shared",
+                                     "species once both are collapsed to persistent against transient.",
+                                     "The two are reported separately rather than blended."),
+                     map = function(v) .xw_grep(v, seedbank_patterns))
+      )
+    ),
+
+    ## ---- plant hydraulics --------------------------------------------------
+    ## The drought-mortality axis. All three P50 sources are megapascals by
+    ## definition (water potential at 50% loss of stem conductivity). AusTraits
+    ## and BROT share no species, so between them the unit rested on the
+    ## definition plus their two medians landing together at -3.4 MPa. The
+    ## Sanchez-Martinez compilation now bridges them, overlapping both, and lands
+    ## at ratio 1.00 against each -- the first empirical confirmation this trait
+    ## has had -- while taking coverage from 123 species to 894.
+    ##
+    ## That bridge is also a genealogy warning. All three are literature
+    ## compilations drawing on the same primary studies: 63% of the P50 values
+    ## the new source shares with AusTraits and 42% of those it shares with BROT
+    ## are equal to the last digit. Agreement among them is not independent
+    ## corroboration. It is registered rather than rejected as a same-data
+    ## duplicate (the FISHMORPH max-body-length case) because the duplication is
+    ## partial and confined to the overlap: 74 of its 894 species appear in
+    ## either incumbent, so it is overwhelmingly new coverage.
+    p50 = list(
+      label = "Xylem embolism resistance (P50)", kind = "numeric", unit = "MPa", vocab = NULL,
+      sources = list(
+        hydraulics = nsrc("hydraulics", "p50_mpa", "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)",
+                     "MPa (negative). Median -2.42 over 894 species, the widest coverage of the three. Ratio 1.00 against both AusTraits (38 shared) and BROT (36 shared), but it shares primary records with each -- 63% and 42% of those values are identical to the last digit -- so it corroborates neither."),
+        austraits = nsrc("austraits", "stem_water_potential_50percent_lost_conductivity",
+                     "AusTraits (Falster et al. 2021)",
+                     "Stem water potential at 50% loss of hydraulic conductivity, MPa (negative). Median -3.41 over 77 species."),
+        brot      = nsrc("brot", "p50", "BROT 2.0 (Tavsanoglu & Pausas 2018)",
+                     "MPa (negative). Median -3.46 over 46 species; shares no species with AusTraits.")
+      )
+    ),
+    turgor_loss_point = list(
+      label = "Leaf turgor loss point", kind = "numeric", unit = "MPa", vocab = NULL,
+      sources = list(
+        austraits = nsrc("austraits", "leaf_turgor_loss_point", "AusTraits (Falster et al. 2021)",
+                     "Leaf water potential at turgor loss, MPa (negative).")
+      )
+    ),
+    sapwood_conductivity = list(
+      label = "Sapwood specific hydraulic conductivity", kind = "numeric",
+      unit = "kg m-1 s-1 MPa-1", vocab = NULL,
+      sources = list(
+        hydraulics = nsrc("hydraulics", "sapwood_conductivity",
+                     "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)",
+                     "Ks, sapwood-area-specific conductivity. Median 1.41 over 1051 species, ratio 1.00 against AusTraits on 133 shared -- of which 65% are equal to the last digit, the two compilations sharing primary records rather than agreeing independently."),
+        austraits = nsrc("austraits", "sapwood_specific_hydraulic_conductivity",
+                     "AusTraits (Falster et al. 2021)", "Sapwood-area-specific conductivity.")
+      )
+    ),
+    leaf_specific_conductivity = list(
+      label = "Leaf specific hydraulic conductivity", kind = "numeric",
+      unit = "kg m-1 s-1 MPa-1", vocab = NULL,
+      sources = list(
+        hydraulics = nsrc("hydraulics", "leaf_conductivity",
+                     "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)",
+                     "Kl, conductivity per unit leaf area rather than sapwood area, so it is roughly the Huber value times Ks and runs four orders of magnitude below it. Median 3.35e-4 over 845 species. Kept apart from sapwood_conductivity: same dimensions, different reference area.")
+      )
+    ),
+    huber_value = list(
+      label = "Huber value", kind = "numeric", unit = "index (m2/m2)", vocab = NULL,
+      sources = list(
+        hydraulics = nsrc("hydraulics", "huber_value_cm2_m2",
+                     "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)",
+                     "cm2 sapwood per m2 leaf converted to m2/m2 (x1e-4). The factor is measured, not read off the header: 79 of the 208 species shared with AusTraits are equal to the last digit once converted. 1298 species.",
+                     map = cm2m2),
+        austraits = nsrc("austraits", "huber_value", "AusTraits (Falster et al. 2021)",
+                     "Sapwood area per unit leaf area, dimensionless.")
+      )
+    ),
+    min_water_potential = list(
+      label = "Minimum midday water potential", kind = "numeric", unit = "MPa", vocab = NULL,
+      sources = list(
+        hydraulics = nsrc("hydraulics", "min_water_potential_mpa",
+                     "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)",
+                     "psi_min, the lowest midday xylem water potential a species is observed to reach, MPa (negative). The paper's measure of drought exposure. Median -2.16 over 553 species. Deliberately NOT folded into turgor_loss_point: the two share 39 species and agree on none of them (0% within 0.1%, ratios spanning 0.36 to 26), because a field water potential and a pressure-volume threshold are different quantities.")
+      )
+    ),
+    hydraulic_safety_margin = list(
+      label = "Hydraulic safety margin", kind = "numeric", unit = "MPa", vocab = NULL,
+      sources = list(
+        hydraulics = nsrc("hydraulics", "hydraulic_safety_margin_mpa",
+                     "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)",
+                     "psi_min minus P50: how far a species operates from 50% loss of conductivity, MPa. Negative where the observed minimum already passes P50. Derived by the source from its own two columns, so it is reported rather than recomputed. 336 species.")
+      )
+    ),
+    bark_thickness = list(
+      label = "Bark thickness", kind = "numeric", unit = "mm", vocab = NULL,
+      sources = list(
+        austraits = nsrc("austraits", "bark_thickness", "AusTraits (Falster et al. 2021)", "Millimetres.")
+        # BROT barkthick is not a second source: it mixes a thin/thick call with
+        # numeric ranges written as "10.0|19.3" in the same column, over 91
+        # species, and the two encodings cannot be separated by unit.
+      )
+    ),
+    self_compatibility = list(
+      label = "Self-compatibility", kind = "categorical", unit = NA_character_,
+      vocab = c("self_compatible", "self_incompatible"),
+      sources = list(
+        tree_of_sex = list(enrichment = "tree_of_sex", col = "selfing",
+                       citation = "Tree of Sex Consortium 2014",
+                       note = "Breeding-system compatibility, distinct from the sexual_system trait; records carrying both states fall through to NA.",
+                       map = function(v) .xw_cat(v, c(
+                         "self compatible"   = "self_compatible",
+                         "self incompatible" = "self_incompatible")))
       )
     ),
 
@@ -1474,7 +1918,7 @@
       label = "Diet guild", kind = "categorical", unit = NA_character_,
       vocab = c("carnivore", "herbivore", "omnivore", "invertivore",
                 "planktivore", "detritivore", "frugivore", "granivore",
-                "nectarivore", "scavenger"),
+                "nectarivore", "scavenger", "fungivore"),
       sources = list(
         avonet       = list(enrichment = "avonet", col = "trophic_niche",
                           citation = "AVONET (Tobias et al. 2022)", note = "Trophic niche; vertivore and aquatic predator -> carnivore, herbivore terrestrial/aquatic -> herbivore.",
@@ -1499,7 +1943,74 @@
                           map = function(v) .xw_grep(v, diet_patterns)),
         zooplankton  = list(enrichment = "zooplankton", col = "trophic_group",
                           citation = "Global Zooplankton Trait DB (Pata & Hunt 2025)", note = "Marine zooplankton; primary token of a compound value (carnivore/omnivore/herbivore/detritivore/planktivore); suspension-feeder and parasite -> NA.",
+                          map = function(v) .xw_grep(v, diet_patterns)),
+        birdbase     = list(enrichment = "birdbase", col = "primary_diet",
+                          citation = "Sekercioglu et al. 2025 (BIRDBASE)",
+                          note = paste("An independent bird diet classification, not a copy of an",
+                                       "incumbent: it agrees with AVONET's trophic niche on 77% of",
+                                       "12,294 shared species, and the disagreements are scheme",
+                                       "differences (aquatic predator against invertebrate) rather",
+                                       "than the exact match a shared lineage would give. Listed last,",
+                                       "so it fills the birds AVONET and EltonTraits miss."),
+                          map = function(v) .xw_cat(v, birddiet_lookup)),
+        arthropod_traits = list(enrichment = "arthropod_traits", col = "feeding_guild",
+                          citation = "Logghe et al. 2025 (NW European arthropod traits)",
+                          note = paste("3,800 NW European arthropods, the guild vocabulary",
+                                       "mapping straight across (herbivore, carnivore,",
+                                       "omnivore, detritivore, fungivore). Its 'pollinator'",
+                                       "names a function rather than a diet and has no",
+                                       "counterpart in the vocabulary, and 'non-eating'",
+                                       "marks adults that do not feed; both stay NA."),
+                          map = function(v) .xw_grep(v, diet_patterns)),
+        chowdhury    = list(enrichment = "chowdhury", col = "trophic_level",
+                          citation = "Chowdhury et al. 2025 (German carabids)",
+                          note = paste("Predator, herbivore and omnivore for 382 German ground",
+                                       "beetles. It agrees with arthropod_traits' independent",
+                                       "guild on 86.6% of 292 shared species -- a second",
+                                       "classification rather than a copy, which would agree",
+                                       "near-exactly. Listed after it, so it fills the carabids",
+                                       "that compilation misses."),
+                          map = function(v) .xw_grep(v, diet_patterns)),
+        finand       = list(enrichment = "finand", col = "feeding_type",
+                          citation = "Finand & Kotze 2025 (Helsinki carabids)",
+                          note = "Carnivore or omnivore for 34 Helsinki ground beetles.",
                           map = function(v) .xw_grep(v, diet_patterns))
+      )
+    ),
+    wing_morph = list(
+      label = "Wing morphology", kind = "categorical", unit = NA_character_,
+      vocab = c("long-winged", "short-winged", "dimorphic"),
+      sources = list(
+        chowdhury = list(enrichment = "chowdhury", col = "wing_morph",
+                          citation = "Chowdhury et al. 2025 (German carabids)",
+                          note = paste("Long-winged (257), short-winged (42) and wing-dimorphic",
+                                       "(83) German ground beetles. Dimorphism is a third",
+                                       "state, not a missing value: a dimorphic species",
+                                       "produces both forms, and the balance between them is",
+                                       "what carabid dispersal ecology measures. Distinct from",
+                                       "the bird trait flightless, which asks whether a species",
+                                       "can fly at all."),
+                          map = function(v) .xw_cat(v, wing_lookup)),
+        finand    = list(enrichment = "finand", col = "wing_morph",
+                          citation = "Finand & Kotze 2025 (Helsinki carabids)",
+                          note = paste("The morph of the beetles actually caught in Helsinki,",
+                                       "against chowdhury's statement of what the species can",
+                                       "produce. On their 25 shared species there is no",
+                                       "long-versus-short disagreement at all, but seven that",
+                                       "chowdhury calls dimorphic get a definite morph here.",
+                                       "Listed second so it only fills species chowdhury misses,",
+                                       "where a caught-population morph is the only reading",
+                                       "available."),
+                          map = function(v) .xw_cat(v, wing_lookup)),
+        alpine_carabids = list(enrichment = "alpine_carabids", col = "wing_morph",
+                          citation = "Chamberlain et al. 2020 (Alpine carabids)",
+                          note = paste("185 Alpine species. The source ships bare letters with",
+                                       "no legend, so the codes were decoded against",
+                                       "chowdhury's words rather than assumed: b short-winged",
+                                       "(16 of 18 shared), m long-winged (50 of 55), d",
+                                       "dimorphic (18 of 19) -- brachypterous, macropterous,",
+                                       "dimorphic."),
+                          map = function(v) .xw_cat(v, wing_lookup))
       )
     ),
     activity_time = list(
@@ -2029,7 +2540,17 @@
     elytra_length = list(
       label = "Elytra length", kind = "numeric", unit = "mm", vocab = NULL,
       sources = list(
-        saproxylic = nsrc("saproxylic", "elytra_length_mm", "Saproxylic beetle traits", "Beetle elytra length, mm.")
+        saproxylic = nsrc("saproxylic", "elytra_length_mm", "Saproxylic beetle traits", "Beetle elytra length, mm."),
+        imageomics_neon = nsrc("imageomics_neon", "elytra_length_mm",
+                           "Imageomics 2018-NEON-beetles",
+                           paste("Median maximum elytra length of 75 North American ground",
+                                 "beetle species, measured from images of pinned NEON",
+                                 "specimens, cm converted to mm. Disjoint from the European",
+                                 "saproxylic beetles, and the same quantity in the same unit,",
+                                 "so the two never blend for one species. Angled specimens",
+                                 "(lying_flat No) are excluded because a projected length is",
+                                 "foreshortened. Carabus nemoralis reads 14.87 mm against the",
+                                 "23.4 mm body length finand measured, a ratio of 0.64."))
       )
     ),
     antenna_length = list(
@@ -2240,6 +2761,20 @@
         tree_of_sex  = list(enrichment = "tree_of_sex", col = "sexual_system",
                         citation = "Tree of Sex Consortium 2014", note = "Plant and animal sexual systems.",
                         map = function(v) .xw_grep(v, sexsys_patterns)),
+        austraits    = list(enrichment = "austraits", col = "sex_type",
+                        citation = "AusTraits (Falster et al. 2021)",
+                        note = paste("Plant sexual system through the shared crosswalk. Agrees with",
+                                     "tree_of_sex on 87% of 572 shared species (hermaphrodite 250,",
+                                     "dioecious 141, monoecious 105), and roughly doubles the trait's",
+                                     "plant coverage."),
+                        map = function(v) .xw_grep(v, sexsys_patterns)),
+        bet          = list(enrichment = "bet", col = "sexual_condition",
+                        citation = "Bryophytes of Europe Traits (Hodgetts et al. 2020)",
+                        note = paste("Bryophyte sexual condition, D and M read as dioicous and",
+                                     "monoicous, the standard coding for the group; M/D records carry",
+                                     "both and fall through to NA. Read off the column's three distinct",
+                                     "values, not confirmed against a BET data dictionary."),
+                        map = function(v) .xw_cat(v, c("d" = "dioecious", "m" = "monoecious"))),
         coral_traits = list(enrichment = "coral_traits", col = "sexual_system",
                         citation = "Coral Trait DB (Madin et al. 2016)", note = "Coral sexual system.",
                         map = function(v) .xw_grep(v, sexsys_patterns)),
@@ -2280,7 +2815,10 @@
       sources = list(
         italic = list(enrichment = "italic", col = "substrata",
                       citation = "ITALIC 8.0 (Nimis; Italian lichens)", note = "Primary substrate of a possibly multi-substrate record (priority rock > bark > wood > soil > leaves).",
-                      map = function(v) .xw_grep(v, lichen_substrate_patterns))
+                      map = function(v) .xw_grep(v, lichen_substrate_patterns)),
+        bet    = list(enrichment = "bet", col = "substrate",
+                      citation = "Bryophytes of Europe Traits (Hodgetts et al.)", note = "Primary substrate derived at build time from four one-hot flags, by the same priority ITALIC's multi-substrate records use. 58.8% of BET species carrying any flag carry several, so the reduction is real rather than incidental; BET's deadwood is ITALIC's lignum.",
+                      map = chr_verbatim)
       )
     ),
     photobiont = list(
@@ -2466,7 +3004,34 @@
       label = "Mean annual temperature of range", kind = "numeric", unit = "deg C", vocab = NULL,
       sources = list(
         arthropod_traits = nsrc("arthropod_traits", "thermal_mean", "Logghe et al. 2025 (NW European arthropod traits)", "Mean annual temperature (WorldClim BIO1) averaged over 0.2-degree buffers around the species' occurrences, degrees C. The source calls this a realised thermal niche and warns it is not a thermal limit."),
-        repttraits       = nsrc("repttraits", "mean_annual_temp_c", "ReptTraits (Oskyrko et al. 2024)", "Mean annual temperature over the species' range, degrees C, from CHELSA (Karger et al. 2017) on the GARD ranges (Roll et al. 2017) per the source's own trait-source sheet.")
+        repttraits       = nsrc("repttraits", "mean_annual_temp_c", "ReptTraits (Oskyrko et al. 2024)", "Mean annual temperature over the species' range, degrees C, from CHELSA (Karger et al. 2017) on the GARD ranges (Roll et al. 2017) per the source's own trait-source sheet."),
+        hydraulics       = nsrc("hydraulics", "mean_annual_temp_c", "Sanchez-Martinez et al. 2020 (Ecology Letters 23:1599)", "Mean annual temperature over the species' occurrences, degrees C, from WorldClim. 1937 seed-plant species, median 20.27 -- a woody flora weighted to the tropics, so the median sits well above the NW-European arthropod one and neither shares a species with the other two sources.")
+      )
+    ),
+    ## Root-nodule symbiosis, recorded per plant genus, so this source joins on
+    ## genus the way FungalRoot's mycorrhizal_type does. The two are the
+    ## belowground symbiosis pair: which fungus colonises the root, and which
+    ## bacterium nodulates it.
+    nitrogen_fixation = list(
+      label = "Root-nodule nitrogen fixation", kind = "categorical", unit = NULL,
+      vocab = c("rhizobia", "frankia", "nostocaceae", "present", "none"),
+      sources = list(
+        noddb = nsrc("noddb", "nodulation_type", "NodDB (Tedersoo et al. 2018)",
+                 "Nodulating symbiont per plant genus. The source vocabulary is collapsed by exact lookup rather than pattern match, because Rhizobia, likely_Rhizobia and unlikely_Rhizobia each contain the one before it and an ordered regex would read every negative verdict as a positive one. Both unlikely_ verdicts are the authors' judgement that the genus does not nodulate and read as none. 824 genera.",
+                 map = chr_verbatim, join_col = "genus")
+      )
+    ),
+    ## Bouche's earthworm classes. Kept its own trait rather than folded into
+    ## life_form or primary_habitat for the reason lichen_growth_form and
+    ## bryophyte_life_form are: the vocabulary describes one taxon's way of
+    ## living and means nothing outside it.
+    earthworm_ecological_group = list(
+      label = "Earthworm ecological group", kind = "categorical", unit = NULL,
+      vocab = c("epigeic", "endogeic", "anecic", "epi-endogeic"),
+      sources = list(
+        sworm = nsrc("sworm", "ecological_group", "sWorm (Phillips et al. 2021)",
+                 "Bouche's classes from feeding and burrowing behaviour: epigeic litter dwellers, endogeic soil feeders, anecic deep burrowers, and the intermediate epi-endogeic. Constant within a species across the compilation. 171 species, the only earthworm source bundled.",
+                 map = chr_verbatim)
       )
     ),
     climatic_temp_min = list(
@@ -2675,6 +3240,104 @@
                           citation = "FungalRoot (Soudzilovskaia et al. 2020)", note = "Genus-level majority-consensus mycorrhizal type (AM arbuscular, EcM ecto, ErM ericoid, OM orchid, NM non-mycorrhizal, plus dual types); joined on genus. Verbatim source code.",
                           map = chr_verbatim)
       )
+    ),
+
+    ## ---- bryophytes --------------------------------------------------------
+    ## BET is the only registry-eligible bryophyte source (BRYOATT is
+    ## build-only), so every slot here is single-source and grounded on
+    ## distribution sanity plus the source's own vocabulary.
+    bryophyte_life_form = list(
+      label = "Bryophyte life form", kind = "categorical", unit = NA_character_,
+      vocab = c("turf", "mat", "cushion", "weft", "dendroid", "rosette", "annual"),
+      sources = list(
+        bet = list(enrichment = "bet", col = "life_form",
+               citation = "Bryophytes of Europe Traits (Hodgetts et al. 2020)",
+               note = "During's bryophyte growth architecture. Kept apart from the vascular-plant life_form and growth_form traits: a different scheme over a different structure.",
+               map = function(v) .xw_grep(v, bryoform_patterns))
+      )
+    ),
+    shoot_length = list(
+      label = "Shoot length", kind = "numeric", unit = "mm", vocab = NULL,
+      sources = list(
+        bet = nsrc("bet", "shoot_size_mm", "Bryophytes of Europe Traits (Hodgetts et al. 2020)",
+               "Millimetres, median 28 over 1,891 species. Not folded into plant_height: bryophytes in mats and turfs grow prostrate, so shoot length is not a height.")
+      )
+    ),
+    spore_diameter = list(
+      label = "Spore diameter", kind = "numeric", unit = "um", vocab = NULL,
+      sources = list(
+        bet = nsrc("bet", "spore_diameter_um", "Bryophytes of Europe Traits (Hodgetts et al. 2020)",
+               "Micrometres, median 16 over 1,727 species.")
+      )
+    ),
+
+    ## ---- corals ------------------------------------------------------------
+    larval_development_mode = list(
+      label = "Larval development mode", kind = "categorical", unit = NA_character_,
+      vocab = c("spawner", "brooder"),
+      sources = list(
+        coral_traits = list(enrichment = "coral_traits", col = "larval_development_mode",
+                        citation = "Coral Trait DB (Madin et al. 2016)",
+                        note = "Broadcast spawning against brooding. Kept apart from reproductive_mode, whose vocabulary is the oviparous/viviparous parity axis and shares no term with this one.",
+                        map = function(v) .xw_grep(v, c("brood" = "brooder", "spawn" = "spawner")))
+      )
+    ),
+    substrate_attachment = list(
+      label = "Substrate attachment", kind = "categorical", unit = NA_character_,
+      vocab = c("attached", "unattached", "both"),
+      sources = list(
+        coral_traits = list(enrichment = "coral_traits", col = "substrate_attachment",
+                        citation = "Coral Trait DB (Madin et al. 2016)",
+                        note = "Whether the colony is fixed to the substrate.",
+                        map = function(v) .xw_grep(v, c(
+                          "both" = "both", "unattached" = "unattached", "attached" = "attached")))
+      )
+    ),
+    linear_extension_rate = list(
+      label = "Coral linear extension rate", kind = "numeric", unit = "mm/yr", vocab = NULL,
+      sources = list(
+        coral_traits = nsrc("coral_traits", "growth_rate_mm_yr", "Coral Trait DB (Madin et al. 2016)",
+                        "Skeletal linear extension, mm/yr. Deliberately NOT registered as growth_rate: the registry rejects that trait because coral extension, zooplankton per-day growth and AnAge's Gompertz constant are physically different rates, so this carries the coral-specific name instead of widening a trait that cannot hold it.")
+      )
+    ),
+    polyp_retractability = list(
+      label = "Polyp retractability", kind = "categorical", unit = NA_character_,
+      vocab = c("retractable", "non_retractable"),
+      sources = list(
+        octocoral = list(enrichment = "octocoral", col = "polyp_retractability",
+                     citation = "Gomez-Gras et al. 2024",
+                     note = "Stored as 1/0 over 3,539 species.",
+                     map = function(v) .xw_cat(v, c("1" = "retractable", "0" = "non_retractable")))
+      )
+    ),
+
+    ## ---- habitat -----------------------------------------------------------
+    primary_habitat = list(
+      label = "Primary habitat", kind = "categorical", unit = NA_character_,
+      vocab = c("forest", "woodland", "shrub", "grassland", "savanna", "wetland",
+                "riparian", "coastal", "sea", "rocky", "plains", "artificial",
+                "desert", "bamboo", "open"),
+      sources = list(
+        birdbase = list(enrichment = "birdbase", col = "primary_habitat",
+                    citation = "Sekercioglu et al. 2025 (BIRDBASE)",
+                    note = "BIRDBASE's own 14-term habitat vocabulary over 13,067 species, taken verbatim in lower case. Distinct from the numeric habitat_breadth already registered from the same source.",
+                    map = function(v) .xw_grep(v, birdhab_patterns)),
+        chowdhury = list(enrichment = "chowdhury", col = "habitat_pref",
+                    citation = "Chowdhury et al. 2025 (German carabids)",
+                    note = paste("German ground beetles, sharing coastal, forest, riparian and",
+                                 "wetland with the bird vocabulary and adding open. The taxa are",
+                                 "disjoint, so the two vocabularies are never blended for one",
+                                 "species. Eurytopic (16) states niche breadth rather than a",
+                                 "habitat and 'Special habitats' (10) is a residual bin, so both",
+                                 "stay NA; the other 356 map."),
+                    map = function(v) .xw_cat(v, carabhab_lookup)),
+        finand    = list(enrichment = "finand", col = "habitat_pref",
+                    citation = "Finand & Kotze 2025 (Helsinki carabids)",
+                    note = paste("Helsinki ground beetles, reading forest and open onto the",
+                                 "same terms chowdhury uses. Generalist states niche breadth",
+                                 "rather than a habitat, so it stays NA, as Eurytopic does."),
+                    map = function(v) .xw_cat(v, carabhab_lookup))
+      )
     )
   )
 }
@@ -2723,7 +3386,9 @@
 # source that is unavailable (not installed, no download, no build) is skipped
 # with a warning and returns NULL, so add_trait() still works from the rest.
 .trait_join_one <- function(x, enrichment, col, kind, join_col = "accepted_name",
-                            group = NULL, verbose = TRUE) {
+                            group = NULL, verbose = TRUE,
+                            aggregate_trait_fallback =
+                              getOption("taxify.aggregate_trait_fallback", TRUE)) {
   tmp  <- ".__taxify_trait_raw__"
   na_t <- stats::setNames(
     list(if (kind == "numeric") NA_real_ else NA_character_), tmp)
@@ -2736,9 +3401,12 @@
         na_types     = na_t,
         join_col     = join_col,
         expose_all   = FALSE,
-        verbose      = FALSE
+        verbose      = FALSE,
+        aggregate_trait_fallback = aggregate_trait_fallback
       )
     } else {
+      # enrich_by_group() has no aggregate fallback, so a grain-pinned source
+      # ignores this setting -- as it already ignores the global option.
       # A grain-pinned source (see nsrc's `group`): one group, so the value
       # lands in an unsuffixed `tmp` exactly as the ungrouped path leaves it.
       enrich_by_group(
@@ -2774,7 +3442,9 @@
 # the same code path deepens automatically once a rebuilt .vtr carries the
 # stored spread. pmin/pmax guard against a non-monotonic map swapping the bounds.
 .trait_join_spread <- function(x, enrichment, col, join_col = "accepted_name",
-                               map = identity, verbose = TRUE) {
+                               map = identity, verbose = TRUE,
+                               aggregate_trait_fallback =
+                                 getOption("taxify.aggregate_trait_fallback", TRUE)) {
   cm   <- c(.v = col, .lo = paste0(col, "_min"), .hi = paste0(col, "_max"))
   na_t <- list(.v = NA_real_, .lo = NA_real_, .hi = NA_real_)
   res <- tryCatch(
@@ -2782,7 +3452,8 @@
       x, enrichment_name = enrichment,
       col_map = cm, source_label = enrichment,
       na_types = na_t, join_col = join_col,
-      expose_all = FALSE, verbose = FALSE
+      expose_all = FALSE, verbose = FALSE,
+      aggregate_trait_fallback = aggregate_trait_fallback
     ),
     error = function(e) {
       if (verbose) {

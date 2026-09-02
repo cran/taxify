@@ -4,6 +4,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 
 ## ----eval=FALSE---------------------------------------------------------------
 # # Rubus fruticosus agg. gets the aggregate's trait where the source has it,
@@ -12,8 +13,6 @@ knitr::opts_chunk$set(
 #   add_trait("plant_height")
 
 ## ----list-enrichments---------------------------------------------------------
-# library(taxify)
-# 
 # list_enrichments()
 # #>              name version   nrow static                              trait_cols ...
 # #> 1 iucn  ...  166000   TRUE                   conservation_status ...
@@ -500,8 +499,6 @@ knitr::opts_chunk$set(
 # #> 5   Picea abies    Gemeine Fichte
 
 ## ----stacking-plants----------------------------------------------------------
-# library(taxify)
-# 
 # plant_result <- taxify(c(
 #   "Quercus robur", "Fagus sylvatica", "Picea abies",
 #   "Arrhenatherum elatius", "Festuca rubra", "Plantago lanceolata"
@@ -585,7 +582,7 @@ knitr::opts_chunk$set(
 # 
 # summary(result)
 # #> -- taxify results --------------------------------------------------------
-# #>   backbone: WFO v2024.12  |  3 names submitted
+# #>   backbone: COL v2026.07  |  3 names submitted
 # #>
 # #>   matched       3  (exact: 3, case-insensitive: 0, fuzzy: 0)
 # #>   --------------------------------------------------------

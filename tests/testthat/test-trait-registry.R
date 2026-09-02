@@ -173,3 +173,198 @@ test_that("categorical crosswalk outputs stay within the declared vocabulary", {
     }
   }
 })
+
+
+# ---- mappers whose logic is more than a lookup -------------------------------
+# The generic invariants above cannot catch a decoder that is well-formed but
+# wrong. These two carry real logic, so they are pinned against hand-worked
+# cases.
+
+test_that(".austraits_flower_window() reads a flowering season circularly", {
+  w <- taxify:::.austraits_flower_window(c(
+    "nnnnnnnnyyyn",  # September to November, no wrap
+    "yynnnnnnnnny",  # December to February, wraps the year boundary
+    "yyyyyyyyyyyy",  # flowers year round
+    "nnnnnnnnnnnn",  # never flowers: no window to report
+    "nynynynynyny",  # alternating, so every run is one month long
+    NA_character_,
+    "not-a-pattern"))
+
+  expect_equal(w[1, ], c(9, 11))
+  # The wrap is the whole point: read left to right this would be January to
+  # December, which is the entire year rather than a three-month summer.
+  expect_equal(w[2, ], c(12, 2))
+  expect_equal(w[3, ], c(1, 12))
+  expect_true(all(is.na(w[4, ])))
+  # Ties pick the first maximal run; the contract is only that it stays inside
+  # the calendar and spans one month.
+  expect_equal(w[5, 1], w[5, 2])
+  expect_true(all(is.na(w[6, ])))
+  expect_true(all(is.na(w[7, ])))
+
+  # Both trait slots read the same source column, so they must not disagree
+  # about which string they are decoding.
+  reg <- taxify:::.trait_registry()
+  expect_equal(reg$flowering_start$sources$austraits$col, "flowering_time")
+  expect_equal(reg$flowering_end$sources$austraits$col, "flowering_time")
+  expect_equal(reg$flowering_start$sources$austraits$map("yynnnnnnnnny"), 12)
+  expect_equal(reg$flowering_end$sources$austraits$map("yynnnnnnnnny"), 2)
+})
+
+test_that("the BROT resprouting mapper reads all three of its encodings", {
+  m <- taxify:::.trait_registry()$resprouting$sources$brot$map
+
+  # resp_fire mixes yes/no, an ordinal, and the percentage of individuals
+  # resprouting in one column. The numeric arm must not fall through to the
+  # regex arm, where "0" and "100" would both come back NA.
+  expect_equal(m(c("no", "yes", "high")),
+               c("non_resprouter", "resprouter", "resprouter"))
+  expect_equal(m(c("low", "variable")), c("partial", "partial"))
+  expect_equal(m(c("0", "40", "100")),
+               c("non_resprouter", "resprouter", "resprouter"))
+  expect_true(is.na(m(NA_character_)))
+  expect_true(is.na(m("")))
+})
+
+
+test_that("wing morphology keeps its three states", {
+  reg <- taxify:::.trait_registry()
+  m   <- reg$wing_morph$sources$chowdhury$map
+
+  # Dimorphic species produce both a long-winged and a short-winged form. It is
+  # the state carabid dispersal ecology cares about, so it must survive as its
+  # own value rather than collapsing into either wing type or into NA.
+  expect_equal(m(c("Long-winged", "Short-winged", "Dimorphic")),
+               c("long-winged", "short-winged", "dimorphic"))
+  expect_setequal(reg$wing_morph$vocab,
+                  c("long-winged", "short-winged", "dimorphic"))
+  # The entomological synonyms read the same way.
+  expect_equal(m(c("macropterous", "brachypterous")),
+               c("long-winged", "short-winged"))
+  expect_true(is.na(m(NA_character_)))
+
+  # flightless asks a different question (can it fly at all) and stays separate.
+  expect_false("chowdhury" %in% names(reg$flightless$sources))
+  expect_false(any(reg$flightless$vocab %in% reg$wing_morph$vocab))
+})
+
+test_that("the carabid habitat mapper drops the two non-habitat classes", {
+  m <- taxify:::.trait_registry()$primary_habitat$sources$chowdhury$map
+
+  expect_equal(m(c("Coastal", "Forest", "Open", "Riparian", "Wetland")),
+               c("coastal", "forest", "open", "riparian", "wetland"))
+  # Eurytopic states niche breadth, and "Special habitats" is a residual bin.
+  # Neither names a habitat, so neither may be coerced into one.
+  expect_true(all(is.na(m(c("Eurytopic", "Special habitats")))))
+})
+
+test_that("the German national Red List stays out of conservation_status", {
+  reg <- taxify:::.trait_registry()
+  # chowdhury red_list_iucn restates the German national assessment in IUCN
+  # letters -- it is perfectly diagonal against red_list_germany over all 382
+  # species -- and national risk is not global risk. It belongs to the door.
+  expect_false("chowdhury" %in% names(reg$conservation_status$sources))
+  used <- vapply(reg, function(t) {
+    s <- t$sources$chowdhury
+    if (is.null(s)) "" else s$col
+  }, character(1L))
+  expect_false(any(used %in% c("red_list_iucn", "red_list_germany",
+                               "threat_status", "occupancy_trend")))
+})
+
+test_that("arthropod_traits contributes its guild but not its body size", {
+  reg <- taxify:::.trait_registry()
+  # body_size_mm is a true body length for spiders (1.000 against spider_traits)
+  # and beetles (1.014 against chowdhury) but forewing length for Lepidoptera
+  # (0.515 of the leptraits wingspan), and the .vtr carries no taxon column to
+  # separate them -- gcol33/taxifydb#40.
+  expect_false("arthropod_traits" %in% names(reg$body_length$sources))
+  expect_true("arthropod_traits" %in% names(reg$diet_guild$sources))
+
+  m <- reg$diet_guild$sources$arthropod_traits$map
+  expect_equal(m(c("herbivore", "carnivore", "omnivore", "detritivore", "fungivore")),
+               c("herbivore", "carnivore", "omnivore", "detritivore", "fungivore"))
+  # "pollinator" names a function rather than a diet, and "non-eating" marks
+  # adults that do not feed. Neither has a counterpart in the vocabulary.
+  expect_true(all(is.na(m(c("pollinator", "non-eating")))))
+})
+
+
+test_that("the Helsinki specimen source reaches the traits it grounds", {
+  reg <- taxify:::.trait_registry()
+
+  # Finand is the only carabid source measured from specimens rather than
+  # compiled from carabids.org, so it is what keeps body_length honest.
+  expect_true("finand" %in% names(reg$body_length$sources))
+  expect_equal(reg$body_length$sources$finand$col, "body_length_mm")
+
+  # Its wing column is the caught-population morph, so it is listed AFTER
+  # chowdhury's species-level statement and only fills what chowdhury lacks.
+  wm <- names(reg$wing_morph$sources)
+  expect_true(all(c("chowdhury", "finand") %in% wm))
+  expect_lt(match("chowdhury", wm), match("finand", wm))
+
+  m <- reg$wing_morph$sources$finand$map
+  expect_equal(m(c("Long-winged", "Short-winged", "Dimorphic")),
+               c("long-winged", "short-winged", "dimorphic"))
+
+  # "Generalist" states niche breadth, not a habitat, exactly as Eurytopic does.
+  h <- reg$primary_habitat$sources$finand$map
+  expect_equal(h(c("Forest", "Open")), c("forest", "open"))
+  expect_true(is.na(h("Generalist")))
+})
+
+test_that("Eberswalde stays out of the cross-source verb", {
+  reg <- taxify:::.trait_registry()
+  # Its size, wings and latitude are carabids.org verbatim -- the deposit's own
+  # README says so, and all 19 sizes shared with chowdhury are exactly equal.
+  # Registering any of it would double-count one lineage.
+  fed <- names(reg)[vapply(reg, function(t) "eberswalde" %in% names(t$sources),
+                           logical(1))]
+  expect_equal(fed, character(0))
+})
+
+test_that("the NEON elytra measurements are millimetres of the elytron", {
+  reg <- taxify:::.trait_registry()
+  for (tr in c("elytra_length", "elytra_width")) {
+    expect_true("imageomics_neon" %in% names(reg[[tr]]$sources), info = tr)
+    expect_equal(reg[[tr]]$unit, "mm", info = tr)
+  }
+  # elytra_width has no second source: saproxylic carries a body width but no
+  # elytra width, so nothing would surface a unit error except the length/width
+  # ratio within the source itself.
+  expect_equal(names(reg$elytra_width$sources), "imageomics_neon")
+  # elytra_length pairs it with the European saproxylic beetles, a disjoint
+  # fauna measured the same way in the same unit.
+  expect_true(all(c("saproxylic", "imageomics_neon") %in%
+                    names(reg$elytra_length$sources)))
+})
+
+
+test_that("the Alpine wing states reach the same three values", {
+  reg <- taxify:::.trait_registry()
+  m <- reg$wing_morph$sources$alpine_carabids$map
+
+  # The source ships bare letters with no legend, decoded against chowdhury's
+  # words over the shared species (b short 16/18, m long 50/55, d dimorphic
+  # 18/19) rather than assumed from the abbreviations. That decoding happens in
+  # taxifydb's parse_alpine_carabids(), so the .vtr already holds words and the
+  # registry map sees the same vocabulary every other wing source uses.
+  expect_equal(m(c("Short-winged", "Long-winged", "Dimorphic")),
+               c("short-winged", "long-winged", "dimorphic"))
+  expect_true(is.na(m("b")))
+  expect_true(is.na(m(NA_character_)))
+
+  # Priority runs species-level statement, then caught population, then Alps.
+  wm <- names(reg$wing_morph$sources)
+  expect_equal(wm, c("chowdhury", "finand", "alpine_carabids"))
+})
+
+test_that("every carabid body-length source is registered but eberswalde", {
+  reg <- taxify:::.trait_registry()
+  bl <- names(reg$body_length$sources)
+  expect_true(all(c("chowdhury", "finand", "alpine_carabids") %in% bl))
+  # Eberswalde is a verbatim carabids.org copy; registering it would
+  # double-count the lineage chowdhury and alpine_carabids already carry.
+  expect_false("eberswalde" %in% bl)
+})

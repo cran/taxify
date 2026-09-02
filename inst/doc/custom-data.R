@@ -4,9 +4,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
-
-## -----------------------------------------------------------------------------
-# library(taxify)
+library(taxify)
 
 ## -----------------------------------------------------------------------------
 # # Our taxify result
@@ -14,9 +12,9 @@ knitr::opts_chunk$set(
 #   "Quercus robur", "Fagus sylvatica", "Picea abies",
 #   "Pinus sylvestris", "Betula pendula"
 # )
-# result <- taxify(species, backbone = "wfo")
+# result <- taxify(species, backbone = "col")
 # 
-# # External trait data — note one synonym and one subspecies
+# # External trait data: note one synonym and one subspecies
 # traits <- data.frame(
 #   taxon = c(
 #     "Quercus robur", "Fagus sylvatica", "Picea excelsa",
@@ -26,11 +24,11 @@ knitr::opts_chunk$set(
 #   max_height_m = c(35, 40, 50, 30, 25)
 # )
 # 
-# # Join — "Picea excelsa" resolves to "Picea abies" through the backbone
+# # Join: "Picea excelsa" resolves to "Picea abies" through the backbone
 # result <- result |> add_data(traits, species_col = "taxon")
 
 ## -----------------------------------------------------------------------------
-# result <- taxify(species, backbone = "wfo")
+# result <- taxify(species, backbone = "col")
 # result <- result |> add_data("path/to/leaf_traits.csv")
 
 ## -----------------------------------------------------------------------------
@@ -51,12 +49,12 @@ knitr::opts_chunk$set(
 # # Known header row (e.g., rows 1-2 are title/notes)
 # result |> add_data("bird_morphometry.xlsx", start_row = 3)
 # 
-# # All three specified — no scanning at all
+# # All three specified: no scanning at all
 # result |> add_data("bird_morphometry.xlsx", sheet = 1, start_row = 3,
 #                    species_col = "latin_name")
 
 ## -----------------------------------------------------------------------------
-# # SQLite — requires DBI and RSQLite
+# # SQLite: requires DBI and RSQLite
 # result |> add_data(
 #   "traits.sqlite",
 #   table = "plant_traits",
@@ -162,7 +160,7 @@ knitr::opts_chunk$set(
 # result |> add_data(traits, species_col = "taxon", fuzzy = FALSE)
 
 ## -----------------------------------------------------------------------------
-# result <- taxify(species, backbone = "wfo") |>
+# result <- taxify(species, backbone = "col") |>
 #   add_iucn() |>
 #   add_zanne() |>
 #   add_data(traits, species_col = "taxon")

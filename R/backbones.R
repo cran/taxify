@@ -18,24 +18,27 @@
 #' (whether the prefix-blocked fuzzy pass runs for this backbone).
 #'
 #' @return A data.frame with `name`, `scope`, `source` (homepage), `label`,
-#'   `version`, and `prefix_fallback`, in canonical display order.
+#'   `version`, `prefix_fallback`, and `fixed_kingdom`, in canonical display
+#'   order.
 #' @noRd
 .backbone_registry <- function() {
   data.frame(
     name = c(
-      "wfo", "col", "gbif", "itis", "ncbi", "ott", "worms", "euromed",
+      "wfo", "col", "colxr", "gbif", "itis", "ncbi", "ott", "worms", "euromed",
       "fungorum", "algaebase", "fishbase", "sealifebase", "reptiledb",
-      "lcvp", "wcvp"
+      "lcvp", "wcvp", "mdd", "avilist", "lpsn"
     ),
     scope = c(
-      "Vascular plants", "All kingdoms", "All kingdoms",
+      "Vascular plants", "All kingdoms", "All kingdoms", "All kingdoms",
       "US focus, freshwater/marine", "All life", "All life (synthetic)",
       "Marine/aquatic", "European/Mediterranean plants", "Fungi", "Algae",
       "Fishes", "Non-fish marine/aquatic", "Reptiles",
-      "Vascular plants", "Vascular plants"
+      "Vascular plants", "Vascular plants", "Mammals", "Birds",
+      "Prokaryotes (Bacteria/Archaea)"
     ),
     source = c(
       "https://www.worldfloraonline.org/",
+      "https://www.catalogueoflife.org/",
       "https://www.catalogueoflife.org/",
       "https://www.gbif.org/",
       "https://www.itis.gov",
@@ -49,24 +52,49 @@
       "https://www.sealifebase.org/",
       "http://www.reptile-database.org/",
       "https://github.com/idiv-biodiversity/LCVP",
-      "https://powo.science.kew.org/"
+      "https://powo.science.kew.org/",
+      "https://www.mammaldiversity.org/",
+      "https://www.avilist.org/",
+      "https://lpsn.dsmz.de"
     ),
     label = c(
-      "the WFO backbone", "the COL backbone", "the GBIF backbone",
+      "the WFO backbone", "the COL backbone",
+      "the COL Extended Release backbone", "the GBIF backbone",
       "the ITIS backbone", "the NCBI backbone", "the OTT backbone",
       "the WoRMS backbone", "the Euro+Med backbone",
       "the Species Fungorum backbone", "the AlgaeBase backbone",
       "the FishBase backbone", "the SeaLifeBase backbone",
-      "the Reptile Database backbone", "the LCVP backbone", "the WCVP backbone"
+      "the Reptile Database backbone", "the LCVP backbone", "the WCVP backbone",
+      "the Mammal Diversity Database backbone", "the AviList backbone",
+      "the LPSN backbone"
     ),
     version = c(
-      "2024-12", "2025", "current", "2025.04", "2025.04", "3.7.3", "2025.04",
+      "2024-12", "2025", "2026-07-17", "2023-08-28", "2025.04", "2025.04",
+      "3.7.3", "2025.04",
       "2026.07", "2025.04", "2025.04", "2026.06", "2026.06", "2026.06",
-      "3.0.1", "2026.06"
+      "3.0.1", "2026.06", "2.5", "2025b", "2026.07"
     ),
     prefix_fallback = c(
-      TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE,
-      FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE
+      TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE,
+      FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
+      FALSE
+    ),
+    # The kingdom a backbone's rows always belong to, for the handful of
+    # backbones whose .vtr carries no `kingdom` column of its own (single-
+    # kingdom source, so nothing to denormalize) *and* whose scope is
+    # unambiguous. Read by filter_result_by_kingdom() ahead of the genus
+    # register fallback: the register is a single cross-backbone genus index,
+    # so a genus name that is a homonym across kingdoms (not rare -- botanical
+    # and zoological nomenclature are independent codes) resolves to whichever
+    # kingdom happens to be recorded for that genus string globally, which can
+    # contradict a backbone that is scoped to one kingdom by construction.
+    # AlgaeBase and SeaLifeBase are deliberately left NA: "algae" and "non-fish
+    # marine/aquatic" each span more than one kingdom, so there is no single
+    # correct fixed value.
+    fixed_kingdom = c(
+      "plantae", NA, NA, NA, NA, NA, NA, NA, "plantae",
+      "fungi", NA, NA, NA, NA, "plantae", "plantae", NA, NA,
+      NA
     ),
     stringsAsFactors = FALSE
   )
@@ -77,6 +105,18 @@
 #' @noRd
 backbone_names <- function() {
   .backbone_registry()$name
+}
+
+
+#' The single kingdom a backbone's rows always belong to, or NA
+#'
+#' @param name Backbone name.
+#' @return A coarse kingdom-group string (e.g. `"plantae"`), or `NA` when the
+#'   backbone spans more than one kingdom or carries its own `kingdom` column.
+#' @noRd
+backbone_fixed_kingdom <- function(name) {
+  reg <- .backbone_registry()
+  reg$fixed_kingdom[match(name, reg$name)]
 }
 
 
@@ -104,9 +144,10 @@ backbone_label <- function(name) {
 
 #' Backbone priority order for the first-match fallback pick
 #'
-#' The modern multi-kingdom synthesis (COL) first, then the domain authorities
-#' (marine, vascular plants, fungi, algae, fishes, reptiles), then the broad but
-#' more conservative aggregators (GBIF, ITIS, NCBI, OTT). Override with
+#' The modern multi-kingdom syntheses (COL Extended Release, then COL) first,
+#' then the domain authorities (marine, vascular plants, fungi, algae, fishes,
+#' reptiles, mammals, birds, prokaryotes), then the broad but more conservative
+#' aggregators (GBIF, ITIS, NCBI, OTT). Override with
 #' `options(taxify.backbone_priority = c(...))`; any omitted known backbone is
 #' appended so the order stays total over the registry.
 #'
@@ -114,8 +155,9 @@ backbone_label <- function(name) {
 #' @noRd
 .backbone_priority <- function() {
   default <- c(
-    "col", "worms", "wcvp", "euromed", "lcvp", "wfo",
-    "fungorum", "algaebase", "fishbase", "sealifebase", "reptiledb",
+    "colxr", "col", "worms", "wcvp", "euromed", "lcvp", "wfo",
+    "fungorum", "algaebase", "fishbase", "sealifebase", "reptiledb", "mdd", "avilist",
+    "lpsn",
     "gbif", "itis", "ncbi", "ott"
   )
   known <- backbone_names()
@@ -133,7 +175,7 @@ backbone_label <- function(name) {
 #' Order a set of backbone names by the fallback priority
 #'
 #' @param names Character vector of backbone names.
-#' @return `names`, reordered by [.backbone_priority()]. Unknown names sort last
+#' @return `names`, reordered by `.backbone_priority()`. Unknown names sort last
 #'   in their original order.
 #' @noRd
 order_by_priority <- function(names) {
@@ -186,7 +228,7 @@ default_set_size_note <- function(set) {
 #' Resolve the default backbone when `taxify(backbone = NULL)` is called
 #'
 #' Every installed backbone, in priority order. On a fresh setup with none
-#' installed, downloads the default set ([.default_backbone_set()]) first.
+#' installed, downloads the default set (`.default_backbone_set()`) first.
 #'
 #' @param verbose Logical.
 #' @return Character vector of backbone names in priority order.
@@ -291,9 +333,16 @@ install_backbones <- function(backbones = NULL, verbose = TRUE) {
 #'
 #' @param verbose Logical. Default `TRUE`.
 #' @return A data.frame with columns: `name`, `scope`, `n_names`, `size_mb`,
-#'   `version`, `installed`, `source`. `n_names`, `size_mb`, and `version` are
-#'   `NA` for any backbone the manifest does not yet describe or when the manifest
-#'   cannot be fetched offline.
+#'   `version`, `source_date`, `installed`, `source`. `n_names`, `size_mb`, and
+#'   `version` are `NA` for any backbone the manifest does not yet describe or
+#'   when the manifest cannot be fetched offline.
+#'
+#'   `version` is the release that packaged the backbone; `source_date` is the
+#'   date of the upstream data, which can be much earlier. The GBIF backbone is
+#'   the case that matters: GBIF froze it at 2023-08-28 and has said it will not
+#'   be updated again, so a current release tag there carries a treatment three
+#'   years older than the tag suggests. `source_date` is `NA` for a backbone
+#'   whose upstream date has not been recorded.
 #'
 #' @seealso [list_enrichments()], [list_traits()], [taxify_databases()].
 #'
@@ -327,6 +376,14 @@ list_backbones <- function(verbose = TRUE) {
     version = vapply(reg$name, function(n) {
       as.character(field(n, "latest", NA_character_))
     }, character(1L)),
+    # The date of the upstream data, which is not the date of the build that
+    # packaged it: the GBIF backbone is frozen at 2023-08-28 but is packaged
+    # under a current release tag, so `version` alone reads as more recent
+    # than the treatment actually is. Absent for a backbone whose upstream
+    # date has not been recorded.
+    source_date = vapply(reg$name, function(n) {
+      as.character(field(n, "source_date", NA_character_))
+    }, character(1L)),
     installed = reg$name %in% inst,
     source    = reg$source,
     stringsAsFactors = FALSE,
@@ -347,7 +404,9 @@ list_backbones <- function(verbose = TRUE) {
 #'   backbones, enrichments, and registered traits.
 #' @return A data.frame with columns: `type` (`"backbone"` or `"enrichment"`),
 #'   `name`, `scope` (taxonomic scope for backbones; provided trait columns for
-#'   enrichments), `n_rows`, `version`, `installed`, `source`.
+#'   enrichments), `n_rows`, `version`, `source_date` (the date of the upstream
+#'   data, where recorded, which can be much earlier than the release `version`
+#'   that packaged it), `installed`, `source`.
 #'
 #' @seealso [list_backbones()], [list_enrichments()], [list_traits()].
 #'
@@ -363,12 +422,14 @@ taxify_databases <- function(verbose = TRUE) {
 
   bb2 <- data.frame(
     type = "backbone", name = bb$name, scope = bb$scope,
-    n_rows = bb$n_names, version = bb$version, installed = bb$installed,
+    n_rows = bb$n_names, version = bb$version,
+    source_date = bb$source_date, installed = bb$installed,
     source = bb$source, stringsAsFactors = FALSE
   )
   en2 <- data.frame(
     type = "enrichment", name = en$name, scope = en$trait_cols,
-    n_rows = en$nrow, version = en$version, installed = NA,
+    n_rows = en$nrow, version = en$version,
+    source_date = NA_character_, installed = NA,
     source = en$source_url, stringsAsFactors = FALSE
   )
   out <- rbind(bb2, en2)

@@ -353,7 +353,6 @@ concrete timing guidance for different list sizes, and walks through
 four worked examples: exact vs. fuzzy matching, multi-backbone fallback
 ordering, batch processing of very large lists, and pre-downloading
 resources before a batch run.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
 <div id="how-taxify-scales" class="section level2">
 <h2>How taxify scales</h2>
 <div id="the-.vtr-columnar-format" class="section level3">
@@ -365,8 +364,8 @@ lightweight compression. taxify never parses text at query time. There
 is no <code>read.csv()</code> step, no string splitting, no quote
 escaping. The backbone is already in a query-ready binary layout.</p>
 <p>Backbones are distributed as pre-built <code>.vtr</code> files
-(hosted on Zenodo and GitHub Releases), so users download a single
-binary file that is ready to query immediately — no CSV parsing, no
+(published as GitHub Releases on taxifydb), so users download a single
+binary file that is ready to query immediately, with no CSV parsing or
 conversion step. The <code>.vtr</code> files are typically 30-50%
 smaller than the original Darwin Core CSV because the columnar layout
 compresses string columns more efficiently than row-oriented text.</p>
@@ -435,7 +434,7 @@ and fuzzy matching is the knob that controls how long a run takes.</p>
 several things happen behind the scenes. The function resolves the
 backbone path through a four-step fallback: session cache, versioned
 directory on disk, legacy flat directory, and finally auto-download from
-Zenodo if no local copy exists. Once the path is known, vectra
+the manifest if no local copy exists. Once the path is known, vectra
 materializes the <code>.vtr</code> into an in-memory columnar block and
 builds hash indexes on the name and genus columns. This initialization
 step took about 5 seconds for WFO (1.6 million rows) in the repository’s
@@ -460,8 +459,8 @@ downloaded automatically. This check runs once per backbone per session.
 Subsequent calls skip it entirely. If the network is unavailable, the
 check is skipped and the local copy is used as-is.</p>
 <p>To see where backbones live on disk:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">taxify_data_dir</span>()</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;C:/Users/jane/AppData/Local/R/taxify&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">taxify_data_dir</span>()</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;C:/Users/jane/AppData/Local/R/taxify&quot;</span></span></code></pre></div>
 <p>On Linux this is typically <code>~/.local/share/R/taxify</code>, on
 macOS <code>~/Library/Application Support/R/taxify</code>. The path is
 determined by <code>tools::R_user_dir(&quot;taxify&quot;, &quot;data&quot;)</code> and is
@@ -480,20 +479,20 @@ entirely.</p>
 <p>Consider a list of 10,000 plant names extracted from an herbarium
 database where names are already in standard binomial form. We time both
 modes:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Assume `species_list` is a character vector of 10,000 plant names</span></span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co"># Exact + fuzzy (default)</span></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>t_fuzzy <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  result_fuzzy <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>)</span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co"># Exact only</span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>t_exact <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  result_exact <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>)</span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>t_fuzzy[<span class="st">&quot;elapsed&quot;</span>]</span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>t_exact[<span class="st">&quot;elapsed&quot;</span>]</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Assume `species_list` is a character vector of 10,000 plant names</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Exact + fuzzy (default)</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>t_fuzzy <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  result_fuzzy <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co"># Exact only</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>t_exact <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  result_exact <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>t_fuzzy[<span class="st">&quot;elapsed&quot;</span>]</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>t_exact[<span class="st">&quot;elapsed&quot;</span>]</span></code></pre></div>
 <p>The timings depend on your list and your machine, so run the pair on
 your own data rather than trusting a figure from here;
 <code>scripts/benchmark-worldflora.R</code> in the taxify repository is
@@ -515,24 +514,24 @@ essential.</p>
 <p>A practical two-pass pattern for large lists: run exact-only first,
 inspect the unmatched names, and decide whether the fuzzy pass is worth
 the time.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Pass 1: exact only</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># How many names remain unmatched?</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>n_unmatched <span class="ot">&lt;-</span> <span class="fu">sum</span>(result<span class="sc">$</span>match_type <span class="sc">==</span> <span class="st">&quot;none&quot;</span>)</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="fu">message</span>(n_unmatched, <span class="st">&quot; names unmatched after exact pass&quot;</span>)</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co"># Pass 2: fuzzy only on the unmatched subset</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="cf">if</span> (n_unmatched <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  unmatched_names <span class="ot">&lt;-</span> result<span class="sc">$</span>input_name[result<span class="sc">$</span>match_type <span class="sc">==</span> <span class="st">&quot;none&quot;</span>]</span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  fuzzy_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(unmatched_names, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  <span class="co"># Merge back</span></span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  matched_rows <span class="ot">&lt;-</span> fuzzy_result<span class="sc">$</span>match_type <span class="sc">!=</span> <span class="st">&quot;none&quot;</span></span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  idx <span class="ot">&lt;-</span> <span class="fu">match</span>(fuzzy_result<span class="sc">$</span>input_name[matched_rows],</span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>               result<span class="sc">$</span>input_name)</span>
-<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>  result[idx, ] <span class="ot">&lt;-</span> fuzzy_result[matched_rows, ]</span>
-<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Pass 1: exact only</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># How many names remain unmatched?</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>n_unmatched <span class="ot">&lt;-</span> <span class="fu">sum</span>(result<span class="sc">$</span>match_type <span class="sc">==</span> <span class="st">&quot;none&quot;</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">message</span>(n_unmatched, <span class="st">&quot; names unmatched after exact pass&quot;</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co"># Pass 2: fuzzy only on the unmatched subset</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="cf">if</span> (n_unmatched <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  unmatched_names <span class="ot">&lt;-</span> result<span class="sc">$</span>input_name[result<span class="sc">$</span>match_type <span class="sc">==</span> <span class="st">&quot;none&quot;</span>]</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  fuzzy_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(unmatched_names, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>  <span class="co"># Merge back</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>  matched_rows <span class="ot">&lt;-</span> fuzzy_result<span class="sc">$</span>match_type <span class="sc">!=</span> <span class="st">&quot;none&quot;</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>  idx <span class="ot">&lt;-</span> <span class="fu">match</span>(fuzzy_result<span class="sc">$</span>input_name[matched_rows],</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>               result<span class="sc">$</span>input_name)</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>  result[idx, ] <span class="ot">&lt;-</span> fuzzy_result[matched_rows, ]</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>}</span></code></pre></div>
 <p>This pattern is especially useful when only 1-5% of names need fuzzy
 matching. The exact pass finishes in seconds even for 100,000 names, and
 the fuzzy pass operates on a much smaller subset. The total wall time is
@@ -559,21 +558,21 @@ invertebrates. WFO covers the plants, COL covers everything but is
 larger and slower to search. Putting WFO first means the plant names
 (the majority) are resolved quickly, and only the animal names fall
 through to COL.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># 8,000 names: ~6,000 plants, ~1,500 fish, ~500 invertebrates</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>t_wfo_first <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  result_a <span class="ot">&lt;-</span> <span class="fu">taxify</span>(survey_names,</span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>                     <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>),</span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>                     <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>)</span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>t_wfo_first[<span class="st">&quot;elapsed&quot;</span>]</span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co"># Reversed order: COL first, WFO second</span></span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>t_col_first <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  result_b <span class="ot">&lt;-</span> <span class="fu">taxify</span>(survey_names,</span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>                     <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;wfo&quot;</span>),</span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>                     <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>)</span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>t_col_first[<span class="st">&quot;elapsed&quot;</span>]</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># 8,000 names: ~6,000 plants, ~1,500 fish, ~500 invertebrates</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>t_wfo_first <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  result_a <span class="ot">&lt;-</span> <span class="fu">taxify</span>(survey_names,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>                     <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>                     <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>t_wfo_first[<span class="st">&quot;elapsed&quot;</span>]</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co"># Reversed order: COL first, WFO second</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>t_col_first <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  result_b <span class="ot">&lt;-</span> <span class="fu">taxify</span>(survey_names,</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>                     <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;wfo&quot;</span>),</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>                     <span class="at">fuzzy =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>)</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>t_col_first[<span class="st">&quot;elapsed&quot;</span>]</span></code></pre></div>
 <p>Name resolution is identical either way – both orders resolve the
 same names to the same accepted names – but WFO first is faster, because
 WFO’s smaller backbone (1.6 million rows) resolves most of the list
@@ -600,7 +599,7 @@ the most complete plant synonym coverage and a compact backbone.</li>
 kingdom first. For a list that is 80% plants and 20% animals,
 <code>c(&quot;wfo&quot;, &quot;col&quot;)</code> is faster than
 <code>c(&quot;col&quot;, &quot;wfo&quot;)</code>.</li>
-<li>Maximizing coverage: <code>c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;)</code> casts the
+<li>Maximizing coverage: <code>c(&quot;col&quot;, &quot;gbif&quot;, &quot;wfo&quot;)</code> casts the
 widest net but involves three backbone loads. For lists under 10,000
 names the extra loading time is negligible. For 100,000+ names, the
 extra fuzzy passes add up.</li>
@@ -625,105 +624,131 @@ depend on the backbone version.</p>
 <tr class="odd">
 <td>WFO</td>
 <td>1.6M</td>
-<td>797 MB</td>
-<td>2026.06</td>
+<td>761 MB</td>
+<td>2026.08</td>
 </tr>
 <tr class="even">
 <td>COL</td>
 <td>5.3M</td>
 <td>2.0 GB</td>
-<td>2026.06</td>
+<td>2026.08</td>
 </tr>
 <tr class="odd">
+<td>COL Extended Release</td>
+<td>7.9M</td>
+<td>1.6 GB</td>
+<td>2026.08</td>
+</tr>
+<tr class="even">
 <td>GBIF</td>
 <td>6.4M</td>
-<td>1.9 GB</td>
-<td>2026.06</td>
-</tr>
-<tr class="even">
-<td>ITIS</td>
-<td>992k</td>
-<td>205 MB</td>
-<td>2026.06</td>
+<td>1.6 GB</td>
+<td>2026.08</td>
 </tr>
 <tr class="odd">
+<td>ITIS</td>
+<td>993k</td>
+<td>205 MB</td>
+<td>2026.08</td>
+</tr>
+<tr class="even">
 <td>NCBI</td>
 <td>2.8M</td>
-<td>514 MB</td>
-<td>2026.06</td>
-</tr>
-<tr class="even">
-<td>OTT</td>
-<td>3.7M</td>
-<td>727 MB</td>
-<td>3.7.3</td>
+<td>531 MB</td>
+<td>2026.08</td>
 </tr>
 <tr class="odd">
-<td>WoRMS</td>
-<td>1.6M</td>
-<td>347 MB</td>
-<td>2026.07</td>
+<td>OTT</td>
+<td>3.7M</td>
+<td>763 MB</td>
+<td>2026.08</td>
 </tr>
 <tr class="even">
+<td>WoRMS</td>
+<td>1.6M</td>
+<td>312 MB</td>
+<td>2026.08</td>
+</tr>
+<tr class="odd">
 <td>Euro+Med</td>
 <td>147k</td>
 <td>35 MB</td>
-<td>2026.07</td>
+<td>2026.08</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Species Fungorum</td>
 <td>315k</td>
 <td>71 MB</td>
-<td>2026.06</td>
+<td>2026.08</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>AlgaeBase</td>
 <td>172k</td>
 <td>36 MB</td>
-<td>2026.06</td>
+<td>2026.08</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>FishBase</td>
 <td>103k</td>
 <td>19 MB</td>
-<td>2026.06</td>
+<td>2026.08</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>SeaLifeBase</td>
 <td>134k</td>
 <td>29 MB</td>
-<td>2026.06</td>
+<td>2026.08</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Reptile Database</td>
 <td>50k</td>
 <td>10 MB</td>
 <td>2026.07</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>LCVP</td>
 <td>1.3M</td>
 <td>252 MB</td>
-<td>3.0.1</td>
-</tr>
-<tr class="odd">
-<td>WCVP</td>
-<td>1.4M</td>
-<td>334 MB</td>
-<td>2026.06</td>
+<td>2026.08</td>
 </tr>
 <tr class="even">
-<td><strong>All 15</strong></td>
-<td><strong>26.1M</strong></td>
-<td><strong>7.2 GB</strong></td>
+<td>WCVP</td>
+<td>1.4M</td>
+<td>309 MB</td>
+<td>2026.08</td>
+</tr>
+<tr class="odd">
+<td>Mammal Diversity Database</td>
+<td>62k</td>
+<td>11 MB</td>
+<td>2026.08</td>
+</tr>
+<tr class="even">
+<td>AviList</td>
+<td>41k</td>
+<td>8 MB</td>
+<td>2026.08</td>
+</tr>
+<tr class="odd">
+<td>LPSN</td>
+<td>45k</td>
+<td>12 MB</td>
+<td>2026.08</td>
+</tr>
+<tr class="even">
+<td><strong>All 19</strong></td>
+<td><strong>34.2M</strong></td>
+<td><strong>8.5 GB</strong></td>
 <td></td>
 </tr>
 </tbody>
 </table>
 <!-- /manifest:backbone-sizes -->
-<p>A full installation of all fifteen backbones occupies several GB.
-Most workflows need only one or two. The WFO backbone alone covers the
-vast majority of plant taxonomy use cases in under a gigabyte.</p>
+<p>A full installation of all
+<!-- manifest:backbone-count -->19<!-- /manifest:backbone-count -->
+backbones occupies several GB. Most workflows need only one or two. The
+WFO backbone alone covers the vast majority of plant taxonomy use cases
+in under a gigabyte.</p>
 <p>The download sizes are comparable to the on-disk sizes since the
 <code>.vtr</code> format is already compressed. No additional
 decompression step runs after download. The file that arrives on disk is
@@ -731,7 +756,7 @@ the file that vectra reads at query time.</p>
 <p>Enrichment files are much smaller. The largest enrichment is WCVP
 (native range data, ~2 million rows) at roughly 30-40 MB. Most
 enrichments are under 5 MB. A full set of
-<!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count -->
+<!-- manifest:enrichment-count -->108<!-- /manifest:enrichment-count -->
 enrichments adds a few hundred MB to disk usage.</p>
 </div>
 <div id="memory-footprint" class="section level2">
@@ -814,16 +839,16 @@ is saved, release the backbone before running downstream models.</li>
 <li>Enrich inside the matching loop (the chunk-and-write pattern below)
 rather than accumulating the full result and enriching afterwards.</li>
 </ol>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Match names</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;gbif&quot;</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co"># Save result</span></span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="fu">saveRDS</span>(result, <span class="st">&quot;matched_names.rds&quot;</span>)</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># Free the backbone from memory</span></span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a></span>
-<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="fu">gc</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Match names</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;gbif&quot;</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co"># Save result</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="fu">saveRDS</span>(result, <span class="st">&quot;matched_names.rds&quot;</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co"># Free the backbone from memory</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="fu">gc</span>()</span></code></pre></div>
 </div>
 <div id="worked-example-batch-processing-a-very-large-list" class="section level2">
 <h2>Worked example: batch processing a very large list</h2>
@@ -843,25 +868,25 @@ many comparisons can spike memory by several hundred MB. Second, if the
 R process is interrupted mid-run (Ctrl+C, OOM kill, session timeout),
 the entire result is lost. Chunking at 50,000-100,000 names keeps peak
 memory predictable and provides natural restart points.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># 300,000 names from a herbarium digitization project</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>all_names <span class="ot">&lt;-</span> <span class="fu">readLines</span>(<span class="st">&quot;herbarium_names.txt&quot;</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>chunk_size <span class="ot">&lt;-</span> <span class="dv">50000</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a></span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co"># Split into chunks</span></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>chunks <span class="ot">&lt;-</span> <span class="fu">split</span>(all_names,</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>                <span class="fu">ceiling</span>(<span class="fu">seq_along</span>(all_names) <span class="sc">/</span> chunk_size))</span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a></span>
-<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co"># Process each chunk</span></span>
-<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">seq_along</span>(chunks), <span class="cf">function</span>(i) {</span>
-<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Chunk %d/%d (%d names)...&quot;</span>,</span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>                  i, <span class="fu">length</span>(chunks), <span class="fu">length</span>(chunks[[i]])))</span>
-<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>  <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>})</span>
-<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a></span>
-<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co"># Combine</span></span>
-<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, results)</span>
-<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="fu">nrow</span>(result)</span>
-<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a><span class="co">#&gt; [1] 300000</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># 300,000 names from a herbarium digitization project</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>all_names <span class="ot">&lt;-</span> <span class="fu">readLines</span>(<span class="st">&quot;herbarium_names.txt&quot;</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>chunk_size <span class="ot">&lt;-</span> <span class="dv">50000</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># Split into chunks</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>chunks <span class="ot">&lt;-</span> <span class="fu">split</span>(all_names,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>                <span class="fu">ceiling</span>(<span class="fu">seq_along</span>(all_names) <span class="sc">/</span> chunk_size))</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co"># Process each chunk</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">seq_along</span>(chunks), <span class="cf">function</span>(i) {</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Chunk %d/%d (%d names)...&quot;</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>                  i, <span class="fu">length</span>(chunks), <span class="fu">length</span>(chunks[[i]])))</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>  <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>, <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>})</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co"># Combine</span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, results)</span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="fu">nrow</span>(result)</span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co">#&gt; [1] 300000</span></span></code></pre></div>
 <p>The backbone stays in memory across chunks (the session cache is not
 cleared between calls), so each chunk after the first skips the
 initialization overhead. Only the fuzzy-join working set is allocated
@@ -869,34 +894,34 @@ and freed per chunk.</p>
 <p>For lists in the millions (e.g., processing all occurrence records
 from a GBIF download), consider writing results to disk after each chunk
 rather than accumulating in memory:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>output_dir <span class="ot">&lt;-</span> <span class="st">&quot;results&quot;</span></span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">dir.create</span>(output_dir, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Chunk %d/%d&quot;</span>, i, <span class="fu">length</span>(chunks)))</span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, <span class="fu">file.path</span>(output_dir,</span>
-<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>                         <span class="fu">sprintf</span>(<span class="st">&quot;chunk_%04d.rds&quot;</span>, i)))</span>
-<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>}</span>
-<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co"># Combine when needed</span></span>
-<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>all_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(output_dir, <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.rds$&quot;</span>,</span>
-<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>                        <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(all_files, readRDS))</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>output_dir <span class="ot">&lt;-</span> <span class="st">&quot;results&quot;</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">dir.create</span>(output_dir, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Chunk %d/%d&quot;</span>, i, <span class="fu">length</span>(chunks)))</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, <span class="fu">file.path</span>(output_dir,</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>                         <span class="fu">sprintf</span>(<span class="st">&quot;chunk_%04d.rds&quot;</span>, i)))</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>}</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co"># Combine when needed</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>all_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(output_dir, <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.rds$&quot;</span>,</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>                        <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(all_files, readRDS))</span></code></pre></div>
 <p>This pattern keeps R’s memory usage bounded by a single chunk
 regardless of total list size. It also makes the workflow resumable: if
 the process dies at chunk 47 of 60, we can check which <code>.rds</code>
 files exist and restart from chunk 48. Adding a simple skip condition
 handles this:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>  out_file <span class="ot">&lt;-</span> <span class="fu">file.path</span>(output_dir, <span class="fu">sprintf</span>(<span class="st">&quot;chunk_%04d.rds&quot;</span>, i))</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">file.exists</span>(out_file)) <span class="cf">next</span></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Chunk %d/%d&quot;</span>, i, <span class="fu">length</span>(chunks)))</span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, out_file)</span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  out_file <span class="ot">&lt;-</span> <span class="fu">file.path</span>(output_dir, <span class="fu">sprintf</span>(<span class="st">&quot;chunk_%04d.rds&quot;</span>, i))</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">file.exists</span>(out_file)) <span class="cf">next</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Chunk %d/%d&quot;</span>, i, <span class="fu">length</span>(chunks)))</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, out_file)</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>}</span></code></pre></div>
 <p>One detail worth noting: the chunk boundaries are arbitrary and do
 not affect matching quality. Each chunk is matched independently against
 the backbone. A name that appears in chunk 3 gets the same result as if
@@ -916,9 +941,9 @@ session ends or the user explicitly clears them.</p>
 from memory. The next <code>taxify()</code> call will re-read from disk
 and re-materialize. This is useful after a large matching run when the
 backbone is no longer needed and the memory can be reclaimed.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># After finishing all matching work</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">gc</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># After finishing all matching work</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">gc</span>()</span></code></pre></div>
 <p>Clearing the cache does not delete any files from disk. The
 <code>.vtr</code> files remain in <code>taxify_data_dir()</code> and
 will be reloaded on the next use. The cost of reloading is the same 1-10
@@ -937,7 +962,7 @@ session (e.g., an RStudio session that stays open for days), calling
 are working against the latest backbone version. If a new backbone
 release was published since the session started, the version check will
 detect it and trigger an automatic download.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">taxify_refresh_manifest</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">taxify_refresh_manifest</span>()</span></code></pre></div>
 </div>
 <div id="disk-storage-and-sharing-across-projects" class="section level2">
 <h2>Disk storage and sharing across projects</h2>
@@ -975,21 +1000,21 @@ user can download them and the others can set the
 <code>.vtr</code> files are read-only at query time, so concurrent
 access from multiple R sessions is safe. No file locking is needed.</p>
 <p>To check how much disk space taxify is currently using:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Total size of all backbones and enrichments</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>data_dir <span class="ot">&lt;-</span> <span class="fu">taxify_data_dir</span>()</span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(data_dir, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>total_mb <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">file.size</span>(files), <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="dv">1048576</span></span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;taxify data: %.0f MB across %d files&quot;</span>,</span>
-<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>                total_mb, <span class="fu">length</span>(files)))</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Total size of all backbones and enrichments</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>data_dir <span class="ot">&lt;-</span> <span class="fu">taxify_data_dir</span>()</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(data_dir, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>total_mb <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">file.size</span>(files), <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="dv">1048576</span></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;taxify data: %.0f MB across %d files&quot;</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>                total_mb, <span class="fu">length</span>(files)))</span></code></pre></div>
 <p>To remove a specific backbone (e.g., GBIF after finishing a project
 that needed it), delete its directory:</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="co"># Remove GBIF backbone (frees ~500-700 MB)</span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">unlink</span>(<span class="fu">file.path</span>(<span class="fu">taxify_data_dir</span>(), <span class="st">&quot;gbif&quot;</span>), <span class="at">recursive =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co"># Clear the session cache so taxify() doesn&#39;t try to use the old path</span></span>
-<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Remove GBIF backbone (frees ~500-700 MB)</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">unlink</span>(<span class="fu">file.path</span>(<span class="fu">taxify_data_dir</span>(), <span class="st">&quot;gbif&quot;</span>), <span class="at">recursive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co"># Clear the session cache so taxify() doesn&#39;t try to use the old path</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="fu">taxify_clear_cache</span>()</span></code></pre></div>
 <p>Deleting a backbone directory is safe. The next <code>taxify()</code>
-call for that backbone will re-download it from Zenodo if needed.</p>
+call for that backbone will re-download it if needed.</p>
 </div>
 <div id="worked-example-pre-downloading-resources" class="section level2">
 <h2>Worked example: pre-downloading resources</h2>
@@ -1001,24 +1026,24 @@ that before a 2-hour matching run starts.</p>
 <code>.vtr</code> files. <code>taxify_download_enrichment()</code> does
 the same for enrichment layers. Both are idempotent: if the file already
 exists and the version is current, they return immediately.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co"># Pre-download everything needed for a multi-kingdom analysis</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="co"># with conservation status and trait enrichments</span></span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a></span>
-<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co"># Backbones</span></span>
-<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="fu">taxify_download</span>(<span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
-<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a></span>
-<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co"># Enrichments</span></span>
-<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a><span class="fu">taxify_download_enrichment</span>(<span class="fu">c</span>(</span>
-<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a>  <span class="st">&quot;iucn&quot;</span>,</span>
-<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a>  <span class="st">&quot;zanne&quot;</span>,</span>
-<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a>  <span class="st">&quot;eive&quot;</span>,</span>
-<span id="cb15-12"><a href="#cb15-12" tabindex="-1"></a>  <span class="st">&quot;elton_traits&quot;</span></span>
-<span id="cb15-13"><a href="#cb15-13" tabindex="-1"></a>))</span>
-<span id="cb15-14"><a href="#cb15-14" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" tabindex="-1"></a><span class="co"># Now the analysis can run fully offline</span></span>
-<span id="cb15-16"><a href="#cb15-16" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
-<span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_iucn</span>(result)</span>
-<span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_zanne</span>(result)</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="co"># Pre-download everything needed for a multi-kingdom analysis</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="co"># with conservation status and trait enrichments</span></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co"># Backbones</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="fu">taxify_download</span>(<span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;wfo&quot;</span>))</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co"># Enrichments</span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="fu">taxify_download_enrichment</span>(<span class="fu">c</span>(</span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>  <span class="st">&quot;iucn&quot;</span>,</span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>  <span class="st">&quot;zanne&quot;</span>,</span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a>  <span class="st">&quot;eive&quot;</span>,</span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a>  <span class="st">&quot;elton_traits&quot;</span></span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a>))</span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a></span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a><span class="co"># Now the analysis can run fully offline</span></span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;wfo&quot;</span>))</span>
+<span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_iucn</span>(result)</span>
+<span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">add_zanne</span>(result)</span></code></pre></div>
 <p>In a CI/CD or cluster environment, the download step can run in a
 setup script or container build phase. The matching step then operates
 entirely from local disk, with no network dependency and no risk of
@@ -1034,15 +1059,15 @@ though in practice the path is resolved internally by
 explicitly.</p>
 <p>To see which enrichments are available and their current
 versions:</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">list_enrichments</span>()</span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="co">#&gt;                name version    nrow static</span></span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co">#&gt; 1 iucn 2026.04   59583  FALSE</span></span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co">#&gt; 2               griis 2026.04   98131  FALSE</span></span>
-<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a><span class="co">#&gt; 3                wcvp 2026.04 1973234  FALSE</span></span>
-<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a><span class="co">#&gt; 4                eive     1.0   14835   TRUE</span></span>
-<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="co">#&gt; 5        elton_traits     1.0   15394   TRUE</span></span>
-<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a><span class="co">#&gt; 6              avonet     1.0   11009   TRUE</span></span>
-<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a><span class="co">#&gt; ...</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">list_enrichments</span>()</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="co">#&gt;                name version    nrow static</span></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="co">#&gt; 1 iucn 2026.04   59583  FALSE</span></span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co">#&gt; 2               griis 2026.04   98131  FALSE</span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="co">#&gt; 3                wcvp 2026.04 1973234  FALSE</span></span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="co">#&gt; 4                eive     1.0   14835   TRUE</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co">#&gt; 5        elton_traits     1.0   15394   TRUE</span></span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a><span class="co">#&gt; 6              avonet     1.0   11009   TRUE</span></span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a><span class="co">#&gt; ...</span></span></code></pre></div>
 <p>Static enrichments (those based on published, version-locked datasets
 like EltonTraits 1.0 or PanTHERIA 1.0) are never re-downloaded after the
 initial fetch. Non-static enrichments (iucn, griis, wcvp, common_names)
@@ -1087,14 +1112,14 @@ total memory is a concern. Clear the cache between analysis phases
 bounded. If enriching with multiple layers, apply all enrichments to
 each chunk before writing rather than accumulating the full result in
 memory and enriching after.</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># Pattern for 500,000+ names with enrichments</span></span>
-<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
-<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
-<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_iucn</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_zanne</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, <span class="fu">sprintf</span>(<span class="st">&quot;results/chunk_%04d.rds&quot;</span>, i))</span>
-<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="co"># Pattern for 500,000+ names with enrichments</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(chunks)) {</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(chunks[[i]], <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>                <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_iucn</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a>  res <span class="ot">&lt;-</span> <span class="fu">add_zanne</span>(res, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a>  <span class="fu">saveRDS</span>(res, <span class="fu">sprintf</span>(<span class="st">&quot;results/chunk_%04d.rds&quot;</span>, i))</span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>}</span></code></pre></div>
 <p><strong>Backend selection cheat sheet:</strong></p>
 <table>
 <thead>
@@ -1126,7 +1151,7 @@ memory and enriching after.</p>
 </tr>
 <tr class="even">
 <td>All kingdoms, maximum coverage</td>
-<td><code>c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;)</code></td>
+<td><code>c(&quot;col&quot;, &quot;gbif&quot;, &quot;wfo&quot;)</code></td>
 </tr>
 <tr class="odd">
 <td>Molecular/genomic taxa</td>
@@ -1169,13 +1194,13 @@ regardless of name length. This is useful for long infraspecific names
 where a normalized threshold of 0.2 might allow too many edits. Integer
 thresholds are not supported with the Jaro-Winkler method
 (<code>fuzzy_method = &quot;jw&quot;</code>).</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="co"># Tight threshold for clean input</span></span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(clean_names, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>                 <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">fuzzy_threshold =</span> <span class="fl">0.1</span>)</span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a></span>
-<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="co"># Integer threshold: at most 2 edits, period</span></span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(noisy_names, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>,</span>
-<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>                 <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">fuzzy_threshold =</span> <span class="dv">2</span><span class="dt">L</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># Tight threshold for clean input</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(clean_names, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>,</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>                 <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">fuzzy_threshold =</span> <span class="fl">0.1</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a><span class="co"># Integer threshold: at most 2 edits, period</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(noisy_names, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>                 <span class="at">fuzzy =</span> <span class="cn">TRUE</span>, <span class="at">fuzzy_threshold =</span> <span class="dv">2</span><span class="dt">L</span>)</span></code></pre></div>
 </div>
 <div id="summary-of-performance-relevant-functions" class="section level2">
 <h2>Summary of performance-relevant functions</h2>
@@ -1196,7 +1221,7 @@ thresholds are not supported with the Jaro-Winkler method
 <td>Skip fuzzy matching for clean input</td>
 </tr>
 <tr class="even">
-<td><code>taxify(..., backbone = c(&quot;wfo&quot;, &quot;col&quot;))</code></td>
+<td><code>taxify(..., backbone = c(&quot;col&quot;, &quot;wfo&quot;))</code></td>
 <td>Multi-backbone fallback chain</td>
 </tr>
 <tr class="odd">

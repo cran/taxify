@@ -49,12 +49,13 @@ default), \code{"levenshtein"}, or \code{"jw"} (Jaro-Winkler).}
 \code{agg.} / \code{s.l.} qualifier). \code{"preserve"} (default) keeps the aggregate as
 its own concept: it matches the backbone's aggregate taxon
 (\code{"<binomial> aggr."}) where one exists, otherwise falls back to the
-binomial. When it falls back, the \code{aggregate_fallback} column is set \code{TRUE}
-so the aggregate-to-species collapse is visible rather than silent (only
-the aggregate-bearing backbones -- Euro+Med, WoRMS -- carry aggregate taxa,
-so preserve falls back for the others). \code{"collapse"} strips the marker and
-matches the binomial species, the way any non-aggregate name is matched.
-Either way the qualifier is recorded in the \code{qualifier} column.}
+binomial. The output's \code{aggregate_fallback} column records which happened
+for each aggregate: \code{TRUE} where it fell back to the binomial, \code{FALSE}
+where it resolved to the dedicated aggregate taxon. Only Euro+Med and WoRMS
+carry aggregate taxa, so preserve falls back for the other backbones.
+\code{"collapse"} strips the marker and matches the binomial species, the way
+any non-aggregate name is matched. Either way the qualifier is recorded in
+the \code{qualifier} column.}
 
 \item{region}{Region(s) to constrain fuzzy matching to, or \code{NULL} (default)
 for no geographic constraint. Botanical (WCVP, vascular plants): TDWG Level
@@ -157,10 +158,13 @@ accepted name's full citation.}
 \item{hybrid_type}{\code{"nothogenus"} (\code{"x Cupressocyparis leylandii"}),
 \code{"nothospecies"} (\code{"Quercus x hispanica"}), \code{"formula"}
 (\code{"Salix alba x Salix fragilis"}), or \code{NA} for a non-hybrid. Nothogenus
-and nothospecies resolve to a single backbone taxon in the usual columns;
-a formula does not (its match columns are \code{NA} and \code{match_type} is
-\code{"hybrid_formula"}). The parent binomials of a formula, and their accepted
-names, are added on demand by \code{\link[=add_hybrid_info]{add_hybrid_info()}}.}
+and nothospecies resolve to a single backbone taxon in the usual columns.
+A formula resolves that way only where the backbone stores the cross;
+otherwise \code{match_type} is \code{"hybrid_formula"}, the ID, rank and
+classification columns are \code{NA}, and \code{matched_name} / \code{accepted_name}
+name the cross by its parents when both parents resolve. The parent
+binomials, and their accepted names, are added on demand by
+\code{\link[=add_hybrid_info]{add_hybrid_info()}}.}
 \item{qualifier}{Canonical taxonomic qualifier found in the input name
 (\code{"cf."}, \code{"aff."}, \code{"agg."}, \code{"s.l."}, \code{"s.str."}, \code{"sp."}, ...), or
 \code{NA}. Spelling variants are folded to one token (\code{"aggr."}, \code{"agg"} and
@@ -176,15 +180,19 @@ back to the nominal binomial. \code{NA} for non-aggregate queries and under
 \code{aggregates = "collapse"}, where the collapse is explicit.}
 \item{match_type}{One of \code{"exact"}, \code{"exact_ci"}, \code{"fuzzy"}, \code{"abbrev"}
 (an abbreviated genus such as \code{"Q. robur"} resolved via genus initial
-plus epithet), \code{"hybrid_formula"} (a two-parent cross; the row's
-backbone-match columns are \code{NA} and the parents are resolved into the
-\verb{hybrid_parent_*} columns instead), or \code{"none"}.}
+plus epithet), \code{"hybrid_formula"} (a two-parent cross the backbone does
+not store; the ID, rank and classification columns are \code{NA},
+\code{matched_name} / \code{accepted_name} name the cross by its parents when both
+resolve, and \code{\link[=add_hybrid_info]{add_hybrid_info()}} materializes the parents into the
+\verb{hybrid_parent_*} columns), or \code{"none"}.}
 \item{fuzzy_dist}{Normalized string distance (0--1), \code{NA} if exact.}
 \item{is_ambiguous}{Logical. \code{TRUE} when the matched scientificName had
-multiple synonym rows pointing to different accepted taxa at the same
-priority tier (homonym ambiguity). Disambiguated via
-\code{nomenclaturalStatus = "Valid"} when that column is in the backbone;
-for irreducible ambiguity, the scalar columns hold one candidate.}
+multiple rows pointing to different accepted taxa at the same priority
+tier (homonym ambiguity). An authorship carried by the input resolves it
+where it picks out one target; \code{nomenclaturalStatus = "Valid"} orders
+which candidate the scalar columns hold, but does not clear the flag,
+because a valid name and an illegitimate one can be synonyms of different
+species. Expand the alternatives with \code{\link[=taxify_candidates]{taxify_candidates()}}.}
 \item{ambiguous_targets}{Character. \code{|}-joined list of conflicting
 accepted taxon IDs when \code{is_ambiguous = TRUE}; \code{NA} otherwise.}
 \item{backbone}{Which backbone was used (e.g., \code{"wfo"}, \code{"col"},
@@ -208,13 +216,18 @@ match quality information.
 }
 \details{
 By default \code{taxify()} matches against \strong{every installed backbone}, tried in
-priority order as a fallback chain: a name is resolved by the first backbone
-(COL, then the domain authorities, then the broad aggregators) that matches
-it, and names matched earlier are not re-matched later. On a fresh setup with
-nothing installed yet, the first call downloads a default set (COL, GBIF,
-ITIS) once; pre-install a different set with \code{\link[=install_backbones]{install_backbones()}}. Name a
-backbone (or several) explicitly to match only against that one, or those in
-that order.
+priority order as a fallback chain (the COL syntheses, then the domain
+authorities, then the broad aggregators). The chain is staged by match
+quality: every backbone
+is asked for an exact match first, and only the names still unresolved go
+round again for a fuzzy one. A name is therefore resolved by the
+highest-priority backbone that matches it \emph{at the best quality any backbone
+reaches}, so a near neighbour in an early backbone does not settle a name a
+later backbone holds exactly. Names matched earlier are not re-matched later.
+On a fresh setup with nothing installed yet, the first call downloads a
+default set (COL, GBIF, ITIS) once; pre-install a different set with
+\code{\link[=install_backbones]{install_backbones()}}. Name a backbone (or several) explicitly to match only
+against that one, or those in that order.
 }
 \section{Backbone-specific accepted names}{
 
@@ -224,7 +237,8 @@ matched backbone's own current treatment; it does not reconcile backbones
 against each other by voting (a consensus would regress toward the most
 conservative treatment across backbones that copy one another). With the
 default multi-backbone fallback, \code{accepted_name} is the pick of the
-highest-priority backbone that matched. To see where backbones disagree, pass
+highest-priority backbone that matched at the best quality reached. To see
+where backbones disagree, pass
 \code{mode = "wide"} (or \code{"agreement"}) for each backbone's \code{accepted_name} side by
 side; to follow one authority, name a single \code{backbone}.
 

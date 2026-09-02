@@ -1,5 +1,6 @@
 ## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(eval = FALSE)
+library(taxify)
 
 ## ----integer-threshold--------------------------------------------------------
 # # Allow exactly 1 edit, regardless of name length

@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 ```
 
 Taxonomic name matching is rarely the end goal. Once `taxify()` has resolved
@@ -111,27 +112,73 @@ covers aggregate matching and this fallback in full.
 ### Cross-backbone name resolution
 
 A subtle but important design decision underlies the enrichment `.vtr`
-files: they are built to work with any of taxify's seven backbones (WFO,
-COL, GBIF, ITIS, NCBI, OTT, WoRMS). Different backbones sometimes accept
-different names for the same taxon. WFO might accept "Senecio jacobaea"
-while COL accepts "Jacobaea vulgaris" for the same species. If the
-enrichment `.vtr` only contained one of these names, it would fail to match
-results from the other backbone.
+files. Different backbones sometimes accept different names for the same
+taxon: COL accepts "Jacobaea vulgaris" where WFO still recognises "Senecio
+jacobaea" for the same species. If an enrichment `.vtr` only contained one
+of these names, it would fail to match a result that resolved through the
+other backbone.
 
-The taxifydb build pipeline solves this by resolving every source
-species name against each of the seven backbones separately (not as a
-fallback chain, which would only return the first match). The union of all
-unique `accepted_name` values is collected per source species. Each source
-row is then expanded: one enrichment row per distinct accepted name, with
-the trait data duplicated. The final `.vtr` is then deduplicated by
-`canonical_name` (plus any group column for grouped enrichments).
+The taxifydb build pipeline resolves every source species name across all
+<!-- manifest:backbone-count -->19<!-- /manifest:backbone-count --> backbones, each queried separately rather than as a fallback
+chain, which would only return the first match. The union of all unique
+`accepted_name` values is collected per source species. Each source row is
+then expanded to one enrichment row per distinct accepted name, with the
+trait data duplicated, and the final `.vtr` is deduplicated by
+`canonical_name` (plus any group column for grouped enrichments). A name
+accepted only by one of the more specialised backbones (Euro+Med, Species
+Fungorum, AlgaeBase, FishBase, SeaLifeBase, Reptile Database, LCVP, WCVP,
+MDD, AviList, or LPSN) is covered by this union just as a broadly-recognised name is, so an
+enrichment join no longer depends on which backbone the upstream
+`taxify()` call happened to resolve through.
 
 In practice, backbones agree on more than 90% of names, so this expansion
-is modest (typically 1.1–1.5x the original row count). The result is that
-`add_iucn()` works identically whether the upstream
-`taxify()` call used WFO, COL, or GBIF. We do not have to pick enrichments
-based on which backbone we used, and we do not have to worry about
-backbone-specific name variants falling through the cracks.
+is modest (typically 1.1–1.5x the original row count). `add_iucn()` works
+identically whether the upstream `taxify()` call resolved through COL,
+GBIF, WFO, or any of the other backbones.
+
+### When the expansion misses
+
+The expansion is not complete. Sampling names from an enrichment's own
+`.vtr` and re-resolving them through every installed backbone finds, in
+4.5% to 22.5% of them depending on the enrichment, at least one backbone
+whose accepted name has no row while another backbone's does. *Minuartia
+hybrida* is a worked case: WFO keeps the name, WCVP, COL and Euro+Med have
+all moved it to *Sabulina*, and the `wcvp` enrichment holds range records
+under the *Sabulina* names and none under the *Minuartia* one.
+
+The join then finds nothing along the same code path, and with the same
+empty output, as a name the source genuinely does not cover. So taxify runs
+the same expansion a second time at join time: names left empty by the
+direct join are re-resolved through the other installed backbones, exact
+matching only, and the join is retried under their accepted names.
+
+```r
+taxify("Minuartia hybrida", backbone = "wfo") |>
+  add_wcvp(region = "all")
+#> add_wcvp(): 1 name(s) had no row under the accepted name they were
+#> matched to; recovered via wcvp.
+```
+
+Recovery reports once per call rather than once per name. A name absent
+from a source is the normal case for any query set wider than the source's
+scope, so the reportable signal is that another backbone's treatment of the
+same concept does have a row. `summary()` on the result repeats the count,
+and it is in the `taxify_meta` attribute as `n_recovered`.
+
+Backbones also disagree about where a moved name went: COL puts *Minuartia
+hybrida* at *Sabulina tenuifolia* subsp. *hybrida* and WCVP at subsp.
+*tenuifolia*, two taxa WCVP gives different ranges. Recovery picks one the
+way the fallback chain picks `accepted_name`, by first match in backbone
+priority order rather than by vote, with one departure: a source taxify
+also carries as a backbone goes first, since the `.vtr` rows are keyed on
+that source's own accepted names and the other backbones' names are what
+the expansion added on top.
+
+Only unmatched rows pay for the pass, a backbone scoped to a kingdom none
+of those rows belong to is skipped, and the resolved names are cached for
+the session, so a chain of `add_*()` calls over one result resolves them
+once. Turn it off with
+`options(taxify.cross_backbone_recovery = FALSE)`.
 
 ### Automatic download and caching
 
@@ -159,7 +206,7 @@ This check adds negligible latency because the manifest itself is cached.
 If the pre-built `.vtr` download fails (network issues, mirror outage,
 transient server errors), taxify does not stop immediately. Instead, it
 attempts to build the enrichment from the original source data. Each of
-the <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> enrichments has a build recipe in an internal registry
+the <!-- manifest:enrichment-count -->108<!-- /manifest:enrichment-count --> enrichments has a build recipe in an internal registry
 (`.enrichment_build_registry`) that knows how to download the raw CSV, ZIP,
 or API response from the upstream source, parse it into a data.frame with
 a `canonical_name` column, and produce the `.vtr` file locally. This
@@ -203,7 +250,7 @@ directory (typically `~/.local/share/taxify` on Linux/macOS or
 `%LOCALAPPDATA%/taxify` on Windows). This directory is also where backbone
 `.vtr` files are stored, so a single `taxify_data_dir()` call reveals
 where all taxify data lives on the system. Enrichment files are modest in
-size: most are between 1 and 20 MB. The full set of <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> enrichments is
+size: most are between 1 and 20 MB. The full set of <!-- manifest:enrichment-count -->108<!-- /manifest:enrichment-count --> enrichments is
 correspondingly larger.
 
 
@@ -217,8 +264,6 @@ dataset is version-locked), `trait_cols` (comma-separated list of trait
 column names), and `source_url` (the upstream data source).
 
 ```{r list-enrichments}
-library(taxify)
-
 list_enrichments()
 #>              name version   nrow static                              trait_cols ...
 #> 1 iucn  ...  166000   TRUE                   conservation_status ...
@@ -1363,7 +1408,7 @@ vertebrates |> add_anage()
 
 All columns use the `anage_` prefix for body mass and litter size to
 distinguish them from PanTHERIA equivalents. The `max_longevity_yr` column
-is the maximum recorded lifespan in years — the most widely used parameter
+is the maximum recorded lifespan in years, the most widely used parameter
 for cross-species aging comparisons.
 
 The dataset is compiled from the Human Ageing Genomic Resources (HAGR) and
@@ -1376,7 +1421,7 @@ is freely available under CC BY. The reference is Tacutu et al. (2018),
 AnimalTraits is a curated database of body mass and metabolic rate
 measurements covering ~2,000 species across arthropods (~1,700 species),
 vertebrates, molluscs, and annelids. Unlike taxon-specific databases, it
-provides a unified framework for cross-taxon allometric comparisons —
+provides a unified framework for cross-taxon allometric comparisons,
 particularly valuable for arthropods, which are underrepresented in other
 trait databases.
 
@@ -1866,8 +1911,6 @@ typical workflow chains `taxify()` with several enrichment calls, building
 up the desired set of columns incrementally.
 
 ```{r stacking-plants}
-library(taxify)
-
 plant_result <- taxify(c(
   "Quercus robur", "Fagus sylvatica", "Picea abies",
   "Arrhenatherum elatius", "Festuca rubra", "Plantago lanceolata"
@@ -2101,7 +2144,7 @@ source dataset. Common reasons for per-species `NA` include:
    "Quercus robur subsp. robur"), the enrichment may not have a
    matching entry at that rank.
 
-It is worth noting that coverage is not the same as data quality. An
+Coverage is not the same as data quality. An
 enrichment might cover 95% of the species in a result, but the trait values
 for some of those species could be based on few measurements, extrapolated
 from congeners, or derived from captive rather than wild populations. The
@@ -2139,7 +2182,7 @@ result <- taxify(c("Quercus robur", "Fagus sylvatica", "Pinus sylvestris")) |>
 
 summary(result)
 #> -- taxify results --------------------------------------------------------
-#>   backbone: WFO v2024.12  |  3 names submitted
+#>   backbone: COL v2026.07  |  3 names submitted
 #>
 #>   matched       3  (exact: 3, case-insensitive: 0, fuzzy: 0)
 #>   --------------------------------------------------------
@@ -2576,7 +2619,7 @@ A minimal methods paragraph citing enrichments might read:
 ## Summary
 
 taxify's enrichment system turns taxonomic name matching into a gateway to
-ecological trait data. The <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> built-in enrichments cover conservation status,
+ecological trait data. The <!-- manifest:enrichment-count -->108<!-- /manifest:enrichment-count --> built-in enrichments cover conservation status,
 growth form, ecological niches, functional traits, diet, morphology,
 life-history, geographic ranges, invasive status, and vernacular names
 across plants, birds, mammals, amphibians, vertebrates, butterflies,
@@ -2586,8 +2629,8 @@ and compose freely with the pipe operator.
 
 The cross-backbone name resolution built into the `.vtr` files means we
 do not have to worry about which backbone we used: enrichments work
-identically with WFO, COL, GBIF, ITIS, NCBI, OTT, or WoRMS results. The
-`summary()` method tracks which enrichments have been applied, their source
+identically regardless of which of taxify's <!-- manifest:backbone-count -->19<!-- /manifest:backbone-count --> backbones produced
+the result. The `summary()` method tracks which enrichments have been applied, their source
 versions, and their coverage rates, supporting both exploratory analysis and
 reproducible reporting.
 

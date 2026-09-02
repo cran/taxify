@@ -36,7 +36,7 @@
 
 #' Construct a backend handle from its backbone's registry row
 #'
-#' @param name Backbone name (a row of [.backbone_registry()]).
+#' @param name Backbone name (a row of `.backbone_registry()`).
 #' @return A taxify_backend object of class `c("taxify_<name>", "taxify_backend")`.
 #' @noRd
 make_backend <- function(name) {
@@ -62,6 +62,7 @@ make_backend <- function(name) {
 # call. Each fixes its registry name; make_backend() supplies the object.
 wfo_backend         <- function() make_backend("wfo")
 col_backend         <- function() make_backend("col")
+colxr_backend       <- function() make_backend("colxr")
 gbif_backend        <- function() make_backend("gbif")
 itis_backend        <- function() make_backend("itis")
 ncbi_backend        <- function() make_backend("ncbi")
@@ -75,6 +76,9 @@ sealifebase_backend <- function() make_backend("sealifebase")
 reptiledb_backend   <- function() make_backend("reptiledb")
 lcvp_backend        <- function() make_backend("lcvp")
 wcvp_backend        <- function() make_backend("wcvp")
+mdd_backend         <- function() make_backend("mdd")
+avilist_backend     <- function() make_backend("avilist")
+lpsn_backend        <- function() make_backend("lpsn")
 
 
 # Default build method for every backbone: delegates to taxifydb::build_<name>(),

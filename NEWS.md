@@ -1,3 +1,461 @@
+# taxify 0.5.0
+
+* A content id recorded by `taxify_lock()` now resolves back to bytes (#54).
+  `taxify_download_enrichment()` and `taxify_download()` take a `content_id=`,
+  fetch that exact build from the immutable copy published beside the rolling
+  asset -- reading the manifest's `content_url`, or deriving
+  `<tag>/<name>-<content_id>.vtr` when the manifest describes a later build --
+  verify the bytes hash back to the id asked for, and make it the active build.
+  A build the release has since re-cut is reachable again; one overwritten
+  before taxifydb began publishing immutable copies is not, and says so.
+
+* `taxify_restore(file, install = TRUE)` puts a whole lockfile back in one
+  call, fetching the pinned build of every asset that drifted. A restored build
+  is pinned, so the next session's version check does not refresh it away.
+
+* Enrichments now keep the build a refresh replaces, under a directory named
+  for its content id, instead of overwriting the only copy on disk. A re-cut
+  under an unchanged tag no longer destroys what a lockfile pinned. Backbones
+  use the same store but discard the superseded build by default, being
+  gigabytes; `taxify.keep_enrichment_versions` and
+  `taxify.keep_backbone_versions` set either policy. Restoring a pinned build
+  archives the build it displaces either way, so a restore is reversible.
+
+* New `taxify_store()` lists the builds on disk -- which are active, which are
+  pinned, and which content ids a lockfile could be restored to without a
+  download.
+
+# taxify 0.4.9
+
+* `taxify()` no longer resolves a homonym to a synonym of a different species
+  without saying so. Two things drove it (#53). The status score read only
+  `ACCEPTED`, so WFO's `UNCHECKED` -- the status it gives a name it keeps as its
+  own concept but has not reviewed -- scored level with a synonym, and `Prunus
+  dulcis` came back as *Prunus avium*; status is now an ordered vocabulary
+  (accepted, then unreviewed or provisional, then synonym, then misapplied) that
+  also places COL's `PROVISIONALLY ACCEPTED`, `AMBIGUOUS SYNONYM` and
+  `MISAPPLIED`, and falls through to the backbone's own `is_synonym` flag for a
+  spelling it does not list. And the `nomenclaturalStatus = "Valid"` tiebreak was
+  settling the ambiguity tier, so `Rubus laciniatus` returned *Rubus ulmifolius*
+  with `is_ambiguous = FALSE`; validity now orders which candidate the scalar
+  columns hold but no longer clears the flag, because a valid name and an
+  illegitimate one carrying the same string can be synonyms of different species.
+  Both names now answer as they should, and `taxify_candidates()` expands the
+  conflict.
+
+* An authorship carried by the query now settles a homonym whether or not the
+  row was flagged ambiguous: an author the caller typed is a choice of record,
+  and a name unique in the backbone re-reads to what it already had. The
+  comparison also moved from substring containment to author tokens, so `L.` no
+  longer reads into `Lindl.`.
+
+* New `candidate_order()` gives the candidate sort a single source of truth,
+  shared with `taxifydb`'s name-lookup build.
+
+# taxify 0.4.8
+
+* Enrichment joins now recover an infraspecific name across GBIF's dropped rank
+  marker. GBIF's backbone renders an infraspecific accepted name without its
+  rank connecting term -- *Erica tenella* var. *tenella* comes out `Erica
+  tenella tenella` -- where every other backbone and every botanical source
+  keeps the marker, so a join keyed on the rendered name missed in either
+  direction. `taxifydb` reinstates the marker at build time
+  (`gcol33/taxifydb#45`), but a user still on an older `gbif.vtr` holds the
+  marker-less form, so the runtime now retries the rows a direct (and
+  cross-backbone) join left empty under the name's alternative rank-marker
+  renderings -- the bare trinomial and each canonical marker -- and matches when
+  the marker is the sole difference. A rank-insensitive comparison can collide
+  distinct taxa (*Aus bus* var. *cus* and *Aus bus* subsp. *cus* are different
+  names), so a row whose alternatives reach more than one accepted name in the
+  source is left `NA` rather than resolved to a guess. Zoological trinomials
+  (*Panthera leo persica*) are correctly marker-less and match directly, so they
+  never reach the fallback. Only still-empty rows pay for the pass; disable it
+  with `options(taxify.infra_marker_recovery = FALSE)`
+  (`gcol33/taxifydb#45`).
+
+* Enrichment joins now recover a name the source covers under a different
+  backbone's accepted name. An enrichment `.vtr` is keyed on its source's own
+  accepted names, expanded at build time onto every backbone's treatment of the
+  same concept, and where that expansion missed one the join found nothing
+  along the same code path, and with the same empty output, as a name the
+  source genuinely does not cover. *Minuartia hybrida* was the reported case:
+  WFO keeps the name, WCVP, COL and Euro+Med have all moved it to *Sabulina*,
+  and `add_wcvp()` returned no range at all when matched through WFO. Sampling
+  names from an enrichment's own `.vtr` puts the gap at 4.5% to 22.5% of names
+  depending on the enrichment. Names left empty by the direct join are now
+  re-resolved through the other installed backbones, exact matching only, and
+  the join retried under their accepted names, so the WFO route returns the 49
+  regions the WCVP route does. Where backbones disagree about where a moved
+  name went (COL puts it at *Sabulina tenuifolia* subsp. *hybrida*, WCVP at
+  subsp. *tenuifolia*, and WCVP gives the two different ranges) the pick
+  follows backbone priority rather than a vote, the way `accepted_name` itself
+  is picked, except that a source taxify also carries as a backbone goes first.
+  Recovery reports once per call, never once per name, since a name absent from
+  a source is the normal case for any query set wider than the source's scope;
+  `summary()` and the `taxify_meta` attribute (`n_recovered`) carry the count.
+  Only unmatched rows pay for the pass and backbones scoped to a kingdom none
+  of them belong to are skipped; disable it with
+  `options(taxify.cross_backbone_recovery = FALSE)` (#52).
+
+* A rebuilt enrichment asset republished under the release tag it already
+  carries now refreshes the local cache. `check_enrichment_version()`
+  reconciled content ids only for a static enrichment; a versioned one compared
+  its recorded version against the manifest's latest, and a same-tag republish
+  leaves that label untouched while the bytes change underneath it. GRIIS
+  2026.08 was rebuilt after its GBIF-backed source stopped returning `recordid`
+  and republished under the tag it already held, so the pre-rebuild `.vtr`
+  stayed in place indefinitely and `add_griis(cols = "recordid")` went on
+  resolving a column the source no longer carries instead of raising the
+  unknown-column error. Content identity now decides and the version string is
+  the fallback, the order the backbone gate already used; a cache predating
+  content ids is still left to the label rather than rehashed every session.
+
+* The bundled manifest points at the rebuilt `enrichment-2026.08` assets and
+  the republished `gbif-2026.08` backbone. Every enrichment asset was rebuilt
+  with the build-side reverse hop behind the recovery pass above and carries a
+  `resolved_backbones` field naming the backbones it was expanded against;
+  downloads grow with the wider key sets, 1.96x over the assets with a shipped
+  counterpart (`wcvp` 69 to 141 MB, `gift` 20 to 40 MB). `avonet` and `glonaf`
+  each drop a `trait_cols` entry naming a column their `.vtr` never carried,
+  and `griis` drops `recordid`, which its upstream source stopped returning
+  (`gcol33/taxifydb#44`).
+
+# taxify 0.4.7
+
+* Grouped enrichment joins no longer discard a name's data when the routing
+  backbone and the enrichment source spell its authorship differently. The
+  homonym resolution added in 0.4.6 compared author strings exactly, and the
+  sources genuinely disagree: WFO records *Calluna vulgaris* as `(L.) Hill`
+  where WCVP, COL and Euro+Med all say `(L.) Hull`, so one of the commonest
+  plants in Europe came back with no `add_wcvp()` range at all when matched
+  through WFO. Authorship is now compared on a normalised key (case,
+  punctuation, `et` vs `&`), then as a spelling variant of the same author
+  (one edit apart, or an abbreviation of the same surname), then on a shared
+  basionym author -- sources also credit different people with the same
+  recombination (*Glaucium corniculatum* is `(L.) Curtis` in WFO, `(L.)
+  Rudolph` in WCVP), and epithet plus basionym author pins the same type
+  whoever made the combination. A name that no pass resolves to exactly one
+  concept is still left `NA` with a warning, and a genuine homonym pair with
+  no basionym author -- 0.4.6's *Erigeron pulchellus* Michx. vs Hoppe &
+  Hornsch. -- is untouched by the two new passes (#51).
+
+# taxify 0.4.6
+
+* Grouped enrichment joins (`enrich_by_group()`, behind `add_wcvp()`,
+  `add_griis()` and others) now resolve name-level homonyms instead of
+  guessing. The join key is a bare accepted-name string, so a name covering
+  two distinct concepts in the source -- told apart only by authorship --
+  collapsed onto whichever row happened to survive the per-group dedup,
+  regardless of which concept `taxify()` had actually matched:
+  `add_wcvp()` reported *Erigeron pulchellus* Michx. (eastern North
+  America) as native in Germany, when the matched concept was *Erigeron
+  pulchellus* Hoppe & Hornsch. ex Bluff & Fingerh., a European native. When
+  the enrichment carries an authorship-like column, a name whose rows
+  disagree on authorship is now resolved against `accepted_authorship`:
+  the uniquely picked concept's rows are kept, or, when the ambiguity can't
+  be resolved, every row for that name is dropped (left `NA` rather than
+  guessed) and a single warning reports the count.
+
+* `kingdom =` now trusts a single-kingdom backbone's own scope ahead of the
+  genus register. WCVP, LCVP, WFO, Euro+Med and Species Fungorum carry no
+  `kingdom` column of their own, so a query against one of them fell
+  straight to the genus register -- a single cross-backbone genus index --
+  which can record a different kingdom for the same genus string as used
+  elsewhere (the botanical and zoological codes are independent, so genus
+  homonyms across kingdoms are not rare). `taxify(x, backbone = "wcvp",
+  kingdom = "plants")` could report `kingdom_group` `"animalia"` for a
+  genuinely plant-only match. A new `fixed_kingdom` registry field pins the
+  backbones whose scope is genuinely unambiguous, and is now consulted
+  ahead of both the backbone's own kingdom column and the register
+  fallback. AlgaeBase and SeaLifeBase are deliberately left unfixed, since
+  each spans more than one kingdom.
+
+* `fuzzy_threshold` now accepts the integer raw-edit-count mode its own
+  documentation describes. Any value greater than 1 was rejected outright,
+  because `vectra::fuzzy_join()` itself only accepts a normalized distance
+  in (0, 1] -- the mode was documented but never implemented end to end.
+  A whole number `>= 1` now runs the join at the loosest normalized bound
+  and reconstructs the raw edit count from the reported `fuzzy_dist`
+  (exactly `raw_edits / max(len_a, len_b)`) to filter matches.
+
+* `alien_first_records` is rebuilt from Seebens et al.'s restructured
+  Darwin Core-style release (record 18759840, source version 4.0), 93,350
+  rows over 245 countries against 82,684 over 233 before. Every column was
+  renamed upstream, so `trait_cols` is rewritten rather than preserved; a
+  new `alien_first_record_status` column carries the occurrence status of
+  the record each row's year was taken from.
+
+* `glonaf` is rebuilt after a wrong join key left it holding 10,238 rows
+  over 84 regions, some names paired with other taxa's families. Rebuilt
+  from GloNAF v2.02 (Zenodo record 17105725) at 300,094 rows over all 1,343
+  regions.
+
+* `thermofresh`'s citation now points at the peer-reviewed release (record
+  16959762, ThermoFresh v1.0) rather than the pre-review deposit the build
+  had been reading since taxifydb bumped the source.
+
+# taxify 0.4.5
+
+* A backbone whose content is unchanged is no longer re-downloaded when its
+  version string moves. `check_version()` compared the version label first and
+  only consulted the content id when the labels matched, so it could not see
+  that a bumped version carried bytes already on disk. Content decides now, and
+  the label is the fallback for a cache or manifest entry carrying no id. This
+  matters because a build stamps `date +%Y.%m`: a backbone reading a pinned
+  source (Euro+Med from a frozen snapshot, WFO from a fixed Zenodo record)
+  rebuilds to identical bytes under a new version, which used to cost every
+  user a full refetch -- 740 MB for WFO. A genuine change is still caught by
+  the same comparison, as is a same-tag republish that leaves the label alone.
+
+* The multi-backbone fallback chain is staged by match quality. Every backbone
+  is asked for an exact match before any backbone is asked for a fuzzy one, so
+  a name absent from an early backbone but present in a later one now resolves
+  to the later backbone's exact record. Previously the chain stopped at the
+  first backbone returning any match at all, and a near neighbour in an early
+  backbone settled the name: `taxify("Acilius sulcatus", backbone = c("col",
+  "gbif"))` returned the weevil `Acalles sulcatus` from COL, where GBIF holds
+  the diving beetle under the queried name itself. Backbone priority still
+  decides between two matches of the same quality. Over 481 names spanning
+  eighteen backbones, 15 results change, every one of them a fuzzy match in COL
+  becoming an exact match elsewhere, and three of those land in a different
+  family. Runs that name a single backbone are unaffected. `mode = "wide"` and
+  `mode = "agreement"` stage their base `accepted_name` the same way, so it
+  keeps agreeing with `mode = "fallback"`; their per-backbone columns report
+  each backbone's own treatment as before.
+
+* The covered-genus union behind the out-of-scope filter is cached per coverage
+  file and backbone set. It was rebuilt on every matching stage, over roughly
+  half a million genera, which made it the largest single cost of a multi-name
+  run. The same 481 names now take 79 seconds where they took 114.
+
+* Five sources open, each reaching something the bundled set did not.
+  `add_hydraulics()` brings the drought-mortality axis for 2,024 seed plants
+  (Sanchez-Martinez et al. 2020). `add_noddb()` brings root-nodule nitrogen
+  fixation for 824 plant genera, joined on genus, which makes it the
+  counterpart to `add_fungalroot()`'s mycorrhizal type: together they are the
+  belowground symbiosis pair. `add_faprotax()` brings 92 metabolic and
+  ecological function groups over 4,470 prokaryotic taxa. `add_virion()` brings
+  host-virus association breadth for 4,223 vertebrates, and `add_sworm()` the
+  ecological group of 171 earthworms, a taxon with no coverage before.
+
+* `p50` gains a third source and, with it, its first empirical confirmation.
+  AusTraits and BROT share no species, so the trait rested on their two medians
+  landing together at -3.4 MPa. The Sanchez-Martinez compilation overlaps both
+  and agrees with each at ratio 1.00, while taking coverage from 123 species to
+  894. The registry records that this is not corroboration: all three are
+  literature compilations over the same primary studies, and 63% of the values
+  shared with AusTraits are identical to the last digit. It is registered
+  because the duplication is confined to 74 of its 894 species, where the
+  sources rejected on these grounds duplicated nearly everything they carried.
+
+* The same overlap measures a unit rather than assuming one. 79 of the 208
+  species the compilation shares with AusTraits match exactly once multiplied
+  by 1e-4, which establishes that its Huber values are square centimetres of
+  sapwood per square metre of leaf.
+
+* New traits: `leaf_specific_conductivity`, `min_water_potential`,
+  `hydraulic_safety_margin`, `nitrogen_fixation` and
+  `earthworm_ecological_group`. `climatic_temp_mean` gains its first plant
+  source. `min_water_potential` is kept apart from `turgor_loss_point`: the two
+  share 39 species and agree on none of them, a field water potential and a
+  pressure-volume threshold being different quantities. `sapwood_conductivity`
+  and `huber_value` gain a second source each.
+
+* `virus_richness` and the FAPROTAX function sets stay on their doors rather
+  than entering `add_trait()`. Virus richness tracks how much a host has been
+  studied as much as what infects it, with *Homo sapiens* at 936 viruses over
+  633,053 records, so `virus_record_count` ships beside it to keep that visible.
+
+* GlobalAnts is documented as unusable rather than left as an open question.
+  Its guidelines gate access behind a per-project application, let a
+  contributor require co-authorship, and state that redistribution is not
+  allowed without each contributor's permission.
+
+* Four genus-keyed doors return data rather than failing. `add_blanchard()`,
+  `add_cefas_btrait()`, `add_disperse()` and `add_freshwater_insects_conus()`
+  join on `genus`, but their assets were written with the genus names in
+  `canonical_name` and no `genus` column for the join to reach. The build now
+  materializes that column from the registry's own grain declaration, so a
+  source declared at genus rank is written joinable at genus rank.
+
+* The genus register is rebuilt over all nineteen backbones. Two rebuilds are
+  folded together here. The first took it from the thirteen the published build
+  covered to eighteen, so mammals, birds, prokaryotes, algae and fungi reached
+  it through more than the general aggregators; the second adds COL XR, which
+  was wired after that build ran. 496,127 genera become 503,262, coverage rows
+  1,421,182 become 1,871,955, and the share carrying a kingdom rises from 75.55%
+  to 91.88%.
+
+* A backbone the coverage table does not carry no longer has every name in it
+  called out of scope. `covered_genera_for()` returned an empty vector for such
+  a backbone where the caller guarded on `NULL`, so "I have no coverage for this
+  backbone" was read as "this backbone covers no genus": every unmatched name
+  was stamped `out_of_scope`, and the abbreviated-genus and fuzzy stages were
+  skipped for all of them. COL XR sat in exactly that position between being
+  wired and the register being rebuilt, and it heads the default priority order.
+  The empty case now takes the path a missing coverage file already took, which
+  is to disable the filter and warn once per session. A set of backbones is only
+  as answerable as its least-covered member, so one uncovered backbone disables
+  the filter for the whole set rather than falling back to the others' union.
+
+* A genus filed under two kingdoms by one backbone is now read by that
+  backbone's own majority. Ordering by source priority alone left the winner to
+  whichever row happened to sort first, which gave 93 genera their source's
+  minority reading and, because a row recording no kingdom stays eligible to
+  fill the ranks below, produced classifications no source holds: *Pteropus*,
+  66 species of flying fox, was indexed as a fungus carrying the order
+  Chiroptera. All 93 resolve, and the tiebreak applies only within a source, so
+  a higher-priority backbone still outranks a lower one.
+
+* Three backbones join the default fallback chain, giving birds, mammals and
+  prokaryotes a domain authority for the first time: AviList (40,572 rows), the
+  Mammal Diversity Database (61,862) and LPSN (44,885). Every other major group
+  already had one, and the cost of the gap was specific to taxify's design --
+  the default is a first-match chain, deliberately not a consensus vote, so
+  with no authority in the domain band the answer for these groups was whichever
+  aggregator ranked highest.
+
+  All three sit in the domain-authority band, ahead of GBIF, ITIS, NCBI and OTT.
+  **This changes what `taxify()` returns by default for bird, mammal and
+  prokaryote names**, which is the intended effect. They were in the backbone
+  registry without a manifest entry, so until now nothing could resolve them at
+  all.
+
+* Three more ground-beetle sources join `add_chowdhury()`. `add_finand()` brings
+  34 Helsinki species whose body lengths were measured from the specimens the
+  authors caught — small, and carried because it is the only carabid source
+  independent of carabids.org, which every other reachable table inherits its
+  sizes and wing classes from. `add_imageomics_neon()` brings the first North
+  American ground beetles, 75 species measured from images of pinned NEON
+  specimens, feeding `elytra_length` and a new `elytra_width`.
+  `add_eberswalde()` brings a 24-year monitoring record from 13 forest plots:
+  abundance trend, sensitivity to the 72-month SPEI drought index, a feeding
+  guild refined by field observation to name the prey, and Sustek's humidity
+  scale.
+
+* Eberswalde's size, wing class and latitude are surfaced on its door but feed
+  no trait. The deposit's own README says they are carabids.org verbatim, and
+  the data agree exactly: over the 19 species shared with `add_chowdhury()`
+  every size is identical and every wing class matches. Registering them would
+  double-count one lineage.
+
+* Ground beetles are now covered. `add_chowdhury()` attaches traits and national
+  occupancy trends for 382 German carabids from Chowdhury et al. (2025): body
+  length, wing morphology, trophic level, habitat preference, both Red List
+  codes, and the paper's own modelled two-year occupancy trend. Carabids are one
+  of the most intensively sampled insect groups in ecology, and taxify's only
+  beetle source until now was `saproxylic`, restricted to the deadwood guild.
+
+* `add_trait()` gains `wing_morph`, three-state on purpose. A wing-dimorphic
+  carabid produces both a long-winged and a short-winged form, and which one
+  dominates is the question carabid dispersal ecology asks, so `dimorphic` (83
+  of 382 species) is a value of its own rather than a midpoint or a gap. It is
+  kept separate from the bird trait `flightless`, which asks whether a species
+  can fly at all. `body_length`, `diet_guild` and `primary_habitat` gain the
+  same source; `primary_habitat` gains the vocabulary term `open`, the modal
+  class for German carabids, in preference to narrowing it to `grassland`.
+
+* `diet_guild` also gains the NW European arthropod compilation (Logghe et al.
+  2025), 3,800 species and the first broad arthropod coverage the trait has had,
+  along with the vocabulary term `fungivore`. It agrees with the German carabid
+  classification on 86.6% of their 292 shared species.
+
+* Two columns were deliberately left out of the cross-source verb, both
+  documented in `R/trait-registry.R` so the decisions are not relitigated. The
+  German `red_list_iucn` restates a *national* assessment in IUCN letters
+  (perfectly diagonal against the German code over all 382 species) and is not a
+  global one, so it stays on the door. And `arthropod_traits` `body_size_mm` is
+  a true body length for spiders and beetles but forewing length for Lepidoptera
+  (0.515 of the wingspan across 50 species), with no taxon column to separate
+  them — see gcol33/taxifydb#40.
+
+* `add_trait()` gains seventeen traits and widens four, all from enrichment
+  data already bundled: the registry now covers 204 traits across 456 source
+  slots. Nothing needs re-downloading.
+
+* Fire ecology and regeneration are now reachable. `resprouting` (AusTraits and
+  BROT) is the post-fire resprouter / partial / non-resprouter call, `serotiny`
+  the canopy seed-storage call, and `soil_seed_bank` the persistence class.
+  Worked examples: *Quercus suber* and *Arbutus unedo* come back resprouters,
+  *Pinus halepensis* and *Cistus albidus* obligate seeders, *Banksia serrata*
+  serotinous.
+
+* Plant hydraulics, the drought-mortality axis, is now registered from AusTraits
+  and BROT: `p50` (xylem embolism resistance, MPa), `turgor_loss_point`,
+  `sapwood_conductivity`, `huber_value`, plus `bark_thickness`. Coverage is thin
+  (123 species for `p50`) and the trait documents that.
+
+* Bryophytes enter the trait verb for the first time, from Bryophytes of Europe
+  Traits: `bryophyte_life_form` (During's turf / mat / cushion / weft scheme,
+  kept separate from the vascular-plant `life_form` for the same reason
+  `lichen_growth_form` is), `shoot_length` and `spore_diameter`.
+
+* New from the coral and bird sources: `larval_development_mode` (spawner or
+  brooder), `substrate_attachment`, `linear_extension_rate`,
+  `polyp_retractability`, and `primary_habitat` (BIRDBASE's 14-term vocabulary
+  over 13,067 species). Also `self_compatibility` from Tree of Sex.
+
+* `sexual_system` roughly doubles its plant coverage with AusTraits `sex_type`
+  (87% agreement with Tree of Sex across 572 shared species) and gains
+  bryophytes from BET. `flowering_start` and `flowering_end` are no longer
+  Europe-only: AusTraits' 12-character monthly string now feeds them, read as
+  the longest *circular* run so a southern-hemisphere season that wraps the year
+  boundary comes back as December to February rather than January to December.
+  `diet_guild` gains BIRDBASE, listed last so it fills the birds AVONET and
+  EltonTraits miss.
+
+* `soil_seed_bank` is the first trait to ship a documented disagreement. BROT
+  and AusTraits classify persistence by different operational definitions and
+  agree on only 67% of their 48 shared species, so the pair carries a `caution`:
+  the default coalesce reports the most complete source rather than blending
+  them, and explains itself in `soil_seed_bank_caution`.
+
+* `add_trait()` gains `aggregate_trait_fallback`, which the `hybrids-and-aggregates`
+  vignette has been documenting as a per-call argument since it was written
+  ("turn it off, per call or globally"). Only the global option existed, so the
+  documented call errored with `unused argument`. The argument now threads
+  through to `enrich_simple()` and defaults to the same option, so existing
+  behaviour is unchanged. Grain-pinned sources go through `enrich_by_group()`,
+  which has no aggregate fallback, and are unaffected either way.
+
+* Rejections are documented in the registry header rather than left to be
+  rediscovered, including three octocoral columns that carry no information at
+  all -- `tentacles_per_polyp` is 8 for every one of 3,606 species, because
+  eight tentacles is the defining character of Octocorallia.
+
+# taxify 0.4.3
+
+* Bundled enrichment data now resolves taxonomic names across all fifteen
+  backbones during the build, up from the seven broadest. An enrichment value
+  keyed to a name accepted only by a domain-specific backbone (Euro+Med,
+  Species Fungorum, AlgaeBase, FishBase, SeaLifeBase, Reptile Database, LCVP,
+  or WCVP) now joins a `taxify()` result that resolved through that backbone,
+  instead of falling through. The manifest points at the rebuilt enrichment
+  release.
+
+* Documentation: corrected references that presented WFO as the default
+  backbone. The default is COL, matched first in the fallback chain, and the
+  first `taxify()` call installs the default set COL, GBIF, and ITIS.
+
+# taxify 0.4.2
+
+* Removed `taxify_download_vtr()`, the deprecated alias of `taxify_download()`.
+  Use `taxify_download()`.
+
+* Slimmed the bundled example database. The BIEN and AusTraits example `.vtr`
+  fixtures were the full production tables (116k and 35k rows); they now carry
+  only the few dozen species the offline examples and `add_trait()` tests use.
+  Installed size drops from ~9.9 MB to ~3.2 MB. The offline examples and test
+  coverage are unchanged.
+
+# taxify 0.4.1
+
+* `add_hybrid_info()` gains `hybrid_parent_1_id` / `hybrid_parent_2_id`: the
+  backbone `taxon_id` of the accepted taxon each parent of a hybrid formula
+  resolves to. An unresolved hybrid formula has no single backbone record, so
+  the result's own `taxon_id` is `NA`; the two component ids now travel in these
+  columns, each ready to pass straight to `id2name()`.
+
 # taxify 0.4.0
 
 ## Breaking: `backend` is renamed to `backbone` throughout the API (issue #24)

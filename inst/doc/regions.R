@@ -4,10 +4,9 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 
 ## -----------------------------------------------------------------------------
-# library(taxify)
-# 
 # # a small regional list, with a couple of misspellings to correct
 # field_names <- c(
 #   "Gentiana acaulis", "Primula veris", "Pulsatilla vulgaris",

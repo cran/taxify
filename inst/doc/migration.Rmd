@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 ```
 
 ## The taxonomic-resolution landscape in R
@@ -41,9 +42,9 @@ there is no urgent reason to switch.
 
 That said, there are situations where taxify offers a better fit:
 
-- **Multiple backbones.** taxify matches against fifteen backbones offline
+- **Multiple backbones.** taxify matches against <!-- manifest:backbone-count -->19<!-- /manifest:backbone-count --> backbones offline
   and can chain them in a single call:
-  `taxify(names, backbone = c("wfo", "col", "gbif"))`.
+  `taxify(names, backbone = c("col", "gbif", "itis"))`.
 - **Speed at scale.** The matching engine is written in C with
   genus-blocked fuzzy joins. Ten thousand names resolve in seconds.
 - **Enrichments.** Results pipe directly into more than eighty published trait
@@ -228,8 +229,6 @@ With taxify, all of that is one call:
 
 ```{r taxify-basic}
 # --- taxify ---
-library(taxify)
-
 names <- c("Quercus robur", "Pinus sylvestris", "Betula pendula",
            "Panthera leo", "Salmo trutta")
 
@@ -268,8 +267,6 @@ happen in a single call:
 
 ```{r taxify-fuzzy}
 # --- taxify ---
-library(taxify)
-
 names <- c("Quercus robur", "Quercus pedonculata",
            "Pinus silvestris", "Rosa canina")
 
@@ -298,11 +295,9 @@ taxify can chain multiple backbones in a single call. Unmatched names
 cascade to the next backbone automatically.
 
 ```{r taxify-fallback}
-library(taxify)
-
 # Mixed kingdom input: plants, animals, fungi
 names <- c(
-  "Quercus robur",         # plant (WFO primary)
+  "Quercus robur",         # plant (matched by WFO)
   "Panthera leo",          # animal (not in WFO, picked up by GBIF)
   "Amanita muscaria",      # fungus (not in WFO, picked up by GBIF)
   "Salmo trutta",          # fish (not in WFO, picked up by GBIF)
@@ -342,7 +337,7 @@ result |> add_data(my_traits, species_col = "species")
 locally. After the initial download (typically 50–300 MB depending on
 the backbone), no internet connection is needed.
 
-**Multi-backbone.** taxify supports fifteen backbones through a single
+**Multi-backbone.** taxify supports <!-- manifest:backbone-count -->19<!-- /manifest:backbone-count --> backbones through a single
 function, with optional fallback chains that cascade unmatched names
 automatically.
 
@@ -384,7 +379,7 @@ and genus-blocked fuzzy joins, processing thousands of names per second.
 **Reproducibility.** taxify pins backbone versions locally and records
 the version string in the `backbone_version` column of every result. The
 same backbone file produces the same output indefinitely. Version
-pinning is also available: `taxify_download("wfo", version =
+pinning is also available: `taxify_download("col", version =
 "2024.06")` downloads a specific release.
 
 

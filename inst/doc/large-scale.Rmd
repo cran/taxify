@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 ```
 
 taxify is designed for lists of a few hundred names and lists of a few
@@ -29,11 +30,6 @@ examples: exact vs. fuzzy matching, multi-backbone fallback ordering, batch
 processing of very large lists, and pre-downloading resources before a batch
 run.
 
-```{r}
-library(taxify)
-```
-
-
 ## How taxify scales
 
 ### The .vtr columnar format
@@ -44,9 +40,9 @@ column contiguously on disk with lightweight compression. taxify never parses
 text at query time. There is no `read.csv()` step, no string splitting, no
 quote escaping. The backbone is already in a query-ready binary layout.
 
-Backbones are distributed as pre-built `.vtr` files (hosted on Zenodo and
-GitHub Releases), so users download a single binary file that is ready to
-query immediately — no CSV parsing, no conversion step. The `.vtr` files are
+Backbones are distributed as pre-built `.vtr` files (published as GitHub
+Releases on taxifydb), so users download a single binary file that is ready to
+query immediately, with no CSV parsing or conversion step. The `.vtr` files are
 typically 30-50% smaller than the original Darwin Core CSV because the
 columnar layout compresses string columns more efficiently than row-oriented
 text.
@@ -114,7 +110,7 @@ fuzzy matching is the knob that controls how long a run takes.
 The first time `taxify()` is called for a given backbone, several things
 happen behind the scenes. The function resolves the backbone path through a
 four-step fallback: session cache, versioned directory on disk, legacy flat
-directory, and finally auto-download from Zenodo if no local copy exists.
+directory, and finally auto-download from the manifest if no local copy exists.
 Once the path is known, vectra materializes the `.vtr` into an in-memory
 columnar block and builds hash indexes on the name and genus columns. This
 initialization step took about 5 seconds for WFO (1.6 million rows) in the
@@ -291,7 +287,7 @@ General guidelines for backbone ordering:
 - Mixed-kingdom lists: put the backbone that covers the dominant kingdom
   first. For a list that is 80% plants and 20% animals, `c("wfo", "col")`
   is faster than `c("col", "wfo")`.
-- Maximizing coverage: `c("wfo", "col", "gbif")` casts the widest net but
+- Maximizing coverage: `c("col", "gbif", "wfo")` casts the widest net but
   involves three backbone loads. For lists under 10,000 names the extra
   loading time is negligible. For 100,000+ names, the extra fuzzy passes
   add up.
@@ -306,25 +302,29 @@ backbone version.
 <!-- manifest:backbone-sizes -->
 | Backbone | Names | Download | Version |
 |---|---|---|---|
-| WFO | 1.6M | 797 MB | 2026.06 |
-| COL | 5.3M | 2.0 GB | 2026.06 |
-| GBIF | 6.4M | 1.9 GB | 2026.06 |
-| ITIS | 992k | 205 MB | 2026.06 |
-| NCBI | 2.8M | 514 MB | 2026.06 |
-| OTT | 3.7M | 727 MB | 3.7.3 |
-| WoRMS | 1.6M | 347 MB | 2026.07 |
-| Euro+Med | 147k | 35 MB | 2026.07 |
-| Species Fungorum | 315k | 71 MB | 2026.06 |
-| AlgaeBase | 172k | 36 MB | 2026.06 |
-| FishBase | 103k | 19 MB | 2026.06 |
-| SeaLifeBase | 134k | 29 MB | 2026.06 |
+| WFO | 1.6M | 761 MB | 2026.08 |
+| COL | 5.3M | 2.0 GB | 2026.08 |
+| COL Extended Release | 7.9M | 1.6 GB | 2026.08 |
+| GBIF | 6.4M | 1.6 GB | 2026.08 |
+| ITIS | 993k | 205 MB | 2026.08 |
+| NCBI | 2.8M | 531 MB | 2026.08 |
+| OTT | 3.7M | 763 MB | 2026.08 |
+| WoRMS | 1.6M | 312 MB | 2026.08 |
+| Euro+Med | 147k | 35 MB | 2026.08 |
+| Species Fungorum | 315k | 71 MB | 2026.08 |
+| AlgaeBase | 172k | 36 MB | 2026.08 |
+| FishBase | 103k | 19 MB | 2026.08 |
+| SeaLifeBase | 134k | 29 MB | 2026.08 |
 | Reptile Database | 50k | 10 MB | 2026.07 |
-| LCVP | 1.3M | 252 MB | 3.0.1 |
-| WCVP | 1.4M | 334 MB | 2026.06 |
-| **All 15** | **26.1M** | **7.2 GB** | |
+| LCVP | 1.3M | 252 MB | 2026.08 |
+| WCVP | 1.4M | 309 MB | 2026.08 |
+| Mammal Diversity Database | 62k | 11 MB | 2026.08 |
+| AviList | 41k | 8 MB | 2026.08 |
+| LPSN | 45k | 12 MB | 2026.08 |
+| **All 19** | **34.2M** | **8.5 GB** | |
 <!-- /manifest:backbone-sizes -->
 
-A full installation of all fifteen backbones occupies several GB. Most
+A full installation of all <!-- manifest:backbone-count -->19<!-- /manifest:backbone-count --> backbones occupies several GB. Most
 workflows need only one or two. The WFO backbone alone covers the vast
 majority of plant taxonomy use cases in under a gigabyte.
 
@@ -335,7 +335,7 @@ query time.
 
 Enrichment files are much smaller. The largest enrichment is WCVP (native
 range data, ~2 million rows) at roughly 30-40 MB. Most enrichments are
-under 5 MB. A full set of <!-- manifest:enrichment-count -->90<!-- /manifest:enrichment-count --> enrichments adds a few hundred MB to disk
+under 5 MB. A full set of <!-- manifest:enrichment-count -->108<!-- /manifest:enrichment-count --> enrichments adds a few hundred MB to disk
 usage.
 
 
@@ -600,7 +600,7 @@ taxify_clear_cache()
 ```
 
 Deleting a backbone directory is safe. The next `taxify()` call for that
-backbone will re-download it from Zenodo if needed.
+backbone will re-download it if needed.
 
 
 ## Worked example: pre-downloading resources
@@ -620,7 +620,7 @@ return immediately.
 # with conservation status and trait enrichments
 
 # Backbones
-taxify_download(c("wfo", "col"))
+taxify_download(c("col", "wfo"))
 
 # Enrichments
 taxify_download_enrichment(c(
@@ -631,7 +631,7 @@ taxify_download_enrichment(c(
 ))
 
 # Now the analysis can run fully offline
-result <- taxify(species_list, backbone = c("wfo", "col"))
+result <- taxify(species_list, backbone = c("col", "wfo"))
 result <- add_iucn(result)
 result <- add_zanne(result)
 ```
@@ -729,7 +729,7 @@ for (i in seq_along(chunks)) {
 | Marine taxa | `c("worms", "col")` |
 | Fungi | `c("fungorum", "col")` |
 | Algae | `c("algaebase", "col")` |
-| All kingdoms, maximum coverage | `c("wfo", "col", "gbif")` |
+| All kingdoms, maximum coverage | `c("col", "gbif", "wfo")` |
 | Molecular/genomic taxa | `c("ncbi", "col")` |
 | North American biodiversity | `c("itis", "col")` |
 
@@ -769,11 +769,11 @@ Jaro-Winkler method (`fuzzy_method = "jw"`).
 
 ```{r}
 # Tight threshold for clean input
-result <- taxify(clean_names, backbone = "wfo",
+result <- taxify(clean_names, backbone = "col",
                  fuzzy = TRUE, fuzzy_threshold = 0.1)
 
 # Integer threshold: at most 2 edits, period
-result <- taxify(noisy_names, backbone = "wfo",
+result <- taxify(noisy_names, backbone = "col",
                  fuzzy = TRUE, fuzzy_threshold = 2L)
 ```
 
@@ -783,7 +783,7 @@ result <- taxify(noisy_names, backbone = "wfo",
 | Function | Purpose |
 |----------|---------|
 | `taxify(..., fuzzy = FALSE)` | Skip fuzzy matching for clean input |
-| `taxify(..., backbone = c("wfo", "col"))` | Multi-backbone fallback chain |
+| `taxify(..., backbone = c("col", "wfo"))` | Multi-backbone fallback chain |
 | `taxify_data_dir()` | Find where backbones are stored |
 | `taxify_download()` | Pre-download backbone `.vtr` files |
 | `taxify_download_enrichment()` | Pre-download enrichment `.vtr` files |

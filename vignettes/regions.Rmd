@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 ```
 
 ## The problem
@@ -20,9 +21,9 @@ knitr::opts_chunk$set(
 Fuzzy matching corrects a typo by finding the nearest real name. Most of the
 time the nearest name is the one the recorder meant, but two species can sit a
 single edit apart while living on different continents. A recorder working in
-Belgium who writes a slightly misspelled name meant a Belgian plant, not its
-one-letter neighbour from New Zealand. The string distance alone cannot tell
-the two apart; the geography can.
+Belgium who writes a slightly misspelled name meant a Belgian plant, and its
+one-letter neighbour from New Zealand is a different species. The string
+distance alone cannot tell the two apart; the geography can.
 
 `taxify()` takes a `region` argument for exactly this. When you set it,
 `taxify()` prefers the fuzzy candidates that actually occur where you work and
@@ -31,8 +32,6 @@ only ever changes which spelling correction wins, never a name that was already
 right.
 
 ```{r}
-library(taxify)
-
 # a small regional list, with a couple of misspellings to correct
 field_names <- c(
   "Gentiana acaulis", "Primula veris", "Pulsatilla vulgaris",
@@ -72,7 +71,7 @@ taxify("Gentiana acaulis", region = "Europe")
 
 ```
 #>         input_name    accepted_name       family match_type fuzzy_dist backbone
-#> 1 Gentiana acaulis Gentiana acaulis Gentianaceae      exact         NA     WFO
+#> 1 Gentiana acaulis Gentiana acaulis Gentianaceae      exact         NA     COL
 ```
 
 The exact match comes back unchanged, since the region never touches one. The

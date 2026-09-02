@@ -375,36 +375,38 @@ standardized table: each name cleaned, matched against a backbone you
 keep on disk, synonyms resolved to the accepted name. Matching runs in C
 through the <a href="https://github.com/gcol33/vectra">vectra</a>
 engine, so there are no web services and no rate limits, and the same
-input gives the same output on any machine. Fifteen Darwin Core
-backbones are available (WFO, COL, GBIF, ITIS, NCBI, OTT, WoRMS,
-Euro+Med, Species Fungorum, AlgaeBase, FishBase, SeaLifeBase, Reptile
-Database, LCVP, WCVP), all queried offline.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
-<p>The first <code>taxify()</code> call downloads a backbone once (WFO
-is about 150 MB) and caches it under <code>taxify_data_dir()</code>.
-After that, nothing touches the network.</p>
+input gives the same output on any machine.
+<!-- manifest:backbone-count -->19<!-- /manifest:backbone-count -->
+Darwin Core backbones are available (WFO, COL, GBIF, ITIS, NCBI, OTT,
+WoRMS, Euro+Med, Species Fungorum, AlgaeBase, FishBase, SeaLifeBase,
+Reptile Database, LCVP, WCVP, MDD, AviList, LPSN), all queried
+offline.</p>
+<p>The first <code>taxify()</code> call installs the default backbone
+set (COL, GBIF, and ITIS) once, about 4 GB, and caches it under
+<code>taxify_data_dir()</code>. After that, nothing touches the
+network.</p>
 </div>
 <div id="one-call" class="section level2">
 <h2>One call</h2>
 <p>Hand <code>taxify()</code> a vector of names. The list below is
 deliberately small and deliberately messy: every entry takes a different
 route to its accepted name.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>field_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur L.&quot;</span>,        <span class="co"># authorship to strip</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Quercus robus&quot;</span>,           <span class="co"># typo</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="st">&quot;cf. Betula pendula&quot;</span>,      <span class="co"># field qualifier</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="st">&quot;FAGUS SYLVATICA&quot;</span>,         <span class="co"># caps</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="st">&quot;Quercus pedunculata&quot;</span>,     <span class="co"># historical synonym of Q. robur</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="st">&quot;Q. petraea&quot;</span>,              <span class="co"># abbreviated genus</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>,             <span class="co"># synonym of Picea abies (a different genus)</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="st">&quot;Festuca rubrra&quot;</span>,          <span class="co"># typo</span></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="st">&quot;Fallopia japonica&quot;</span>,       <span class="co"># synonym of Reynoutria japonica (invasive)</span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  <span class="st">&quot;Taraxacum officinale&quot;</span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>)</span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(field_names)</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>,</span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>        <span class="st">&quot;is_synonym&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>field_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur L.&quot;</span>,        <span class="co"># authorship to strip</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  <span class="st">&quot;Quercus robus&quot;</span>,           <span class="co"># typo</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="st">&quot;cf. Betula pendula&quot;</span>,      <span class="co"># field qualifier</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="st">&quot;FAGUS SYLVATICA&quot;</span>,         <span class="co"># caps</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="st">&quot;Quercus pedunculata&quot;</span>,     <span class="co"># historical synonym of Q. robur</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="st">&quot;Q. petraea&quot;</span>,              <span class="co"># abbreviated genus</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>,             <span class="co"># synonym of Picea abies (a different genus)</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="st">&quot;Festuca rubrra&quot;</span>,          <span class="co"># typo</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="st">&quot;Fallopia japonica&quot;</span>,       <span class="co"># synonym of Reynoutria japonica (invasive)</span></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="st">&quot;Taraxacum officinale&quot;</span></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>)</span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(field_names)</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>        <span class="st">&quot;is_synonym&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
 <pre><code>#&gt;             input_name        accepted_name       family is_synonym match_type fuzzy_dist
 #&gt; 1     Quercus robur L.        Quercus robur     Fagaceae      FALSE      exact         NA
 #&gt; 2        Quercus robus        Quercus robur     Fagaceae      FALSE      fuzzy      0.077
@@ -550,9 +552,9 @@ genus-typo fallback in full.</p>
 <h2>Check the batch at a glance</h2>
 <p><code>summary()</code> prints a digest, the fastest way to see
 whether a run went cleanly.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">summary</span>(res)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">summary</span>(res)</span></code></pre></div>
 <pre><code>#&gt; ── taxify results ──────────────────────────────────────────────────────────
-#&gt;   backbone: WFO v2024-12  |  10 names submitted
+#&gt;   backbone: COL v2026.07  |  10 names submitted
 #&gt;
 #&gt;   matched        10  (exact: 6, case-insensitive: 1, fuzzy: 2, abbrev: 1)
 #&gt;   ────────────────────────────────────────────────────────────
@@ -563,7 +565,7 @@ breakdown (all ten resolved here, including the abbreviated
 scope (an animal in a plant-only backbone) or genuinely absent, the
 digest tallies it and suggests an alternative backbone. The match types
 and the multi-backbone fallback
-(<code>backbone = c(&quot;wfo&quot;, &quot;col&quot;, &quot;gbif&quot;)</code>) are covered in the <a href="https://gillescolling.com/taxify/articles/backbones.html">backbones
+(<code>backbone = c(&quot;col&quot;, &quot;gbif&quot;, &quot;itis&quot;)</code>) are covered in the <a href="https://gillescolling.com/taxify/articles/backbones.html">backbones
 vignette</a>.</p>
 </div>
 <div id="offline-and-how-much-faster" class="section level2">
@@ -627,15 +629,15 @@ joins cleanly. <code>add_data()</code> takes a data.frame, CSV, XLSX, or
 SQLite file, runs its species column through the same backbone, and
 joins on the accepted name, so a synonym on either side still lines
 up.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>my_traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">species      =</span> <span class="fu">c</span>(<span class="st">&quot;Quercus pedunculata&quot;</span>,   <span class="co"># synonym of Q. robur</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>                   <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>                   <span class="st">&quot;Betula pendula&quot;</span>),</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">seed_mass_mg =</span> <span class="fu">c</span>(<span class="dv">3200</span>, <span class="fl">7.5</span>, <span class="fl">0.2</span>)</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>)</span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a></span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="fu">add_data</span>(my_traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>my_traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="at">species      =</span> <span class="fu">c</span>(<span class="st">&quot;Quercus pedunculata&quot;</span>,   <span class="co"># synonym of Q. robur</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>                   <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>                   <span class="st">&quot;Betula pendula&quot;</span>),</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">seed_mass_mg =</span> <span class="fu">c</span>(<span class="dv">3200</span>, <span class="fl">7.5</span>, <span class="fl">0.2</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>)</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="fu">add_data</span>(my_traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>)</span></code></pre></div>
 <pre><code>#&gt; add_data: 3 of 3 species matched (100.0%). 0 names in data unmatched.
 #&gt;         input_name    accepted_name seed_mass_mg
 #&gt; 1    Quercus robur    Quercus robur       3200.0
@@ -716,42 +718,42 @@ a hundred European species, matched in one call. Pick any layers and
 stack them: woodiness, the EIVE ecological indicator values, and plant
 height from the Diaz global trait dataset all attach on the accepted
 name.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>field <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  <span class="st">&quot;Quercus petraea&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Picea abies&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>,</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span>, <span class="st">&quot;Acer platanoides&quot;</span>, <span class="st">&quot;Acer campestre&quot;</span>, <span class="st">&quot;Corylus avellana&quot;</span>,</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="st">&quot;Fraxinus excelsior&quot;</span>, <span class="st">&quot;Carpinus betulus&quot;</span>, <span class="st">&quot;Sorbus aucuparia&quot;</span>, <span class="st">&quot;Tilia cordata&quot;</span>,</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="st">&quot;Ulmus glabra&quot;</span>, <span class="st">&quot;Alnus glutinosa&quot;</span>, <span class="st">&quot;Salix caprea&quot;</span>, <span class="st">&quot;Populus tremula&quot;</span>,</span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>  <span class="st">&quot;Prunus avium&quot;</span>, <span class="st">&quot;Prunus spinosa&quot;</span>, <span class="st">&quot;Crataegus monogyna&quot;</span>, <span class="st">&quot;Sambucus nigra&quot;</span>,</span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  <span class="st">&quot;Cornus sanguinea&quot;</span>, <span class="st">&quot;Viburnum opulus&quot;</span>, <span class="st">&quot;Euonymus europaeus&quot;</span>, <span class="st">&quot;Ligustrum vulgare&quot;</span>,</span>
-<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="st">&quot;Frangula alnus&quot;</span>, <span class="st">&quot;Juniperus communis&quot;</span>, <span class="st">&quot;Taxus baccata&quot;</span>, <span class="st">&quot;Larix decidua&quot;</span>,</span>
-<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="st">&quot;Abies alba&quot;</span>, <span class="st">&quot;Rosa canina&quot;</span>, <span class="st">&quot;Rubus idaeus&quot;</span>, <span class="st">&quot;Hedera helix&quot;</span>,</span>
-<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>  <span class="st">&quot;Clematis vitalba&quot;</span>, <span class="st">&quot;Berberis vulgaris&quot;</span>, <span class="st">&quot;Betula pubescens&quot;</span>, <span class="st">&quot;Prunus padus&quot;</span>,</span>
-<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>  <span class="st">&quot;Rhamnus cathartica&quot;</span>, <span class="st">&quot;Lonicera xylosteum&quot;</span>, <span class="st">&quot;Trifolium repens&quot;</span>, <span class="st">&quot;Trifolium pratense&quot;</span>,</span>
-<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>  <span class="st">&quot;Festuca ovina&quot;</span>, <span class="st">&quot;Dactylis glomerata&quot;</span>, <span class="st">&quot;Plantago lanceolata&quot;</span>, <span class="st">&quot;Plantago major&quot;</span>,</span>
-<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  <span class="st">&quot;Plantago media&quot;</span>, <span class="st">&quot;Achillea millefolium&quot;</span>, <span class="st">&quot;Ranunculus acris&quot;</span>, <span class="st">&quot;Ranunculus repens&quot;</span>,</span>
-<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>  <span class="st">&quot;Urtica dioica&quot;</span>, <span class="st">&quot;Poa pratensis&quot;</span>, <span class="st">&quot;Poa annua&quot;</span>, <span class="st">&quot;Galium mollugo&quot;</span>,</span>
-<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>  <span class="st">&quot;Galium aparine&quot;</span>, <span class="st">&quot;Bellis perennis&quot;</span>, <span class="st">&quot;Cardamine pratensis&quot;</span>, <span class="st">&quot;Cirsium arvense&quot;</span>,</span>
-<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>  <span class="st">&quot;Cirsium vulgare&quot;</span>, <span class="st">&quot;Daucus carota&quot;</span>, <span class="st">&quot;Heracleum sphondylium&quot;</span>, <span class="st">&quot;Anthriscus sylvestris&quot;</span>,</span>
-<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>  <span class="st">&quot;Lotus corniculatus&quot;</span>, <span class="st">&quot;Medicago lupulina&quot;</span>, <span class="st">&quot;Vicia cracca&quot;</span>, <span class="st">&quot;Lathyrus pratensis&quot;</span>,</span>
-<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a>  <span class="st">&quot;Stellaria media&quot;</span>, <span class="st">&quot;Silene dioica&quot;</span>, <span class="st">&quot;Silene vulgaris&quot;</span>, <span class="st">&quot;Geranium pratense&quot;</span>,</span>
-<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a>  <span class="st">&quot;Geranium robertianum&quot;</span>, <span class="st">&quot;Glechoma hederacea&quot;</span>, <span class="st">&quot;Lamium album&quot;</span>, <span class="st">&quot;Prunella vulgaris&quot;</span>,</span>
-<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a>  <span class="st">&quot;Ajuga reptans&quot;</span>, <span class="st">&quot;Veronica chamaedrys&quot;</span>, <span class="st">&quot;Rumex acetosa&quot;</span>, <span class="st">&quot;Rumex obtusifolius&quot;</span>,</span>
-<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a>  <span class="st">&quot;Chenopodium album&quot;</span>, <span class="st">&quot;Capsella bursa-pastoris&quot;</span>, <span class="st">&quot;Senecio vulgaris&quot;</span>, <span class="st">&quot;Leucanthemum vulgare&quot;</span>,</span>
-<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a>  <span class="st">&quot;Centaurea jacea&quot;</span>, <span class="st">&quot;Knautia arvensis&quot;</span>, <span class="st">&quot;Campanula rotundifolia&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>,</span>
-<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a>  <span class="st">&quot;Anemone nemorosa&quot;</span>, <span class="st">&quot;Filipendula ulmaria&quot;</span>, <span class="st">&quot;Lythrum salicaria&quot;</span>, <span class="st">&quot;Robinia pseudoacacia&quot;</span>,</span>
-<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a>  <span class="st">&quot;Solidago canadensis&quot;</span>, <span class="st">&quot;Solidago gigantea&quot;</span>, <span class="st">&quot;Impatiens glandulifera&quot;</span>,</span>
-<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a>  <span class="st">&quot;Heracleum mantegazzianum&quot;</span>, <span class="st">&quot;Prunus serotina&quot;</span>, <span class="st">&quot;Quercus rubra&quot;</span>,</span>
-<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a>  <span class="st">&quot;Quercus robur L.&quot;</span>, <span class="st">&quot;FAGUS SYLVATICA&quot;</span>, <span class="st">&quot;Quercus robus&quot;</span>,</span>
-<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a>  <span class="st">&quot;cf. Taraxacum officinale&quot;</span>, <span class="st">&quot;Quercus pedunculata&quot;</span>, <span class="st">&quot;Festuca rubrra&quot;</span></span>
-<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a>)</span>
-<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a></span>
-<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">taxify</span>(field) <span class="sc">|&gt;</span></span>
-<span id="cb8-31"><a href="#cb8-31" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb8-32"><a href="#cb8-32" tabindex="-1"></a>  <span class="fu">add_eive</span>() <span class="sc">|&gt;</span></span>
-<span id="cb8-33"><a href="#cb8-33" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>()</span>
-<span id="cb8-34"><a href="#cb8-34" tabindex="-1"></a></span>
-<span id="cb8-35"><a href="#cb8-35" tabindex="-1"></a><span class="fu">head</span>(dat[, <span class="fu">c</span>(<span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;woodiness&quot;</span>, <span class="st">&quot;eive_light&quot;</span>,</span>
-<span id="cb8-36"><a href="#cb8-36" tabindex="-1"></a>             <span class="st">&quot;eive_reaction&quot;</span>, <span class="st">&quot;eive_nutrients&quot;</span>, <span class="st">&quot;plant_height_m&quot;</span>)], <span class="dv">6</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>field <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="st">&quot;Quercus petraea&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Picea abies&quot;</span>, <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span>, <span class="st">&quot;Acer platanoides&quot;</span>, <span class="st">&quot;Acer campestre&quot;</span>, <span class="st">&quot;Corylus avellana&quot;</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="st">&quot;Fraxinus excelsior&quot;</span>, <span class="st">&quot;Carpinus betulus&quot;</span>, <span class="st">&quot;Sorbus aucuparia&quot;</span>, <span class="st">&quot;Tilia cordata&quot;</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="st">&quot;Ulmus glabra&quot;</span>, <span class="st">&quot;Alnus glutinosa&quot;</span>, <span class="st">&quot;Salix caprea&quot;</span>, <span class="st">&quot;Populus tremula&quot;</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="st">&quot;Prunus avium&quot;</span>, <span class="st">&quot;Prunus spinosa&quot;</span>, <span class="st">&quot;Crataegus monogyna&quot;</span>, <span class="st">&quot;Sambucus nigra&quot;</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="st">&quot;Cornus sanguinea&quot;</span>, <span class="st">&quot;Viburnum opulus&quot;</span>, <span class="st">&quot;Euonymus europaeus&quot;</span>, <span class="st">&quot;Ligustrum vulgare&quot;</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  <span class="st">&quot;Frangula alnus&quot;</span>, <span class="st">&quot;Juniperus communis&quot;</span>, <span class="st">&quot;Taxus baccata&quot;</span>, <span class="st">&quot;Larix decidua&quot;</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="st">&quot;Abies alba&quot;</span>, <span class="st">&quot;Rosa canina&quot;</span>, <span class="st">&quot;Rubus idaeus&quot;</span>, <span class="st">&quot;Hedera helix&quot;</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="st">&quot;Clematis vitalba&quot;</span>, <span class="st">&quot;Berberis vulgaris&quot;</span>, <span class="st">&quot;Betula pubescens&quot;</span>, <span class="st">&quot;Prunus padus&quot;</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="st">&quot;Rhamnus cathartica&quot;</span>, <span class="st">&quot;Lonicera xylosteum&quot;</span>, <span class="st">&quot;Trifolium repens&quot;</span>, <span class="st">&quot;Trifolium pratense&quot;</span>,</span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>  <span class="st">&quot;Festuca ovina&quot;</span>, <span class="st">&quot;Dactylis glomerata&quot;</span>, <span class="st">&quot;Plantago lanceolata&quot;</span>, <span class="st">&quot;Plantago major&quot;</span>,</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>  <span class="st">&quot;Plantago media&quot;</span>, <span class="st">&quot;Achillea millefolium&quot;</span>, <span class="st">&quot;Ranunculus acris&quot;</span>, <span class="st">&quot;Ranunculus repens&quot;</span>,</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>  <span class="st">&quot;Urtica dioica&quot;</span>, <span class="st">&quot;Poa pratensis&quot;</span>, <span class="st">&quot;Poa annua&quot;</span>, <span class="st">&quot;Galium mollugo&quot;</span>,</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>  <span class="st">&quot;Galium aparine&quot;</span>, <span class="st">&quot;Bellis perennis&quot;</span>, <span class="st">&quot;Cardamine pratensis&quot;</span>, <span class="st">&quot;Cirsium arvense&quot;</span>,</span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>  <span class="st">&quot;Cirsium vulgare&quot;</span>, <span class="st">&quot;Daucus carota&quot;</span>, <span class="st">&quot;Heracleum sphondylium&quot;</span>, <span class="st">&quot;Anthriscus sylvestris&quot;</span>,</span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>  <span class="st">&quot;Lotus corniculatus&quot;</span>, <span class="st">&quot;Medicago lupulina&quot;</span>, <span class="st">&quot;Vicia cracca&quot;</span>, <span class="st">&quot;Lathyrus pratensis&quot;</span>,</span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>  <span class="st">&quot;Stellaria media&quot;</span>, <span class="st">&quot;Silene dioica&quot;</span>, <span class="st">&quot;Silene vulgaris&quot;</span>, <span class="st">&quot;Geranium pratense&quot;</span>,</span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a>  <span class="st">&quot;Geranium robertianum&quot;</span>, <span class="st">&quot;Glechoma hederacea&quot;</span>, <span class="st">&quot;Lamium album&quot;</span>, <span class="st">&quot;Prunella vulgaris&quot;</span>,</span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a>  <span class="st">&quot;Ajuga reptans&quot;</span>, <span class="st">&quot;Veronica chamaedrys&quot;</span>, <span class="st">&quot;Rumex acetosa&quot;</span>, <span class="st">&quot;Rumex obtusifolius&quot;</span>,</span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>  <span class="st">&quot;Chenopodium album&quot;</span>, <span class="st">&quot;Capsella bursa-pastoris&quot;</span>, <span class="st">&quot;Senecio vulgaris&quot;</span>, <span class="st">&quot;Leucanthemum vulgare&quot;</span>,</span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a>  <span class="st">&quot;Centaurea jacea&quot;</span>, <span class="st">&quot;Knautia arvensis&quot;</span>, <span class="st">&quot;Campanula rotundifolia&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>,</span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a>  <span class="st">&quot;Anemone nemorosa&quot;</span>, <span class="st">&quot;Filipendula ulmaria&quot;</span>, <span class="st">&quot;Lythrum salicaria&quot;</span>, <span class="st">&quot;Robinia pseudoacacia&quot;</span>,</span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a>  <span class="st">&quot;Solidago canadensis&quot;</span>, <span class="st">&quot;Solidago gigantea&quot;</span>, <span class="st">&quot;Impatiens glandulifera&quot;</span>,</span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a>  <span class="st">&quot;Heracleum mantegazzianum&quot;</span>, <span class="st">&quot;Prunus serotina&quot;</span>, <span class="st">&quot;Quercus rubra&quot;</span>,</span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a>  <span class="st">&quot;Quercus robur L.&quot;</span>, <span class="st">&quot;FAGUS SYLVATICA&quot;</span>, <span class="st">&quot;Quercus robus&quot;</span>,</span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a>  <span class="st">&quot;cf. Taraxacum officinale&quot;</span>, <span class="st">&quot;Quercus pedunculata&quot;</span>, <span class="st">&quot;Festuca rubrra&quot;</span></span>
+<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a>)</span>
+<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a></span>
+<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">taxify</span>(field) <span class="sc">|&gt;</span></span>
+<span id="cb7-31"><a href="#cb7-31" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb7-32"><a href="#cb7-32" tabindex="-1"></a>  <span class="fu">add_eive</span>() <span class="sc">|&gt;</span></span>
+<span id="cb7-33"><a href="#cb7-33" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>()</span>
+<span id="cb7-34"><a href="#cb7-34" tabindex="-1"></a></span>
+<span id="cb7-35"><a href="#cb7-35" tabindex="-1"></a><span class="fu">head</span>(dat[, <span class="fu">c</span>(<span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;woodiness&quot;</span>, <span class="st">&quot;eive_light&quot;</span>,</span>
+<span id="cb7-36"><a href="#cb7-36" tabindex="-1"></a>             <span class="st">&quot;eive_reaction&quot;</span>, <span class="st">&quot;eive_nutrients&quot;</span>, <span class="st">&quot;plant_height_m&quot;</span>)], <span class="dv">6</span>)</span></code></pre></div>
 <pre><code>#&gt;         accepted_name woodiness eive_light eive_reaction eive_nutrients plant_height_m
 #&gt; 1     Quercus petraea     woody       5.83          4.79           3.55          31.44
 #&gt; 2    Pinus sylvestris     woody       7.10          5.13           2.69          19.03
@@ -763,7 +765,7 @@ name.</p>
 <code>NA</code>; R’s statistics functions drop incomplete rows on their
 own. From here it is ordinary analysis. Do species on more base-rich
 soils also sit higher on the nutrient axis?</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">cor.test</span>(dat<span class="sc">$</span>eive_reaction, dat<span class="sc">$</span>eive_nutrients)</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">cor.test</span>(dat<span class="sc">$</span>eive_reaction, dat<span class="sc">$</span>eive_nutrients)</span></code></pre></div>
 <pre><code>#&gt;  Pearson&#39;s product-moment correlation
 #&gt;
 #&gt; data:  dat$eive_reaction and dat$eive_nutrients

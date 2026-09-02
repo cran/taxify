@@ -4,6 +4,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 
 ## ----taxify-lcvp-wcvp---------------------------------------------------------
 # result <- taxify(plant_names, backbone = c("wcvp", "lcvp", "wfo"))
@@ -23,8 +24,6 @@ knitr::opts_chunk$set(
 
 ## ----taxify-basic-------------------------------------------------------------
 # # --- taxify ---
-# library(taxify)
-# 
 # names <- c("Quercus robur", "Pinus sylvestris", "Betula pendula",
 #            "Panthera leo", "Salmo trutta")
 # 
@@ -49,8 +48,6 @@ knitr::opts_chunk$set(
 
 ## ----taxify-fuzzy-------------------------------------------------------------
 # # --- taxify ---
-# library(taxify)
-# 
 # names <- c("Quercus robur", "Quercus pedonculata",
 #            "Pinus silvestris", "Rosa canina")
 # 
@@ -68,11 +65,9 @@ knitr::opts_chunk$set(
 # result[, c("input_name", "is_synonym", "accepted_name")]
 
 ## ----taxify-fallback----------------------------------------------------------
-# library(taxify)
-# 
 # # Mixed kingdom input: plants, animals, fungi
 # names <- c(
-#   "Quercus robur",         # plant (WFO primary)
+#   "Quercus robur",         # plant (matched by WFO)
 #   "Panthera leo",          # animal (not in WFO, picked up by GBIF)
 #   "Amanita muscaria",      # fungus (not in WFO, picked up by GBIF)
 #   "Salmo trutta",          # fish (not in WFO, picked up by GBIF)

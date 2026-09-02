@@ -348,21 +348,19 @@ region</h1>
 of the time the nearest name is the one the recorder meant, but two
 species can sit a single edit apart while living on different
 continents. A recorder working in Belgium who writes a slightly
-misspelled name meant a Belgian plant, not its one-letter neighbour from
-New Zealand. The string distance alone cannot tell the two apart; the
-geography can.</p>
+misspelled name meant a Belgian plant, and its one-letter neighbour from
+New Zealand is a different species. The string distance alone cannot
+tell the two apart; the geography can.</p>
 <p><code>taxify()</code> takes a <code>region</code> argument for
 exactly this. When you set it, <code>taxify()</code> prefers the fuzzy
 candidates that actually occur where you work and sets the others aside.
 It never touches an exact match, so declaring a region only ever changes
 which spelling correction wins, never a name that was already right.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># a small regional list, with a couple of misspellings to correct</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>field_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Pulsatilla vulgaris&quot;</span>,</span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulary&quot;</span>, <span class="st">&quot;Primula elatour&quot;</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># a small regional list, with a couple of misspellings to correct</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>field_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Pulsatilla vulgaris&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulary&quot;</span>, <span class="st">&quot;Primula elatour&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>)</span></code></pre></div>
 </div>
 <div id="how-the-constraint-works" class="section level2">
 <h2>How the constraint works</h2>
@@ -393,7 +391,7 @@ botanical regions at three levels, so a country, a sub-continental
 region, or a continent all work, case- and accent-insensitively.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>)</span></code></pre></div>
 <pre><code>#&gt;         input_name    accepted_name       family match_type fuzzy_dist backbone
-#&gt; 1 Gentiana acaulis Gentiana acaulis Gentianaceae      exact         NA     WFO</code></pre>
+#&gt; 1 Gentiana acaulis Gentiana acaulis Gentianaceae      exact         NA     COL</code></pre>
 <p>The exact match comes back unchanged, since the region never touches
 one. The constraint earns its keep on the fuzzy names in the same call:
 when a typo has two corrections a single edit apart and only one of them

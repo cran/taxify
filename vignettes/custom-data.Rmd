@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 ```
 
 ## The problem
@@ -24,16 +25,12 @@ sources. The trouble is that external datasets almost never use the same
 names as your backbone. A CSV of leaf trait measurements might record
 *Pinus nigra* subsp. *laricio*, while the backbone stores the accepted name
 as *Pinus nigra*. A colleague's spreadsheet might list *Picea excelsa*
-(a synonym retired decades ago), while WFO recognises *Picea abies*.
+(a synonym retired decades ago), while COL recognises *Picea abies*.
 
 Joining on raw species strings misses these cases: the rows do not
 match, and the merged data.frame has `NA`s where values should exist. The standard workaround is to run the external names
 through the backbone first, resolve them to accepted IDs, and then join on
 those IDs. `add_data()` wraps that entire workflow into a single pipe step.
-
-```{r}
-library(taxify)
-```
 
 ## Joining a data.frame
 
@@ -48,9 +45,9 @@ species <- c(
   "Quercus robur", "Fagus sylvatica", "Picea abies",
   "Pinus sylvestris", "Betula pendula"
 )
-result <- taxify(species, backbone = "wfo")
+result <- taxify(species, backbone = "col")
 
-# External trait data — note one synonym and one subspecies
+# External trait data: note one synonym and one subspecies
 traits <- data.frame(
   taxon = c(
     "Quercus robur", "Fagus sylvatica", "Picea excelsa",
@@ -60,14 +57,14 @@ traits <- data.frame(
   max_height_m = c(35, 40, 50, 30, 25)
 )
 
-# Join — "Picea excelsa" resolves to "Picea abies" through the backbone
+# Join: "Picea excelsa" resolves to "Picea abies" through the backbone
 result <- result |> add_data(traits, species_col = "taxon")
 ```
 
 `add_data()` takes the names from the `taxon` column, runs them through the
 same backbone(s) used in the original `taxify()` call, resolves each to an
 `accepted_id`, and left-joins on that ID. *Picea excelsa* is a synonym of
-*Picea abies* in WFO, so the SLA and height values land on the correct row
+*Picea abies* in COL, so the SLA and height values land on the correct row
 even though the literal strings differ. The output has two new columns,
 `sla` and `max_height_m`, appended to the existing result.
 
@@ -79,7 +76,7 @@ reader, which handles large files efficiently without loading everything
 into R at once. Tab-separated files (`.tsv`, `.tsv.gz`) are also supported.
 
 ```{r}
-result <- taxify(species, backbone = "wfo")
+result <- taxify(species, backbone = "col")
 result <- result |> add_data("path/to/leaf_traits.csv")
 ```
 
@@ -135,7 +132,7 @@ result |> add_data("bird_morphometry.xlsx", sheet = 2)
 # Known header row (e.g., rows 1-2 are title/notes)
 result |> add_data("bird_morphometry.xlsx", start_row = 3)
 
-# All three specified — no scanning at all
+# All three specified: no scanning at all
 result |> add_data("bird_morphometry.xlsx", sheet = 1, start_row = 3,
                    species_col = "latin_name")
 ```
@@ -149,7 +146,7 @@ hood). Because a single `.sqlite` or `.db` file can hold many tables, the
 rather than guessing.
 
 ```{r}
-# SQLite — requires DBI and RSQLite
+# SQLite: requires DBI and RSQLite
 result |> add_data(
   "traits.sqlite",
   table = "plant_traits",
@@ -438,7 +435,7 @@ enrichment functions. Custom data and pre-built enrichments use the same
 `accepted_id` join key, so they can be stacked in any order.
 
 ```{r}
-result <- taxify(species, backbone = "wfo") |>
+result <- taxify(species, backbone = "col") |>
   add_iucn() |>
   add_zanne() |>
   add_data(traits, species_col = "taxon")

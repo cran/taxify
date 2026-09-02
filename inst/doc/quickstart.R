@@ -4,6 +4,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+library(taxify)
 
 ## ----va-engine, echo = FALSE, results = "asis", eval = TRUE-------------------
 cat('
@@ -28,9 +29,6 @@ window.VA = {
 };
 </script>
 ')
-
-## -----------------------------------------------------------------------------
-# library(taxify)
 
 ## -----------------------------------------------------------------------------
 # field_names <- c(

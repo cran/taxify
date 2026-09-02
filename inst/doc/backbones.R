@@ -1,9 +1,8 @@
 ## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(eval = FALSE)
+library(taxify)
 
 ## ----download-single----------------------------------------------------------
-# library(taxify)
-# 
 # # Download one backbone
 # taxify_download("wfo")
 # 
@@ -14,8 +13,6 @@ knitr::opts_chunk$set(eval = FALSE)
 # taxify_download("wfo", version = "2024.01")
 
 ## ----single-wfo---------------------------------------------------------------
-# library(taxify)
-# 
 # plants <- c(
 #   "Quercus robur",
 #   "Quercus petraea",

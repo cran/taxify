@@ -669,10 +669,10 @@ names or names in species-dense genera.</p>
 <span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>loose <span class="ot">&lt;-</span> <span class="fu">taxify</span>(poa_names, <span class="at">fuzzy_threshold =</span> <span class="fl">0.4</span>)</span>
 <span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>loose[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span></code></pre></div>
 <p>At threshold 0.4, <em>Poa trialis</em> (10 characters) is allowed up
-to 4 edits. That is enough distance to reach not only <em>Poa
-trivialis</em> (the intended target, 2 edits) but potentially other Poa
-species that happen to be closer in string distance. With 500+ Poa
-species in WFO, the risk of a false match is real.</p>
+to 4 edits. That is enough distance to reach <em>Poa trivialis</em> (the
+intended target, 2 edits) and potentially other Poa species that happen
+to be closer in string distance. With 500+ Poa species in the backbone,
+the risk of a false match is real.</p>
 <p>The fix is simple: tighten the threshold.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>tight <span class="ot">&lt;-</span> <span class="fu">taxify</span>(poa_names, <span class="at">fuzzy_threshold =</span> <span class="fl">0.15</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>tight[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;fuzzy_dist&quot;</span>)]</span>
@@ -685,14 +685,14 @@ review unmatched names manually. A wrong match is silent and propagates
 into downstream analyses.</p>
 <p>This example also illustrates why short names in large genera are the
 hardest case for fuzzy matching. The genus <em>Poa</em> has over 500
-accepted species in WFO, many with epithets that differ by only 2-3
-characters (<em>pratensis</em> vs <em>palustris</em>, <em>trivialis</em>
-vs <em>trivialis</em>). The shorter the name, the fewer edits it takes
-to reach the threshold, and the more candidate species fall within
-range. For genera like Carex (2,000+ species), Astragalus (3,000+), or
-Euphorbia (2,000+), the same problem applies. When working with
-species-dense genera, tightening the threshold to 0.1-0.15 is almost
-always the right move.</p>
+accepted species in the backbone, many with epithets that differ by only
+2-3 characters (<em>pratensis</em> vs <em>palustris</em>,
+<em>trivialis</em> vs <em>trivialis</em>). The shorter the name, the
+fewer edits it takes to reach the threshold, and the more candidate
+species fall within range. For genera like Carex (2,000+ species),
+Astragalus (3,000+), or Euphorbia (2,000+), the same problem applies.
+When working with species-dense genera, tightening the threshold to
+0.1-0.15 is almost always the right move.</p>
 </div>
 <div id="worked-example-4-comparing-all-three-methods" class="section level2">
 <h2>Worked example 4: comparing all three methods</h2>

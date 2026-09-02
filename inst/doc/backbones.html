@@ -342,19 +342,23 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 <p>taxify matches taxonomic names against locally stored Darwin Core
-backbone databases. Fifteen backbones are available, each compiled from
-a different authoritative source. The backbone we choose determines
-which names can be matched, what taxonomic opinion governs synonym
-resolution, and which extra metadata columns are available downstream.
-This vignette walks through the backbones, explains how to combine them
-in fallback chains, and offers practical guidance on which combination
-to pick for a given project.</p>
+backbone databases.
+<!-- manifest:backbone-count -->19<!-- /manifest:backbone-count -->
+backbones are available, each compiled from a different authoritative
+source. The backbone we choose determines which names can be matched,
+what taxonomic opinion governs synonym resolution, and which extra
+metadata columns are available downstream. This vignette walks through
+the backbones, explains how to combine them in fallback chains, and
+offers practical guidance on which combination to pick for a given
+project.</p>
 <div id="backend-overview" class="section level2">
 <h2>Backend overview</h2>
-<p>The table below summarizes the fifteen backbones. “Approx. names” is
-the total number of name strings in the compiled backbone (accepted
-names plus synonyms); the actual species count is lower because each
-accepted species may have several synonym entries pointing to it.</p>
+<p>The table below summarizes all
+<!-- manifest:backbone-count -->19<!-- /manifest:backbone-count -->.
+“Approx. names” is the total number of name strings in the compiled
+backbone (accepted names plus synonyms); the actual species count is
+lower because each accepted species may have several synonym entries
+pointing to it.</p>
 <table>
 <colgroup>
 <col width="15%" />
@@ -388,103 +392,131 @@ accepted species may have several synonym entries pointing to it.</p>
 <td align="left">ChecklistBank DwC-A (Taxon.tsv)</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>colxr</code></td>
+<td align="left">Catalogue of Life Extended Release</td>
+<td align="left">All kingdoms</td>
+<td align="left">~7.9M</td>
+<td align="left">ChecklistBank DwC-A export of the XR dataset</td>
+</tr>
+<tr class="even">
 <td align="left"><code>gbif</code></td>
 <td align="left">GBIF Backbone Taxonomy</td>
 <td align="left">All kingdoms</td>
 <td align="left">~6.4M</td>
 <td align="left">GBIF simple.txt.gz (30 positional cols)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>itis</code></td>
 <td align="left">Integrated Taxonomic Information System</td>
 <td align="left">All kingdoms, US focus</td>
 <td align="left">~990k</td>
 <td align="left">SQLite dump from itis.gov</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>ncbi</code></td>
 <td align="left">NCBI Taxonomy</td>
 <td align="left">All life incl. viruses</td>
 <td align="left">~2.7M</td>
 <td align="left">Pipe-delimited .dmp files (taxdump)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>ott</code></td>
 <td align="left">Open Tree of Life</td>
 <td align="left">All life (synthetic)</td>
 <td align="left">~3.7M</td>
 <td align="left">Pipe-delimited taxonomy.tsv + synonyms.tsv</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>worms</code></td>
 <td align="left">World Register of Marine Species</td>
 <td align="left">Marine and brackish</td>
 <td align="left">~1.6M</td>
 <td align="left">ChecklistBank DwC-A</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>euromed</code></td>
 <td align="left">Euro+Med PlantBase</td>
 <td align="left">European/Mediterranean plants</td>
 <td align="left">~147k</td>
 <td align="left">Semicolon-delimited CSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fungorum</code></td>
 <td align="left">Species Fungorum Plus</td>
 <td align="left">Fungi</td>
 <td align="left">~315k</td>
 <td align="left">ChecklistBank DwC-A</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>algaebase</code></td>
 <td align="left">AlgaeBase</td>
 <td align="left">Algae and cyanobacteria</td>
 <td align="left">~170k</td>
 <td align="left">ChecklistBank DwC-A (CC BY-NC)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fishbase</code></td>
 <td align="left">FishBase</td>
 <td align="left">Fishes</td>
 <td align="left">~100k</td>
 <td align="left">rfishbase (load_taxa + synonyms)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>sealifebase</code></td>
 <td align="left">SeaLifeBase</td>
 <td align="left">Non-fish marine and aquatic</td>
 <td align="left">~134k</td>
 <td align="left">rfishbase (load_taxa + synonyms)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>reptiledb</code></td>
 <td align="left">Reptile Database</td>
 <td align="left">Reptiles</td>
 <td align="left">~50k</td>
 <td align="left">reptarium taxa.csv + synonym/checklist XLSX</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>lcvp</code></td>
 <td align="left">Leipzig Catalogue of Vascular Plants</td>
 <td align="left">Vascular plants</td>
 <td align="left">~1.3M</td>
 <td align="left">idiv-biodiversity tab_lcvp.rda (R data package)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>wcvp</code></td>
 <td align="left">World Checklist of Vascular Plants (Kew)</td>
 <td align="left">Vascular plants</td>
 <td align="left">~1.4M</td>
 <td align="left">Kew wcvp.zip (wcvp_names.csv)</td>
 </tr>
+<tr class="odd">
+<td align="left"><code>mdd</code></td>
+<td align="left">Mammal Diversity Database</td>
+<td align="left">Mammals</td>
+<td align="left">~62k</td>
+<td align="left">MDD.zip of CSVs (species + synonyms)</td>
+</tr>
+<tr class="even">
+<td align="left"><code>avilist</code></td>
+<td align="left">AviList (Global Avian Checklist)</td>
+<td align="left">Birds</td>
+<td align="left">~41k</td>
+<td align="left">AviList extended .xlsx</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>lpsn</code></td>
+<td align="left">List of Prokaryotic names with Standing in
+Nomenclature</td>
+<td align="left">Bacteria and archaea</td>
+<td align="left">~45k</td>
+<td align="left">ChecklistBank ColDP (NameUsage.tsv)</td>
+</tr>
 </tbody>
 </table>
 <p>A few things stand out. WFO is the standard reference for plant
-taxonomy and the default backbone in taxify. It is maintained by the
-World Flora Online consortium and receives regular updates. The backbone
-includes all taxonomic ranks from kingdom down to form, with full
-synonym resolution and authorship.</p>
+taxonomy, maintained by the World Flora Online consortium and updated
+regularly. The backbone includes all taxonomic ranks from kingdom down
+to form, with full synonym resolution and authorship.</p>
 <p>COL and GBIF both cover all kingdoms, but they differ in curation
 strategy. COL is an expert-curated checklist assembled from over 160
 sector databases, each maintained by a taxonomic authority for its
@@ -552,27 +584,43 @@ accepted-species list, the periodic synonym snapshot, and the
 family-to-order checklist. The source carries no kingdom or class field,
 so the backbone stamps Animalia / Chordata / Reptilia on every row. The
 data is CC BY 4.0.</p>
+<p>The Mammal Diversity Database is the American Society of
+Mammalogists’ reference mammal taxonomy, distributed as a zip of CSVs
+holding the accepted species with their full higher classification and
+every name ever applied to them. The data is MIT-licensed.</p>
+<p>AviList is the global bird checklist that merged the long-standing
+IOC, Clements, and BirdLife split, shipped as one Excel workbook
+covering order through subspecies. It publishes no synonym table, so the
+backbone derives homotypic synonyms from the <code>Protonym</code>
+column: where a species has since moved genus, its original combination
+is a synonym of the current name (<code>Parus caeruleus</code> -&gt;
+<code>Cyanistes caeruleus</code>). The data is CC BY 4.0.</p>
+<p>LPSN is the nomenclatural authority for prokaryotes, hosted by DSMZ,
+and it answers a question NCBI, GBIF, and OTT leave open: whether a
+bacterial or archaeal name is validly published. LPSN’s own download
+route sits behind a free DSMZ account, so the backbone is built from the
+open ColDP mirror on GBIF ChecklistBank. The data is CC BY-SA 4.0.</p>
 </div>
 <div id="downloading-backbones" class="section level2">
 <h2>Downloading backbones</h2>
 <p>taxify auto-downloads backbones on first use. When we call
 <code>taxify(names, backbone = &quot;wfo&quot;)</code> and no local WFO backbone
-exists, taxify fetches the pre-built <code>.vtr</code> file from Zenodo,
-writes it to <code>taxify_data_dir()</code>, and caches the path for the
-remainder of the R session. Subsequent calls, whether in the same
-session or future sessions, reuse the local copy without any network
-access.</p>
+exists, taxify fetches the pre-built <code>.vtr</code> file from the
+taxifydb release it is published under, writes it to
+<code>taxify_data_dir()</code>, and caches the path for the remainder of
+the R session. Subsequent calls, whether in the same session or future
+sessions, reuse the local copy without any network access.</p>
 <p>To download a backbone ahead of time (useful on a shared server or in
 a Docker image), use <code>taxify_download()</code>:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># Download one backbone</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">taxify_download</span>(<span class="st">&quot;wfo&quot;</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co"># Download several at once</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="fu">taxify_download</span>(<span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;worms&quot;</span>))</span></code></pre></div>
-<p>Pre-built <code>.vtr</code> files are hosted on Zenodo and typically
-range from 50 MB (AlgaeBase) to 400 MB (GBIF), depending on the
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Download one backbone</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">taxify_download</span>(<span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co"># Download several at once</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">taxify_download</span>(<span class="fu">c</span>(<span class="st">&quot;wfo&quot;</span>, <span class="st">&quot;col&quot;</span>, <span class="st">&quot;worms&quot;</span>))</span></code></pre></div>
+<p>Pre-built <code>.vtr</code> files are published as GitHub Releases on
+<a href="https://github.com/gcol33/taxifydb">taxifydb</a>, one tag per
+backbone (<code>gbif-2026.06</code>, <code>algaebase-2026.06</code>),
+and range from 8 MB (AviList) to 2.0 GB (COL), depending on the
 backbone. The files are compiled from the raw Darwin Core sources with
 precomputed matching keys, embedded synonym resolution, and genus-level
 indexes, so they are ready for querying the moment the download
@@ -605,20 +653,18 @@ produce identical results regardless of when the analysis is re-run.</p>
 <div id="single-backbone-matching" class="section level2">
 <h2>Single-backbone matching</h2>
 <p>The simplest use case: match plant names against WFO.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="st">&quot;Quercus petraea&quot;</span>,</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span>,</span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span>,</span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="st">&quot;Fagus sylvatica&quot;</span>,</span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="st">&quot;Picea abies&quot;</span></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>)</span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>)</span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;backbone&quot;</span>)]</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="st">&quot;Quercus petraea&quot;</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="st">&quot;Acer pseudoplatanus&quot;</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="st">&quot;Betula pendula&quot;</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="st">&quot;Fagus sylvatica&quot;</span>,</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="st">&quot;Picea abies&quot;</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>)</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plants, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>result[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;family&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;backbone&quot;</span>)]</span></code></pre></div>
 <p>Every row in the output has 26 columns regardless of which backbone
 produced it: <code>input_name</code>, <code>matched_name</code>,
 <code>accepted_name</code>, <code>taxon_id</code>,
@@ -660,10 +706,12 @@ all-rounder.</p>
 </div>
 <div id="backend-specific-output-differences" class="section level2">
 <h2>Backend-specific output differences</h2>
-<p>All fifteen backbones produce the same 26-column output schema. This
-is a deliberate design choice: downstream code does not need to know
-which backbone produced a match. That said, the content of those columns
-varies in ways worth knowing about.</p>
+<p>All
+<!-- manifest:backbone-count -->19<!-- /manifest:backbone-count -->
+backbones produce the same 26-column output schema. This is a deliberate
+design choice: downstream code does not need to know which backbone
+produced a match. That said, the content of those columns varies in ways
+worth knowing about.</p>
 <p><strong>Authorship.</strong> WFO’s <code>scientificName</code> is
 already canonical (no authorship appended), so the
 <code>authorship</code> column comes from a separate
@@ -1053,20 +1101,29 @@ output does not include.</p>
 </div>
 <div id="the-genus-register" class="section level2">
 <h2>The genus register</h2>
-<p>taxify builds a unified genus register from the union of genera
-across the backbones you have installed (up to all fifteen: WFO, COL,
-GBIF, ITIS, NCBI, OTT, WoRMS, Euro+Med, Species Fungorum, AlgaeBase,
-FishBase, SeaLifeBase, Reptile Database, LCVP, and WCVP). Build it with
-<code>taxify_build_register()</code> (equivalently
-<code>taxify_download(&quot;register&quot;)</code>); it reads each installed
-backbone once and stores the result under the data directory. With all
-fifteen installed the register holds ~500k genera, each with its family,
+<p>The genus register is a unified index of the genera across every
+supported backbone. It holds 503,262 genera, each with its family,
 higher classification (kingdom through order, where available), and a
 <code>life_form</code> label (e.g., <code>&quot;vascular plant&quot;</code>,
-<code>&quot;animal&quot;</code>, <code>&quot;fungus&quot;</code>). The classification is
-resolved by priority: WoRMS &gt; COL &gt; GBIF &gt; Euro+Med &gt; ITIS
-&gt; NCBI &gt; OTT &gt; WFO. If COL and WFO disagree about which family
-a genus belongs to, COL’s assignment wins.</p>
+<code>&quot;animal&quot;</code>, <code>&quot;fungus&quot;</code>). Where two backbones
+disagree about which family a genus belongs to, the classification is
+resolved by priority: WoRMS, COL Extended Release, COL, WCVP, Reptile
+Database, MDD, AviList, LPSN, GBIF, Euro+Med, LCVP, ITIS, NCBI, OTT,
+WFO, FishBase, SeaLifeBase, Species Fungorum, AlgaeBase. If COL and WFO
+disagree, COL’s assignment wins.</p>
+<p>The register is built by taxifydb over that fixed backbone set and
+published as a versioned asset, the same way each backbone is, so it
+arrives by download rather than by a local build. taxify resolves it on
+first use: local disk, then the manifest download, then a local build
+through <code>taxify_build_register()</code> (equivalently
+<code>taxify_download(&quot;register&quot;)</code>) if taxifydb is installed.
+Building it from whichever backbones a given machine happened to have
+installed is what the published asset replaced, because it made the same
+code report different <code>kingdom_group</code> and
+<code>life_form</code> labels on two machines.</p>
+<p>A <code>backend_coverage</code> asset ships alongside it, one row per
+genus and backbone, which is what
+<code>taxify_register_coverage()</code> reads.</p>
 <p>The register serves two purposes in taxify’s matching pipeline.
 First, it provides <code>life_form</code>, <code>kingdom_group</code>,
 and <code>taxon_group</code> columns in taxify output for every matched

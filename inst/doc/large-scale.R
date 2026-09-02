@@ -4,9 +4,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
-
-## -----------------------------------------------------------------------------
-# library(taxify)
+library(taxify)
 
 ## -----------------------------------------------------------------------------
 # taxify_data_dir()
@@ -153,7 +151,7 @@ knitr::opts_chunk$set(
 # # with conservation status and trait enrichments
 # 
 # # Backbones
-# taxify_download(c("wfo", "col"))
+# taxify_download(c("col", "wfo"))
 # 
 # # Enrichments
 # taxify_download_enrichment(c(
@@ -164,7 +162,7 @@ knitr::opts_chunk$set(
 # ))
 # 
 # # Now the analysis can run fully offline
-# result <- taxify(species_list, backbone = c("wfo", "col"))
+# result <- taxify(species_list, backbone = c("col", "wfo"))
 # result <- add_iucn(result)
 # result <- add_zanne(result)
 
@@ -191,10 +189,10 @@ knitr::opts_chunk$set(
 
 ## -----------------------------------------------------------------------------
 # # Tight threshold for clean input
-# result <- taxify(clean_names, backbone = "wfo",
+# result <- taxify(clean_names, backbone = "col",
 #                  fuzzy = TRUE, fuzzy_threshold = 0.1)
 # 
 # # Integer threshold: at most 2 edits, period
-# result <- taxify(noisy_names, backbone = "wfo",
+# result <- taxify(noisy_names, backbone = "col",
 #                  fuzzy = TRUE, fuzzy_threshold = 2L)
 
