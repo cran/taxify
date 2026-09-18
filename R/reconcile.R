@@ -21,8 +21,8 @@
 #' @param backbone Character vector of backbone names or a `taxify_backend`
 #'   object, passed to [taxify()]. `NULL` (default) uses every installed
 #'   backbone.
-#' @param ... Further arguments passed to [taxify()] (e.g. `fuzzy`,
-#'   `fuzzy_threshold`, `kingdom`).
+#' @param ... Matching arguments passed to [taxify()] (e.g. `fuzzy`,
+#'   `fuzzy_threshold`, `kingdom`, `region`). Must be named.
 #' @param verbose Logical. Default `TRUE`.
 #'
 #' @return A data.frame with one row per input name, columns:
@@ -31,8 +31,11 @@
 #'   \item{accepted_name}{The name it resolves to now (`NA` if unresolved).}
 #'   \item{status}{One of:
 #'     `"unchanged"` (resolves to itself, still accepted),
-#'     `"synonym"` (now a synonym of a different accepted name),
+#'     `"synonym"` (now a synonym of a different accepted name, including a
+#'       name the backbone keeps unplaced but resolves through its basionym),
 #'     `"misspelling"` (resolved by fuzzy/abbrev match to a corrected spelling),
+#'     `"rank_fallback"` (an infraspecific name the backbone does not carry;
+#'       `accepted_name` is the accepted name of its species),
 #'     `"ambiguous"` (a homonym resolving to several accepted taxa; see
 #'       [taxify_candidates()]),
 #'     `"unresolved"` (no match).}
@@ -65,7 +68,7 @@ reconcile <- function(x, backbone = NULL, ..., verbose = TRUE) {
   if (!is.character(x) || length(x) == 0L) {
     stop("x must be a non-empty character vector.", call. = FALSE)
   }
-  res <- taxify(x, backbone = backbone, verbose = verbose, ...)
+  res <- taxify_input(x, backbone = backbone, ..., verbose = verbose)
 
   n  <- nrow(res)
   mt <- res$match_type
@@ -87,6 +90,7 @@ reconcile <- function(x, backbone = NULL, ..., verbose = TRUE) {
   status[resolved & same_name & !is_syn] <- "unchanged"
   status[resolved & is_misspell & !is_syn] <- "misspelling"
   status[resolved & is_syn] <- "synonym"
+  status[resolved & !is.na(mt) & mt == "rank_fallback"] <- "rank_fallback"
   status[resolved & is_amb]  <- "ambiguous"
 
   # Many-to-one collapse: >= 2 distinct inputs sharing one accepted name.

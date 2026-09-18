@@ -526,10 +526,22 @@ test_that("ITALIC lichen descriptors are registered as distinct lichen traits", 
                c("sexual", "asexual"))
 })
 
+test_that("BET's substrate set reduces to ITALIC's primary class by one priority", {
+  reg <- taxify:::.trait_registry()
+  bet <- reg$substrate$sources$bet$map
+  it  <- reg$substrate$sources$italic$map
+  expect_equal(bet(c("soil|rock|bark|wood", "soil|bark", "soil|wood|living_plants",
+                     "soil", "living_plants", "dung_carcass", "wood|dung_carcass", NA)),
+               c("rock", "bark", "wood", "soil", NA, NA, "wood", NA))
+  # Both sources read one priority, so the same classes give the same primary.
+  expect_equal(bet("bark|rock"), it("bark and rocks"))
+  expect_true(all(bet(c("rock", "bark", "wood", "soil")) %in% reg$substrate$vocab))
+})
+
 test_that("trait_info() returns one row per source with harmonization notes", {
   ti <- suppressMessages(trait_info("seed_mass"))
   expect_true(all(c("source", "enrichment", "column", "note") %in% names(ti)))
-  expect_setequal(ti$source, c("diaz", "gift", "austraits", "bien", "brot", "ecoflora", "kew_sid"))
+  expect_setequal(ti$source, c("diaz", "gift", "austraits", "bien", "brot", "ecoflora", "kew_sid", "leda"))
   expect_true(any(grepl("x1000", ti$note)))          # GIFT g -> mg conversion noted
   expect_error(suppressMessages(trait_info("nope")), "unknown trait")
 })
@@ -585,11 +597,11 @@ test_that("coalesce defaults to median for numeric traits", {
 
   # Default numeric combine is median across all sources that carry the row.
   # Abies alba seed mass in the example database: Diaz 62.007, GIFT 73.9425,
-  # BIEN 44.47, BROT 52.63 mg -> median (52.63 + 62.007) / 2 = 57.3185.
+  # BIEN 44.47, BROT 52.63, LEDA 79.2 mg -> median 62.007.
   d <- add_trait(mk("Abies alba"), "seed_mass", mode = "coalesce", verbose = FALSE)
   expect_true(all(c("seed_mass", "seed_mass_sources", "seed_mass_n") %in% names(d)))
-  expect_equal(d$seed_mass_n, 4L)
-  expect_equal(d$seed_mass, 57.3185, tolerance = 1e-6)
+  expect_equal(d$seed_mass_n, 5L)
+  expect_equal(d$seed_mass, 62.007, tolerance = 1e-6)
   expect_match(d$seed_mass_sources, "diaz")
   expect_match(d$seed_mass_sources, "gift")
 })
@@ -599,14 +611,15 @@ test_that("numeric coalesce reports the spread as <trait>_min / <trait>_max", {
   on.exit(options(old), add = TRUE)
   skip_if_not(trait_ready(), "example enrichments not available")
 
-  # No example seed-mass source stores a within-source range, so min/max are the
-  # extremes across the four contributing sources: BIEN 44.47 mg up to GIFT
-  # 73.9425 mg, bracketing the 57.3185 mg median headline.
+  # LEDA's two Abies alba records both read 79.2 mg, so no source contributes a
+  # within-source range and min/max are the extremes across the five
+  # contributing sources: BIEN 44.47 mg up to LEDA 79.2 mg, bracketing the
+  # 62.007 mg median headline.
   d <- add_trait(mk("Abies alba"), "seed_mass", verbose = FALSE)
   expect_true(all(c("seed_mass_min", "seed_mass_max") %in% names(d)))
   expect_equal(d$seed_mass_min, 44.47, tolerance = 1e-6)
-  expect_equal(d$seed_mass_max, 73.9425, tolerance = 1e-6)
-  expect_equal(d$seed_mass, 57.3185, tolerance = 1e-6)
+  expect_equal(d$seed_mass_max, 79.2, tolerance = 1e-6)
+  expect_equal(d$seed_mass, 62.007, tolerance = 1e-6)
 })
 
 test_that("categorical coalesce adds no min/max columns", {
@@ -726,7 +739,7 @@ test_that(".trait_join_spread surfaces a source's stored within-source min/max",
                    stringsAsFactors = FALSE)
   install_mock_enrichment("mockspread", df)
   x   <- data.frame(accepted_name = "Aaa bbb", stringsAsFactors = FALSE)
-  res <- .trait_join_spread(x, "mockspread", "myval", verbose = FALSE)
+  res <- .trait_join_spread(x, "mockspread", "myval")
   expect_equal(res$value, 50)
   expect_equal(res$min, 10)
   expect_equal(res$max, 100)
@@ -736,7 +749,7 @@ test_that(".trait_join_spread falls back to the value when no spread is stored",
   df <- data.frame(canonical_name = "Aaa bbb", myval = 50, stringsAsFactors = FALSE)
   install_mock_enrichment("mocknospread", df)
   x   <- data.frame(accepted_name = "Aaa bbb", stringsAsFactors = FALSE)
-  res <- .trait_join_spread(x, "mocknospread", "myval", verbose = FALSE)
+  res <- .trait_join_spread(x, "mocknospread", "myval")
   expect_equal(res$value, 50)
   expect_equal(res$min, 50)          # min/max collapse to the point value
   expect_equal(res$max, 50)
@@ -748,8 +761,7 @@ test_that(".trait_join_spread applies the unit map to the value and both bounds"
                    stringsAsFactors = FALSE)
   install_mock_enrichment("mockmap", df)
   x   <- data.frame(accepted_name = "Aaa bbb", stringsAsFactors = FALSE)
-  res <- .trait_join_spread(x, "mockmap", "myval", map = function(v) v * 1000,
-                            verbose = FALSE)
+  res <- .trait_join_spread(x, "mockmap", "myval", map = function(v) v * 1000)
   expect_equal(res$value, 5000)
   expect_equal(res$min, 1000)
   expect_equal(res$max, 10000)
@@ -758,9 +770,40 @@ test_that(".trait_join_spread applies the unit map to the value and both bounds"
 test_that(".coalesce_spread unions per-source lows and highs, ignoring NA", {
   per_min <- list(a = c(10, NA, NA), b = c(5, 20, NA))
   per_max <- list(a = c(30, NA, NA), b = c(8, 25, NA))
-  s <- .coalesce_spread(per_min, per_max)
+  co <- .coalesce_sources(per_min, c("a", "b"), "numeric", "median")
+  s <- .coalesce_spread(per_min, per_max, c("a", "b"), co$source)
   expect_equal(s$min, c(5, 20, NA))
   expect_equal(s$max, c(30, 25, NA))
+})
+
+test_that("the spread covers only the sources behind the headline (#73)", {
+  ord  <- c("groot", "austraits")
+  per  <- list(groot = c(0.3, NA), austraits = c(2.5, 1.9))
+  for (cmb in c("complete", "first")) {
+    co <- .coalesce_sources(per, ord, "numeric", cmb)
+    s  <- .coalesce_spread(per, per, ord, co$source)
+    if (cmb == "complete") {
+      # austraits is the more populated source here, so it is the one reported
+      expect_equal(co$value, c(2.5, 1.9))
+      expect_equal(s$min, c(2.5, 1.9))
+    } else {
+      expect_equal(co$value, c(0.3, 1.9))
+      expect_equal(s$min, c(0.3, 1.9))
+      expect_equal(s$max, c(0.3, 1.9))
+    }
+  }
+  # The issue's shape: groot chosen, austraits set aside.
+  per <- list(groot = c(0.3, NA, 0.4), austraits = c(2.5, 1.9, NA))
+  co  <- .coalesce_sources(per, ord, "numeric", "complete")
+  expect_equal(co$best, "groot")
+  s <- .coalesce_spread(per, per, ord, co$source)
+  expect_equal(s$min, c(0.3, NA, 0.4))
+  expect_equal(s$max, c(0.3, NA, 0.4))
+  expect_true(is.na(co$value[2]))
+
+  co <- .coalesce_sources(per, ord, "numeric", "median")
+  s  <- .coalesce_spread(per, per, ord, co$source)
+  expect_equal(s$max, c(2.5, 1.9, 0.4))
 })
 
 test_that("add_zanne() is the source-named woodiness door", {
@@ -771,4 +814,91 @@ test_that("add_zanne() is the source-named woodiness door", {
   r <- add_zanne(mk("Quercus robur"), verbose = FALSE)
   expect_true("woodiness" %in% names(r))
   expect_equal(r$woodiness, "woody")
+})
+
+
+# A source that cannot be joined leaves an all-NA column, which reads exactly
+# like the source genuinely holding nothing for these taxa. Reporting it is
+# therefore not a verbosity setting (#55).
+
+test_that("a source that cannot be joined is named, despite verbose = FALSE", {
+  old <- options(taxify.data_dir = taxify_example_data())
+  on.exit(options(old), add = TRUE)
+  skip_if_not(trait_ready(), "trait enrichments not available")
+
+  w <- NULL
+  r <- withCallingHandlers(
+    testthat::with_mocked_bindings(
+      add_trait(mk("Abies alba"), "woodiness", mode = "wide", verbose = FALSE),
+      enrich_simple = function(...) stop("staged join failure"),
+      .package = "taxify"
+    ),
+    warning = function(cond) {
+      w <<- c(w, conditionMessage(cond)); invokeRestart("muffleWarning")
+    }
+  )
+  expect_true(any(grepl("could not be joined", w, fixed = TRUE)))
+  expect_true(any(grepl("'zanne'", w, fixed = TRUE)))
+  expect_true(is.na(r$woodiness_zanne))
+})
+
+test_that("verbose reports what each source supplied", {
+  old <- options(taxify.data_dir = taxify_example_data())
+  on.exit(options(old), add = TRUE)
+  skip_if_not(trait_ready(), "trait enrichments not available")
+
+  expect_message(add_trait(mk("Abies alba"), "woodiness"),
+                 "add_trait\\('woodiness'\\).*zanne 1.*of 1 resolved name")
+})
+
+test_that("BROT dispersal letter codes map through the BROT 2.0 legend, primary first", {
+  map <- .trait_registry()$dispersal_syndrome$sources$brot$map
+  expect_equal(map(c("G", "W", "H", "B", "M", "N", "P", "O", "Z")),
+               c("gravity", "wind", "water", "ballistic", "ant",
+                 "animal", "animal", "animal", "animal"))
+  expect_equal(map(c("WZG", "NOG", " mbg", NA, "", "X")),
+               c("wind", "animal", "ant", NA, NA, NA))
+})
+
+test_that("BROT's unassisted G code lands in the barochory gravity class other sources fill", {
+  reg <- .trait_registry()$dispersal_syndrome
+  expect_equal(reg$sources$brot$map(c("G", "GH", "GM")), rep("gravity", 3))
+  expect_equal(reg$sources$baseflor$map("barochory"), "gravity")
+  expect_equal(reg$sources$austraits$map("barochory"), "gravity")
+  expect_true(all(reg$sources$brot$map(c("G", "W", "H", "B", "M", "N", "P", "O", "Z")) %in% reg$vocab))
+})
+
+test_that("autochory alone is self-dispersal and places in no dispersal class", {
+  reg <- .trait_registry()$dispersal_syndrome
+  expect_equal(reg$sources$gift$map(c("autochorous", "unspecialized")), c(NA, "unspecialized"))
+  expect_equal(reg$sources$austraits$map(c("autochory", "ballistic", "barochory")),
+               c(NA, "ballistic", "gravity"))
+  expect_equal(reg$sources$leda$map(c("autochor", "ballochor", "nautochor")),
+               c(NA, "ballistic", "water"))
+  expect_equal(reg$sources$baseflor$map(c("autochory", "autochory, myrmecochory")),
+               c(NA, "ant"))
+})
+
+test_that("self-placement and unknown dispersal terms place in no class", {
+  reg <- .trait_registry()$dispersal_syndrome
+  expect_equal(reg$sources$leda$map(c("blastochor", "herpochor", "bythisochor", "barochor")),
+               c(NA, NA, NA, "gravity"))
+  expect_equal(reg$sources$austraits$map(c("undefined", "undefined anemochory")),
+               c(NA, "wind"))
+  expect_equal(reg$sources$gift$map("unspecialized"), "unspecialized")
+})
+
+test_that("LEDA seed mass is a registered milligram source", {
+  ti <- suppressMessages(trait_info("seed_mass"))
+  expect_true("leda" %in% ti$source)
+  expect_equal(ti$column[ti$source == "leda"], "leda_seed_mass_mg")
+  map <- .trait_registry()$seed_mass$sources$leda$map
+  expect_equal(map(c("79.2", "0.53")), c(79.2, 0.53))
+})
+
+test_that("LEDA stem specific density is read as built in g/cm3, with a method caution", {
+  sp <- .trait_registry()$wood_density$sources$leda
+  expect_equal(sp$col, "ssd_g_cm3")
+  expect_equal(sp$map(c("0.66", "0.43")), c(0.66, 0.43))
+  expect_match(sp$caution, "air-dry")
 })

@@ -195,15 +195,16 @@ meow_alias_map <- function() {
 #' Validate and normalize a user-supplied region argument
 #'
 #' Resolves each element to one or more region codes. Botanical (TDWG Level 3):
-#' a known code (or any bare 3-letter token) is used directly; a region name
-#' (Level 1, 2, or 3, case- and accent-insensitive) is expanded via the bundled
-#' WGSRPD crosswalk. Marine (MEOW ecoregion, only when the `marine_distribution`
-#' asset is installed): a numeric `ECO_CODE`, or an ecoregion / province / realm
-#' name, is resolved from the installed enrichment. Unresolvable, non-code tokens
-#' trigger a warning and are dropped. Returns `NULL` when nothing usable remains
-#' (so the caller treats it as "no filter"). Unrecognized codes are kept rather
-#' than rejected: a code that matches no range record makes the soft filter a
-#' no-op, so a typo degrades gracefully instead of producing wrong results.
+#' a code listed in the bundled WGSRPD crosswalk is used directly; a region name
+#' (Level 1, 2, or 3, case- and accent-insensitive) is expanded via the
+#' crosswalk. Marine (MEOW ecoregion, only when the `marine_distribution` asset
+#' is installed): a numeric `ECO_CODE`, or an ecoregion / province / realm name,
+#' is resolved from the installed enrichment. Anything else, a mistyped code
+#' such as `"GRE"` included, triggers a warning and is dropped: kept, it would
+#' be a region no taxon occurs in, which [inspect()] would flag every name
+#' against. A bare 3-letter token is kept unchecked only when the crosswalk
+#' itself is unavailable. Returns `NULL` when nothing usable remains (so the
+#' caller treats it as "no filter").
 #'
 #' @param region Character vector of region codes or names, or `NULL`.
 #' @return Normalized character vector of codes, or `NULL`.
@@ -239,7 +240,7 @@ validate_region <- function(region) {
       out <- c(out, tok)
     } else if (!is.null(m_aliases) && key %in% m_aliases$key) {
       out <- c(out, m_aliases$code[m_aliases$key == key])
-    } else if (grepl("^[A-Za-z]{3}$", tok)) {
+    } else if (is.null(tab) && grepl("^[A-Za-z]{3}$", tok)) {
       out <- c(out, up)
     } else {
       unresolved <- c(unresolved, tok)
@@ -369,7 +370,14 @@ region_range_sets <- function(accepted_names, region, range_mode,
   }
 
   if (is.null(wcvp) && is.null(marine)) {
-    if (verbose) message("  Region filter skipped: no range data available.")
+    # The caller asked for a region and every provider that could answer for it
+    # is unavailable, so no candidate will be constrained. The unfiltered result
+    # is a plausible answer to a different question, and nothing else in the
+    # output records that the constraint was dropped.
+    warning(sprintf(
+      paste0("Region constraint (%s) was not applied: no range data available. ",
+             "Results are unfiltered by region."),
+      paste(region, collapse = ", ")), call. = FALSE)
     return(NULL)
   }
 
@@ -1062,8 +1070,10 @@ resolve_region <- function(region = NULL, coords = NULL, verbose = FALSE) {
 #'   `level1_name`, and `scheme`, one row per region.
 #' @examples
 #' head(taxify_regions())
+#' \donttest{
 #' taxify_regions("belgium")
 #' taxify_regions("Europe")
+#' }
 #' @export
 taxify_regions <- function(search = NULL, scheme = c("all", "wgsrpd", "meow")) {
   scheme <- match.arg(scheme)

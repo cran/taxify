@@ -64,8 +64,10 @@
 #     body length).
 #   - LDMC is mg/g in LEDA, GIFT and BROT; Diaz ldmc_g_g is g/g (x1000 -> 195,
 #     matches LEDA's 194). Stem specific density feeds wood_density: GIFT
-#     gift_ssd and LEDA ssd are mg/cm^3 (/1000 -> 0.63 and 0.70 against GWDD's
-#     0.57 g/cm^3).
+#     gift_ssd is mg/cm^3 (/1000 -> 0.63 against GWDD's 0.57 g/cm^3). LEDA's
+#     ssd_g_cm3 is g/cm^3 as built: its source records mix g/cm^3 with kg/m^3,
+#     and taxifydb reads a record above LEDA's 0-1.5 g/cm^3 validity range as
+#     kg/m^3.
 #   - generation_length: BET is years, COMBINE days (/365.25 -> 6.0 against
 #     BET's 6.7). Weaning is days in Amniote, AnAge and PanTHERIA.
 #   - Days -> years for the maturity and interval traits: male_maturity_d
@@ -410,9 +412,8 @@
 #
 # Too thin, empty, or an uncatchable error:
 #
-#   - LEDA leda_seed_mass_mg (values 1-4, a class code, not mg); AmphiBIO
-#     longevity_d (values are years); SeaLifeBase trophic_level, FloraWeb
-#     chromosome and ploidy, and LEDA leaf dry mass (all empty).
+#   - AmphiBIO longevity_d (values are years); SeaLifeBase trophic_level and
+#     FloraWeb chromosome and ploidy (all empty).
 #   - huang_amph eye_diameter: median 3.7 mm is plausible but the maximum is
 #     747 mm, a magnitude error with no second source to catch it.
 #   - bee_ostwald morphology: forewing_length has n=2, and thorax and hair
@@ -459,9 +460,6 @@
 #     decoding the letters from domain memory is the column-header rung of the
 #     evidence ladder, which is never enough on its own. Same call as nest_type
 #     before its codebook was found.
-#     (bet's four one-hot substrate flags were on this list until taxifydb
-#     collapsed them to a primary `substrate` column at build time, the way
-#     NestTrait's one-hot nest flags were; bet is now a substrate source.)
 #   - coral_traits skeletal_density_g_cm3: 55 species, and not comparable to the
 #     wood_density it superficially resembles.
 #   - brot barkthick: mixes a thin/thick call with numeric ranges written as
@@ -603,15 +601,54 @@
     "therophyt"                  = "therophyte",
     "cryptophyt"                 = "cryptophyte")
 
+  # Autochory is self-dispersal as a whole and matches no class here. LEDA
+  # files ballochor and blastochor under main type "Autochor" ("Self
+  # dispersal"); AusTraits defines autochory as "dispersed by methods
+  # originating from the parent plant or diaspore" beside its own ballistic
+  # and barochory values; GIFT's autochorous class has no ballistic or gravity
+  # subclass and spans explosive legume pods and passive capsules alike. A
+  # record naming only autochory is left NA so a source that names the
+  # mechanism fills it; one that also names a vector keeps that vector.
+  # Blastochory ("Autonomous placement of seeds or daughter plant away from
+  # mother plant", LEDA) and herpochory (a diaspore crawling by trichomes or
+  # hygroscopic awns) are self-placement, neither a fall under gravity nor a
+  # launch, so they match no class either. Bythisochory is non-floating seeds
+  # carried along the bottom of running water after heavy rain, which Vittoz &
+  # Engler (2007) call "complementary to other dispersal modes" and random
+  # across slope species: a water process, but not a species' syndrome, so it
+  # matches no class. AusTraits' "undefined" is
+  # "Dispersal mechanism unknown" and is NA. GIFT gives "unspecialized" no
+  # definition; its species are other sources' unassisted and human-dispersed
+  # ones, not unknowns, so it keeps its own class.
   disp_patterns <- c(
     "myrmecochor"                          = "ant",
     "anemochor|meteorochor|boleochor|chamaechor" = "wind",
     "zoochor|dysochor"                     = "animal",
     "hydrochor|nautochor|ombrochor"        = "water",
-    "barochor|blastochor|bythisochor"      = "gravity",
-    "ballochor|ballistic|autochor|herpochor" = "ballistic",
+    "barochor"                             = "gravity",
+    "ballochor|ballistic"                  = "ballistic",
     "agochor|hemerochor|ethelochor|speirochor" = "human",
-    "unspecialized|undefined"              = "unspecialized")
+    "unspecialized"                        = "unspecialized")
+
+  # BROT 2.0 writes dispersal mode as one letter per vector, most important
+  # first (Tavsanoglu & Pausas 2018, Scientific Data 5:180135, trait 23): "G:
+  # autochory, by Gravity (=unassisted dispersal). W: anemochory, by Wind (with
+  # wind dispersal adaptations). H: Hydrochory, by water. B: Ballistichory, by
+  # launching (=ballochory). M: Myrmecochory, by ants. N: eNdozoochory, internal
+  # animal transport. P: ePizoochory, external animal transport
+  # (=exozoochory). O: hOarding, scatter and hoarding diaspores by animals
+  # (others than ants). Z: Zoochory, dispersal mediated by animals (unknown
+  # transport system)." The primary vector is the first letter. G reads as
+  # "gravity", the class Baseflor, AusTraits and LEDA fill from barochory, not
+  # as "unspecialized", which only GIFT (no gravity class) and AusTraits'
+  # "undefined" supply: of BROT's G species, Baseflor codes 838 of 1,864
+  # barochory, and AusTraits 17 of 118 barochory against 1 undefined.
+  brot_disp_codes <- c(g = "gravity", w = "wind", h = "water", b = "ballistic",
+                       m = "ant", n = "animal", p = "animal", o = "animal",
+                       z = "animal")
+  brot_disp <- function(v) {
+    .xw_cat(substr(trimws(as.character(v)), 1L, 1L), brot_disp_codes)
+  }
 
   poll_patterns <- c(
     "insekt|insect|bee|beetle|fly|flies|butterfly|moth|wasp|thrip|hymenopt|lepidopt|dipter|coleopt|hoverfly|midge" = "insect",
@@ -994,9 +1031,11 @@
     "squamulose" = "squamulose",
     "leprose"    = "leprose")
 
-  # Lichen substrate (italic); a multi-substrate record is reduced to one primary
-  # class by priority (rock > bark > wood > soil > leaves); the rare "bark and
-  # rocks"-type compounds take the higher-priority class.
+  # Substrate (italic lichens, bet bryophytes); a multi-substrate record is
+  # reduced to one primary class by priority (rock > bark > wood > soil >
+  # leaves): ITALIC's "bark and rocks"-type compounds and BET's pipe-delimited
+  # class sets ("soil|rock|bark") both take the higher-priority class. BET's
+  # living_plants and dung_carcass classes match no pattern.
   lichen_substrate_patterns <- c(
     "rock"                 = "rock",
     "bark"                 = "bark",
@@ -1099,7 +1138,11 @@
         bien      = nsrc("bien", "seed_mass_mg", "BIEN (Maitner et al. 2018)", "Milligrams."),
         brot      = nsrc("brot", "seed_mass_mg", "BROT 2.0 (Tavsanoglu & Pausas 2018)", "Milligrams."),
         ecoflora  = nsrc("ecoflora", "seed_weight_mg_uk", "Ecoflora (Fitter & Peat 1994)", "Milligrams."),
-        kew_sid   = nsrc("kew_sid", "thousand_seed_weight", "Kew SID (RBG Kew)", "Thousand-seed weight in grams equals per-seed mass in milligrams (x1).")
+        kew_sid   = nsrc("kew_sid", "thousand_seed_weight", "Kew SID (RBG Kew)", "Thousand-seed weight in grams equals per-seed mass in milligrams (x1)."),
+        leda      = nsrc("leda", "leda_seed_mass_mg", "LEDA Traitbase (Kleyer et al. 2008)",
+                         paste("Milligrams, LEDA's per-record single value reduced to the species median.",
+                               "Ratio 1.00 against Kew SID (2,198 shared species), GIFT (2,252) and",
+                               "BIEN (1,662), 1.01 against Diaz (2,215) and BROT (521)."))
       )
     ),
     sla = list(
@@ -1118,7 +1161,11 @@
         austraits = nsrc("austraits", "wood_density_g_cm3", "AusTraits (Falster et al. 2021)", "g/cm^3."),
         bien      = nsrc("bien", "wood_density_g_cm3", "BIEN (Maitner et al. 2018)", "g/cm^3."),
         gift      = nsrc("gift", "gift_ssd_mean", "GIFT (Weigelt et al. 2020)", "Stem specific density, mg/cm^3 converted to g/cm^3 (/1000; 630 -> 0.63).", map = mgcm2g),
-        leda      = nsrc("leda", "ssd_g_cm3", "LEDA (Kleyer et al. 2008)", "Stem specific density, mg/cm^3 converted to g/cm^3 (/1000).", map = mgcm2g)
+        leda      = nsrc("leda", "ssd_g_cm3", "LEDA (Kleyer et al. 2008)", "Stem specific density, g/cm^3.",
+                         caution = paste("Most LEDA density records are air-dry wood densities at 12-15% moisture,",
+                                         "which LEDA's own standard converts to oven-dry stem specific density as",
+                                         "SSD = 0.800 ADW + 0.0134. They run 1.14x GWDD's density on 37 shared",
+                                         "species (1.06x Diaz, 1.19x BIEN)."))
       )
     ),
     leaf_area = list(
@@ -1835,20 +1882,51 @@
       vocab = c("wind", "animal", "ant", "water", "gravity", "ballistic", "human", "unspecialized"),
       sources = list(
         gift      = list(enrichment = "gift", col = "gift_dispersal_syndrome_1",
-                         citation = "GIFT (Weigelt et al. 2020)", note = "Primary dispersal syndrome.",
+                         citation = "GIFT (Weigelt et al. 2020)",
+                         note = paste("Primary dispersal syndrome. \"autochorous\" (self-dispersal, no ballistic",
+                                      "or gravity subclass in GIFT) is left NA: of 332 such species BROT",
+                                      "codes 234 G and 1 B, and Baseflor 639 of 1,089 barochory, 37 autochory.",
+                                      "\"unspecialized\" is its own class, not an unknown: on its species BROT",
+                                      "codes 293 of 500 G and AusTraits 243 of 579 barochory against 4",
+                                      "undefined, and GIFT's second level calls 741 of 1,754 anthropochorous."),
                          map = function(v) .xw_grep(v, disp_patterns)),
         austraits = list(enrichment = "austraits", col = "dispersal_syndrome",
-                         citation = "AusTraits (Falster et al. 2021)", note = "Primary syndrome from a possibly multi-mode record (-chory terms).",
+                         citation = "AusTraits (Falster et al. 2021)", note = paste("Primary syndrome from a possibly multi-mode record (-chory terms).",
+                                      "A record naming only autochory (\"methods originating from the parent",
+                                      "plant or diaspore\", beside AusTraits' own ballistic and barochory) is NA,",
+                                      "and so is \"undefined\" (\"Dispersal mechanism unknown\"): BROT codes 16 of",
+                                      "those 17 species W and LEDA 25 of 28 endozoochor."),
                          map = function(v) .xw_grep(v, disp_patterns)),
         leda      = list(enrichment = "leda", col = "dispersal_type",
-                         citation = "LEDA Traitbase (Kleyer et al. 2008)", note = "LEDA -chor terms mapped to primary vector.",
+                         citation = "LEDA Traitbase (Kleyer et al. 2008)", note = paste("LEDA -chor terms mapped to primary vector. \"autochor\" is LEDA's main type",
+                                      "(\"Self dispersal\") over ballochor and blastochor and is NA; ballochor",
+                                      "reads as ballistic. blastochor (\"Autonomous placement of seeds or",
+                                      "daughter plant away from mother plant\") and herpochor are NA: the 71",
+                                      "blastochor species (Viola, Scilla, Hepatica, Pulmonaria) are Baseflor",
+                                      "myrmecochory 46 of 64 and GIFT zoochorous 34 of 40, the 6 herpochor",
+                                      "species (Pilosella, Hieracium, Trisetum) Baseflor anemochory or",
+                                      "epizoochory. bythisochor (seeds carried along the bottom of running",
+                                      "water) is NA: its 60 alpine species (Astragalus, Rumex, Carlina,",
+                                      "Leontopodium) are Baseflor epizoochory 26, anemochory 18, barochory 13",
+                                      "of 57 and GIFT anemochorous 10, zoochorous 3 of 13, none water."),
                          map = function(v) .xw_grep(v, disp_patterns)),
         baseflor  = list(enrichment = "baseflor", col = "dispersal_mode",
-                         citation = "Baseflor (Julve, Catminat)", note = "-chory term mapped to primary vector.",
+                         citation = "Baseflor (Julve, Catminat)", note = paste("-chory term mapped to primary vector. \"autochory\" is NA: Baseflor keeps it apart",
+                                      "from barochory and defers type definitions to Gorenflot, and its 402",
+                                      "species mix explosive genera (Oxalis, Geranium, Erodium, Cytisus,",
+                                      "Impatiens) with ferns and Cymbalaria; BROT codes 56 of 77 of them G."),
                          map = function(v) .xw_grep(v, disp_patterns)),
         brot      = list(enrichment = "brot", col = "disp_mode",
-                         citation = "BROT 2.0 (Tavsanoglu & Pausas 2018)", note = "-chory term mapped to primary vector.",
-                         map = function(v) .xw_grep(v, disp_patterns))
+                         citation = "BROT 2.0 (Tavsanoglu & Pausas 2018)",
+                         note = paste("BROT's letter code (G gravity, W wind, H water, B ballistic, M ant;",
+                                      "N, P, O, Z animal); the first letter is the primary vector. BROT defines",
+                                      "G as \"autochory, by Gravity (=unassisted dispersal)\". Of BROT's G species,",
+                                      "Baseflor codes 838 of 1,864 barochory and AusTraits 17 of 118 barochory",
+                                      "against 1 undefined; GIFT, which has no gravity class, calls 293 of 1,058",
+                                      "unspecialized, 367 anemochorous, 234 autochorous, 152 zoochorous.",
+                                      "Agreement on shared keys: GIFT 57% of 3,080, AusTraits 50% of 454,",
+                                      "Baseflor 54% of 5,783; outside BROT's G code 78%, 63% and 58%."),
+                         map = brot_disp)
       )
     ),
     pollination_vector = list(
@@ -2817,8 +2895,8 @@
                       citation = "ITALIC 8.0 (Nimis; Italian lichens)", note = "Primary substrate of a possibly multi-substrate record (priority rock > bark > wood > soil > leaves).",
                       map = function(v) .xw_grep(v, lichen_substrate_patterns)),
         bet    = list(enrichment = "bet", col = "substrate",
-                      citation = "Bryophytes of Europe Traits (Hodgetts et al.)", note = "Primary substrate derived at build time from four one-hot flags, by the same priority ITALIC's multi-substrate records use. 58.8% of BET species carrying any flag carry several, so the reduction is real rather than incidental; BET's deadwood is ITALIC's lignum.",
-                      map = chr_verbatim)
+                      citation = "Bryophytes of Europe Traits (Hodgetts et al.)", note = "Primary class of BET's substrate set (its six one-hot class flags, collapsed at build time), by the same priority as ITALIC's multi-substrate records. 59.7% of BET species with any class carry several; the full set stays on add_bet(). BET's deadwood is ITALIC's lignum; its living_plants (leaves and other bryophytes) and dung_carcass classes have no counterpart in the vocabulary.",
+                      map = function(v) .xw_grep(v, lichen_substrate_patterns))
       )
     ),
     photobiont = list(
@@ -3385,8 +3463,23 @@
 # (before crosswalk). Reuses enrich_simple() for the aggregate-aware join. A
 # source that is unavailable (not installed, no download, no build) is skipped
 # with a warning and returns NULL, so add_trait() still works from the rest.
+# Report a source that could not be joined. The all-NA column such a failure
+# leaves behind reads exactly like the source genuinely holding nothing for
+# these taxa, so the report is not gated on `verbose`: silence here turns a
+# failure into a coverage statement. `warn` exists only so a companion fetch
+# does not repeat what the same source's value join has already reported.
+.trait_join_failed <- function(e, enrichment, warn) {
+  if (isTRUE(warn)) {
+    warning(sprintf(
+      "add_trait(): source '%s' could not be joined (%s); its values are all NA.",
+      enrichment, conditionMessage(e)), call. = FALSE)
+  }
+  NULL
+}
+
+
 .trait_join_one <- function(x, enrichment, col, kind, join_col = "accepted_name",
-                            group = NULL, verbose = TRUE,
+                            group = NULL, warn = TRUE,
                             aggregate_trait_fallback =
                               getOption("taxify.aggregate_trait_fallback", TRUE)) {
   tmp  <- ".__taxify_trait_raw__"
@@ -3420,14 +3513,7 @@
         verbose      = FALSE
       )
     },
-    error = function(e) {
-      if (verbose) {
-        warning(sprintf(
-          "add_trait(): source '%s' unavailable (%s); skipping.",
-          enrichment, conditionMessage(e)), call. = FALSE)
-      }
-      NULL
-    }
+    error = function(e) .trait_join_failed(e, enrichment, warn)
   )
   if (is.null(res)) return(NULL)
   res[[tmp]]
@@ -3442,7 +3528,7 @@
 # the same code path deepens automatically once a rebuilt .vtr carries the
 # stored spread. pmin/pmax guard against a non-monotonic map swapping the bounds.
 .trait_join_spread <- function(x, enrichment, col, join_col = "accepted_name",
-                               map = identity, verbose = TRUE,
+                               map = identity, warn = TRUE,
                                aggregate_trait_fallback =
                                  getOption("taxify.aggregate_trait_fallback", TRUE)) {
   cm   <- c(.v = col, .lo = paste0(col, "_min"), .hi = paste0(col, "_max"))
@@ -3455,14 +3541,7 @@
       expose_all = FALSE, verbose = FALSE,
       aggregate_trait_fallback = aggregate_trait_fallback
     ),
-    error = function(e) {
-      if (verbose) {
-        warning(sprintf(
-          "add_trait(): source '%s' unavailable (%s); skipping.",
-          enrichment, conditionMessage(e)), call. = FALSE)
-      }
-      NULL
-    }
+    error = function(e) .trait_join_failed(e, enrichment, warn)
   )
   if (is.null(res)) return(NULL)
   v  <- map(res[[".v"]])
@@ -3565,20 +3644,27 @@
 
 
 # Reduce the per-source lower/upper bounds (in priority order) to one spread per
-# row: the smallest lower bound and largest upper bound across every source that
-# supplied a value there. With no stored within-source spread each source's
-# min/max equal its point value, so this returns the cross-source range; with
-# stored spread it widens to the extremes actually observed in any source.
-.coalesce_spread <- function(per_min, per_max) {
+# row: the smallest lower bound and largest upper bound across the sources the
+# reducer used for that row's headline. `used` is `.coalesce_sources()`'s
+# per-row source label (one name under "first"/"complete", the comma-separated
+# contributors under an aggregator), so a source that "complete" set aside for
+# measuring by a different method never widens the range, and a row with no
+# headline has no spread. With no stored within-source spread each source's
+# min/max equal its point value, so this returns the range behind the headline;
+# with stored spread it widens to the extremes observed in those sources.
+.coalesce_spread <- function(per_min, per_max, ord, used) {
   n  <- length(per_min[[1L]])
-  Lo <- do.call(cbind, per_min)
-  Hi <- do.call(cbind, per_max)
-  mn <- vapply(seq_len(n), function(i) {
-    r <- Lo[i, ]; r <- r[!is.na(r)]; if (!length(r)) NA_real_ else min(r)
-  }, numeric(1L))
-  mx <- vapply(seq_len(n), function(i) {
-    r <- Hi[i, ]; r <- r[!is.na(r)]; if (!length(r)) NA_real_ else max(r)
-  }, numeric(1L))
+  Lo <- matrix(unlist(per_min, use.names = FALSE), nrow = n)
+  Hi <- matrix(unlist(per_max, use.names = FALSE), nrow = n)
+  mn <- rep(NA_real_, n)
+  mx <- rep(NA_real_, n)
+  for (i in which(!is.na(used))) {
+    j  <- match(strsplit(used[i], ",", fixed = TRUE)[[1L]], ord)
+    lo <- Lo[i, j]; lo <- lo[!is.na(lo)]
+    hi <- Hi[i, j]; hi <- hi[!is.na(hi)]
+    if (length(lo)) mn[i] <- min(lo)
+    if (length(hi)) mx[i] <- max(hi)
+  }
   list(min = mn, max = mx)
 }
 

@@ -138,7 +138,14 @@
 #'     this is the author of the resolved accepted name, not the synonym's own
 #'     author, so `accepted_name` and `accepted_authorship` together form the
 #'     accepted name's full citation.}
-#'   \item{is_synonym}{Logical. Was the match a synonym?}
+#'   \item{is_synonym}{Logical. Does the matched name resolve to a different
+#'     accepted taxon? `TRUE` for a synonym record, and for an unplaced record
+#'     resolved through its basionym (`match_type = "basionym"`).}
+#'   \item{taxonomic_status}{The matched record's own status as the backbone
+#'     writes it (`"ACCEPTED"`, `"SYNONYM"`, WFO's `"UNCHECKED"`, COL's
+#'     `"PROVISIONALLY ACCEPTED"`, ...), so a name the backbone holds without
+#'     having placed it can be told from an accepted one. `NA` when nothing
+#'     matched.}
 #'   \item{is_hybrid}{Logical. Was a hybrid marker detected in the input?}
 #'   \item{hybrid_type}{`"nothogenus"` (`"x Cupressocyparis leylandii"`),
 #'     `"nothospecies"` (`"Quercus x hispanica"`), `"formula"`
@@ -169,11 +176,21 @@
 #'     not store; the ID, rank and classification columns are `NA`,
 #'     `matched_name` / `accepted_name` name the cross by its parents when both
 #'     resolve, and [add_hybrid_info()] materializes the parents into the
-#'     `hybrid_parent_*` columns), or `"none"`.}
+#'     `hybrid_parent_*` columns), `"rank_fallback"` (an infraspecific name no
+#'     backbone carries, resolved to its species: the ID, rank and name columns
+#'     describe the species), `"basionym"` (a record the backbone keeps
+#'     unplaced, resolved to the taxon under which it places the record's
+#'     basionym: `matched_name`, `taxon_id` and `taxonomic_status` describe the
+#'     unplaced record, the `accepted_*` columns that taxon; needs a backbone
+#'     built with its basionym links), or `"none"`.}
 #'   \item{fuzzy_dist}{Normalized string distance (0--1), `NA` if exact.}
 #'   \item{is_ambiguous}{Logical. `TRUE` when the matched scientificName had
 #'     multiple rows pointing to different accepted taxa at the same priority
-#'     tier (homonym ambiguity). An authorship carried by the input resolves it
+#'     tier (homonym ambiguity). A record the backbone keeps unplaced does not
+#'     settle such a conflict: it is reported beside the records that place the
+#'     name, whichever of them is picked. Where one record of the name is a
+#'     synonym homotypic with its accepted name and another is unplaced, the
+#'     homotypic record is picked. An authorship carried by the input resolves it
 #'     where it picks out one target; `nomenclaturalStatus = "Valid"` orders
 #'     which candidate the scalar columns hold, but does not clear the flag,
 #'     because a valid name and an illegitimate one can be synonyms of different
@@ -226,7 +243,7 @@
 #'
 #' # Constrain fuzzy candidates to a geographic region: a TDWG Level 3 code,
 #' # or a region name resolved via the bundled WGSRPD crosswalk
-#' taxify("Quercus robus", region = "EUR")
+#' taxify("Quercus robus", region = "BGM")
 #' taxify("Quercus robus", region = "Belgium")
 #'
 #' # Constrain by coordinates (downloads WGSRPD boundaries on first use)
@@ -294,7 +311,7 @@ taxify <- function(x,
   # named backbones; with fewer there is nothing to compare, so fall through to
   # the normal single-answer result.
   if (mode != "fallback") {
-    bb_names <- if (inherits(backbone, "taxify_backend")) backbone$name else backbone
+    bb_names <- backbone_name_of(backbone)
     if (!is.character(bb_names) || length(bb_names) < 2L) {
       if (verbose) message(sprintf(
         "mode = \"%s\" needs >= 2 backbones; returning the standard result.",
@@ -345,7 +362,7 @@ taxify <- function(x,
   # what it is for.
   result <- run_fallback_sweep(NULL, names_df, backbone, fuzzy = FALSE,
                                fuzzy_threshold, fuzzy_method, region, range,
-                               kingdom, verbose)
+                               kingdom, verbose, rank_fallback = FALSE)
 
   if (fuzzy && any(is.na(result$match_type) & !is.na(result$input_name))) {
     result <- run_fallback_sweep(result, names_df, backbone, fuzzy = TRUE,
@@ -353,9 +370,20 @@ taxify <- function(x,
                                  kingdom, verbose)
   }
 
-  # Set match_type = "none" for still-unmatched
-  result$match_type[is.na(result$match_type) &
-                    !is.na(result$input_name)] <- "none"
+  # A third sweep resolves an infraspecific name no backbone carries to its
+  # species. It runs only once every backbone has had the full name, for the
+  # same reason fuzzy waits for exact: a subspecies a later backbone accepts
+  # outranks its parent species in an earlier one.
+  if (any(is.na(result$match_type) & !is.na(names_df$cleaned) &
+          grepl("^\\S+ \\S+ \\S", names_df$cleaned))) {
+    result <- run_fallback_sweep(result, names_df, backbone, fuzzy = FALSE,
+                                 fuzzy_threshold, fuzzy_method, region, range,
+                                 kingdom, verbose, rank_fallback = TRUE)
+  }
+
+  # Set match_type = "none" for still-unmatched. An NA input is a query like
+  # any other and gets the same verdict as "" -- match_type is never NA.
+  result$match_type[is.na(result$match_type)] <- "none"
 
   # Ensure classification columns always exist
   if (!"kingdom_group" %in% names(result)) result$kingdom_group <- NA_character_
@@ -424,16 +452,22 @@ taxify_compare <- function(x, backbone, mode, fuzzy, fuzzy_threshold,
 
   # Base = fallback pick, staged by match quality the same way the fallback
   # chain stages it: every backbone is considered for an exact match before any
-  # backbone is considered for a fuzzy one, so the base column agrees with
-  # `mode = "fallback"` on the same input. Within a quality tier the first
-  # backbone in `backbone` order wins.
+  # backbone is considered for a fuzzy one, and for a fuzzy one before any
+  # species fallback, so the base column agrees with `mode = "fallback"` on the
+  # same input. Within a quality tier the first backbone in `backbone` order
+  # wins. The quality is that of the name match, so a row resolved through its
+  # basionym after a fuzzy match counts as fuzzy.
+  tiers <- list(c("fuzzy", "rank_fallback"), "rank_fallback", character(0L))
+  quality <- function(r) {
+    ifelse(r$match_type == "rank_fallback", "rank_fallback",
+           ifelse(!is.na(r$fuzzy_dist), "fuzzy", "exact"))
+  }
   base <- per_be[[1L]]
   base_matched <- logical(nrow(base))
-  for (want_exact in c(TRUE, FALSE)) {
+  for (later in tiers) {
     for (k in seq_along(backbone)) {
       r <- per_be[[k]]
-      take <- if (want_exact) is_matched(r) & r$match_type != "fuzzy" else
-                              is_matched(r)
+      take <- is_matched(r) & !quality(r) %in% later
       fill <- which(!base_matched & take)
       if (length(fill)) {
         for (col in intersect(names(base), names(r))) {
@@ -503,8 +537,7 @@ taxify_single <- function(x, be, fuzzy, fuzzy_threshold, fuzzy_method,
   result$backbone_version[matched] <- format_backbone_version(
     vtr_path, be$name, be$version
   )
-  result$match_type[is.na(result$match_type) &
-                    !is.na(result$input_name)] <- "none"
+  result$match_type[is.na(result$match_type)] <- "none"
 
   # Ensure classification columns always exist
   if (!"kingdom_group" %in% names(result)) result$kingdom_group <- NA_character_
@@ -619,12 +652,8 @@ finalize_hybrids <- function(result, names_df, backbone) {
                   unresolved)
   if (length(form) == 0L) return(result)
 
-  na_cols <- intersect(
-    c("matched_name", "taxon_id", "accepted_id", "rank",
-      "family", "genus", "epithet", "authorship", "accepted_authorship",
-      "is_synonym", "fuzzy_dist", "is_ambiguous", "ambiguous_targets",
-      "aggregate_fallback"),
-    names(result))
+  na_cols <- intersect(c(.match_record_cols, "aggregate_fallback"),
+                       names(result))
   for (col in na_cols) result[[col]][form] <- NA
   result$match_type[form] <- "hybrid_formula"
   result$is_hybrid[form]  <- TRUE
@@ -657,13 +686,14 @@ finalize_hybrids <- function(result, names_df, backbone) {
 #' One sweep of the fallback chain across every backbone
 #'
 #' Walks `backbone` in priority order, asking each one for the names still
-#' unresolved, and merges what it returns into `result`. Called twice by
-#' `taxify()`: once with `fuzzy = FALSE`, which runs exact matching and
+#' unresolved, and merges what it returns into `result`. Called up to three
+#' times by `taxify()`: once with `fuzzy = FALSE`, which runs exact matching and
 #' abbreviated-genus resolution against every backbone, then once with
-#' `fuzzy = TRUE` over whatever is still unmatched. The two stages are
-#' separated because match quality outranks backbone priority: a fuzzy hit in
-#' an early backbone must not settle a name that a later backbone holds
-#' exactly.
+#' `fuzzy = TRUE` over whatever is still unmatched, then once with
+#' `rank_fallback = TRUE` to resolve an infraspecific name no backbone carries
+#' to its species. The stages are separated because match quality outranks
+#' backbone priority: a fuzzy hit or a parent species in an early backbone must
+#' not settle a name that a later backbone holds exactly.
 #'
 #' Abbreviated-genus resolution rides in the first sweep rather than in a third
 #' stage of its own. It only ever touches rows `clean_names()` flagged as
@@ -681,11 +711,19 @@ finalize_hybrids <- function(result, names_df, backbone) {
 #' @param fuzzy Logical. Whether this sweep runs the fuzzy stage.
 #' @param fuzzy_threshold,fuzzy_method,region,range_mode,kingdom,verbose Passed
 #'   through to `run_match_stages()` and `filter_result_by_kingdom()`.
+#' @param rank_fallback Logical. Whether this sweep runs the species fallback.
 #' @return The match result data.frame.
 #' @noRd
 run_fallback_sweep <- function(result, names_df, backbone, fuzzy,
                                fuzzy_threshold, fuzzy_method, region,
-                               range_mode, kingdom, verbose) {
+                               range_mode, kingdom, verbose,
+                               rank_fallback = FALSE) {
+  # Read the genus context off the whole query once. Each later backbone sees
+  # only the names still unmatched, so deriving it per backbone would make
+  # `"Q. petraea"` depend on which backbone happened to answer the name that
+  # spelled `Quercus` out (#59).
+  genus_context <- spelled_genera(names_df$cleaned)
+
   for (bb_name in backbone) {
     be <- resolve_backend(bb_name)
     vtr_path <- ensure_backbone(be, verbose = verbose)
@@ -698,7 +736,9 @@ run_fallback_sweep <- function(result, names_df, backbone, fuzzy,
       result <- run_match_stages(be, names_df, vtr_path, fuzzy, fuzzy_threshold,
                                  fuzzy_method, region = region,
                                  range_mode = range_mode, verbose = verbose,
-                                 label = bb_name, scope = backbone)
+                                 label = bb_name, scope = backbone,
+                                 genus_context = genus_context,
+                                 rank_fallback = rank_fallback)
       result <- filter_result_by_kingdom(result, vtr_path, kingdom, be$name)
 
       matched <- is_backbone_match(result$match_type)
@@ -721,8 +761,10 @@ run_fallback_sweep <- function(result, names_df, backbone, fuzzy,
 
     # In the fuzzy sweep the per-backbone line comes from `run_match_stages()`,
     # which reports the count that actually reaches the fuzzy pass.
-    if (verbose && !fuzzy) message(sprintf("  [%s] Matching %d remaining names...",
-                                            bb_name, length(unmatched_idx)))
+    if (verbose && !fuzzy) message(sprintf(
+      if (rank_fallback) "  [%s] Species fallback for %d remaining names..."
+      else "  [%s] Matching %d remaining names...",
+      bb_name, length(unmatched_idx)))
 
     sub_names_df <- names_df[unmatched_idx, , drop = FALSE]
     rownames(sub_names_df) <- NULL
@@ -731,7 +773,9 @@ run_fallback_sweep <- function(result, names_df, backbone, fuzzy,
                                    fuzzy_threshold, fuzzy_method,
                                    region = region, range_mode = range_mode,
                                    verbose = verbose, label = bb_name,
-                                   scope = backbone)
+                                   scope = backbone,
+                                   genus_context = genus_context,
+                                   rank_fallback = rank_fallback)
     sub_result <- filter_result_by_kingdom(sub_result, vtr_path, kingdom,
                                            be$name)
 
@@ -765,7 +809,9 @@ run_fallback_sweep <- function(result, names_df, backbone, fuzzy,
 #'
 #' The shared sequence used by both the single-backbone and multi-backbone paths:
 #' exact matching, the out-of-scope prefilter, abbreviated-genus resolution,
-#' then (optionally) fuzzy matching of whatever remains.
+#' then (optionally) fuzzy matching of whatever remains, the species fallback,
+#' the authorship tiebreak, and resolution of unplaced records through their
+#' basionym.
 #'
 #' @param be A taxify_backend object.
 #' @param names_df Data.frame from `clean_names()`.
@@ -778,12 +824,18 @@ run_fallback_sweep <- function(result, names_df, backbone, fuzzy,
 #' @param scope Character vector of every backbone the calling query may consult,
 #'   used to decide which out-of-scope marks to release. `NULL` means this
 #'   backbone is the whole query.
+#' @param genus_context Genera spelled out in full anywhere in the whole query
+#'   (`spelled_genera()`), for abbreviated-genus resolution. `NULL` derives it
+#'   from `names_df`, which is the whole query only outside a fallback chain.
+#' @param rank_fallback Logical. Resolve a still-unmatched infraspecific name to
+#'   its species as the last stage (`match_rank_fallback()`).
 #' @return The match result data.frame.
 #' @noRd
 run_match_stages <- function(be, names_df, vtr_path, fuzzy, fuzzy_threshold,
                              fuzzy_method, region = NULL,
                              range_mode = "present", verbose = FALSE,
-                             label = NULL, scope = NULL) {
+                             label = NULL, scope = NULL,
+                             genus_context = NULL, rank_fallback = TRUE) {
   pre <- if (is.null(label)) "  " else sprintf("  [%s] ", label)
   n_unresolved <- function(res) {
     sum(is.na(res$match_type) & !is.na(names_df$cleaned))
@@ -793,7 +845,7 @@ run_match_stages <- function(be, names_df, vtr_path, fuzzy, fuzzy_threshold,
   result <- prefilter_out_of_scope(result, names_df, be$name)
 
   if (n_unresolved(result) > 0L) {
-    result <- match_abbrev_genus(be, result, names_df, vtr_path)
+    result <- match_abbrev_genus(be, result, names_df, vtr_path, genus_context)
   }
 
   n_un <- n_unresolved(result)
@@ -804,9 +856,17 @@ run_match_stages <- function(be, names_df, vtr_path, fuzzy, fuzzy_threshold,
                           region = region, range_mode = range_mode)
   }
 
+  if (rank_fallback && n_unresolved(result) > 0L) {
+    result <- match_rank_fallback(be, result, names_df, vtr_path)
+  }
+
   # Settle homonym ambiguity where the input carried an author (no-op when no
   # ambiguous row carries one).
   result <- disambiguate_by_authorship(result, vtr_path)
+
+  # An unplaced record goes where the backbone places its basionym. After the
+  # authorship pass, so an author the caller typed chooses the record first.
+  result <- resolve_via_basionym(result, vtr_path, be$col_map)
 
   release_out_of_scope(result, names_df, scope %||% be$name)
 }
@@ -890,13 +950,19 @@ normalize_kingdom_names <- function(kingdom) {
 
 #' Normalize a kingdom string to the coarse kingdom-group vocabulary
 #'
-#' Case-insensitive; also folds the NCBI clade / OTT names that
-#' `normalize_kingdom_names()` resolves. Unrecognised, empty, or explicitly
-#' unknown values return `NA` (never a rejection reason downstream).
+#' Case-insensitive; also folds the NCBI clade and OTT kingdom names
+#' (Pseudomonadati, Archaeplastida, ...). Unrecognised, empty, or explicitly
+#' unknown values return `NA`, so an unknown kingdom is never a reason to reject
+#' a row. The coarse vocabulary is `animalia`, `plantae`, `fungi`, `bacteria`,
+#' `archaea`, `chromista`, `protozoa` and `viruses`; taxifydb uses it to check
+#' enrichment name expansion against a source's declared kingdoms.
 #'
 #' @param x Character vector.
 #' @return Character vector of coarse kingdom groups (or `NA`).
-#' @noRd
+#' @keywords internal
+#' @export
+#' @examples
+#' normalize_kingdom_group(c("Animalia", "Viridiplantae", "plants", "unknown"))
 normalize_kingdom_group <- function(x) {
   if (length(x) == 0L) return(character(0L))
   y <- tolower(trimws(as.character(normalize_kingdom_names(as.character(x)))))
@@ -945,9 +1011,26 @@ resolve_kingdom_filter <- function(kingdom) {
 #' @return Logical vector, `TRUE` where a backbone produced the row.
 #' @noRd
 is_backbone_match <- function(match_type) {
-  !is.na(match_type) &
-    match_type %in% c("exact", "exact_ci", "fuzzy", "abbrev")
+  !is.na(match_type) & match_type %in% .backbone_match_types
 }
+
+#' Match types a backbone lookup produces, strongest evidence first
+#' @noRd
+.backbone_match_types <- c("exact", "exact_ci", "abbrev", "fuzzy",
+                           "rank_fallback", "basionym")
+
+
+#' Result columns describing the backbone record a row matched
+#'
+#' Everything a match writes except `accepted_name` (which an unresolved hybrid
+#' formula fills with its parent cross) and the input-side columns: the columns
+#' blanked when a match is taken back.
+#' @noRd
+.match_record_cols <- c("matched_name", "taxon_id", "accepted_id", "rank",
+                        "family", "genus", "epithet", "authorship",
+                        "accepted_authorship", "is_synonym",
+                        "taxonomic_status", "fuzzy_dist", "is_ambiguous",
+                        "ambiguous_targets")
 
 
 #' Demote matched rows back to unmatched (blanking their match columns)
@@ -964,10 +1047,8 @@ is_backbone_match <- function(match_type) {
 demote_match_rows <- function(result, rows) {
   if (length(rows) == 0L) return(result)
   na_cols <- intersect(
-    c("matched_name", "accepted_name", "taxon_id", "accepted_id", "rank",
-      "family", "genus", "epithet", "authorship", "accepted_authorship",
-      "is_synonym", "fuzzy_dist", "is_ambiguous", "ambiguous_targets",
-      "aggregate_fallback", "backbone", "backbone_version"),
+    c(.match_record_cols, "accepted_name", "aggregate_fallback", "backbone",
+      "backbone_version"),
     names(result))
   for (col in na_cols) result[[col]][rows] <- NA
   result$match_type[rows] <- NA_character_
@@ -975,14 +1056,55 @@ demote_match_rows <- function(result, rows) {
 }
 
 
+#' Coarse kingdom group of backbone rows
+#'
+#' Resolves each row's kingdom in priority order: the backbone's fixed scope
+#' (`backbone_fixed_kingdom()`, for a single-kingdom backbone with no `kingdom`
+#' column of its own), then the backbone's own `kingdom` value where it stores
+#' one, then the genus register's `kingdom_group` as a last resort. Shared by
+#' the `kingdom =` filter of [taxify()] and by [children()] / [downstream()].
+#'
+#' @param bb_name Backbone name, used to look up a fixed scope.
+#' @param kingdom The rows' backbone `kingdom` values, or `NULL` when the
+#'   backbone stores none.
+#' @param genus The rows' genus, or `NULL`.
+#' @param n Number of rows.
+#' @return Character vector of length `n`: coarse kingdom groups, `NA` where
+#'   unknown.
+#' @noRd
+row_kingdom_groups <- function(bb_name, kingdom = NULL, genus = NULL, n) {
+  # A backbone scoped to a single, unambiguous kingdom (WCVP, LCVP, WFO,
+  # Euro+Med, Species Fungorum) carries no `kingdom` column of its own, so it
+  # would otherwise fall to the genus-register fallback -- a single
+  # cross-backbone genus index that can hand back a different kingdom for a
+  # genus name that is a homonym elsewhere. The backbone's own scope is the more
+  # authoritative answer, so it wins outright rather than being treated as just
+  # another vote.
+  fixed <- backbone_fixed_kingdom(bb_name)
+  if (!is.na(fixed)) return(rep(fixed, n))
+
+  kg <- if (is.null(kingdom)) rep(NA_character_, n) else
+    normalize_kingdom_group(kingdom)
+
+  need <- which(is.na(kg))
+  if (length(need) > 0L && !is.null(genus)) {
+    reg <- load_register_or_null()
+    if (!is.null(reg) && all(c("genus", "kingdom_group") %in% names(reg))) {
+      gk <- stats::setNames(reg$kingdom_group, reg$genus)
+      kg[need] <- normalize_kingdom_group(unname(gk[genus[need]]))
+    }
+  }
+  kg
+}
+
+
 #' Drop matched rows whose kingdom is not among the requested set
 #'
-#' Resolves each matched row's kingdom in priority order: the backbone's fixed
-#' scope (`backbone_fixed_kingdom()`, for a single-kingdom backbone with no
-#' `kingdom` column of its own), then the backbone's own `kingdom` column
-#' where it stores one, then the genus register's `kingdom_group` as a last
-#' resort. A row whose resolved kingdom is known and outside `kingdom_set` is
-#' demoted (see `demote_match_rows()`); an unknown kingdom is always kept.
+#' Resolves each matched row's kingdom with `row_kingdom_groups()`, reading the
+#' backbone's `kingdom` column for the matched accepted ids where it stores one
+#' (COL/ITIS/NCBI/OTT/WoRMS). A row whose resolved kingdom is known and outside
+#' `kingdom_set` is demoted (see `demote_match_rows()`); an unknown kingdom is
+#' always kept.
 #'
 #' @param result The match result data.frame (post `run_match_stages()`).
 #' @param vtr_path Path to the backbone `.vtr`.
@@ -997,49 +1119,28 @@ filter_result_by_kingdom <- function(result, vtr_path, kingdom_set, bb_name) {
                        c("none", "out_of_scope", "hybrid_formula"))
   if (length(matched) == 0L) return(result)
 
-  kg <- rep(NA_character_, nrow(result))
-
-  # 1. A backbone scoped to a single, unambiguous kingdom (WCVP, LCVP, WFO,
-  # Euro+Med, Species Fungorum) carries no `kingdom` column of its own to read
-  # in step 2 below, so it would otherwise fall to the genus-register fallback
-  # in step 3 -- a single cross-backbone genus index that can hand back a
-  # different kingdom for a genus name that is a homonym elsewhere. The
-  # backbone's own scope is the more authoritative answer here, so it wins
-  # outright rather than being treated as just another vote.
-  fixed <- backbone_fixed_kingdom(bb_name)
-  if (!is.na(fixed)) {
-    kg[matched] <- fixed
-    bad <- matched[!(kg[matched] %in% kingdom_set)]
-    return(demote_match_rows(result, bad))
-  }
-
-  # 2. Backbone kingdom column (COL/ITIS/NCBI/OTT/WoRMS store one).
-  schema <- tryCatch(
-    names(vectra::collect(utils::head(vectra::tbl(vtr_path), 1L))),
-    error = function(e) character(0L))
-  if ("kingdom" %in% schema && "accepted_id" %in% names(result)) {
-    j <- tryCatch(
-      backbone_join(vtr_path, result$accepted_id[matched], bb_key = "taxon_id",
-                    select_cols = c("taxon_id", "kingdom")),
-      error = function(e) NULL)
-    if (!is.null(j) && nrow(j) > 0L) {
-      j   <- j[!duplicated(j$lookup), , drop = FALSE]
-      idx <- match(result$accepted_id[matched], j$lookup)
-      kg[matched] <- normalize_kingdom_group(j$kingdom[idx])
+  bb_kingdom <- NULL
+  if (is.na(backbone_fixed_kingdom(bb_name))) {
+    schema <- tryCatch(vtr_schema(vtr_path), error = function(e) character(0L))
+    if ("kingdom" %in% schema && "accepted_id" %in% names(result)) {
+      j <- tryCatch(
+        backbone_join(vtr_path, result$accepted_id[matched],
+                      bb_key = "taxon_id",
+                      select_cols = c("taxon_id", "kingdom")),
+        error = function(e) NULL)
+      if (!is.null(j) && nrow(j) > 0L) {
+        j <- j[!duplicated(j$lookup), , drop = FALSE]
+        bb_kingdom <- j$kingdom[match(result$accepted_id[matched], j$lookup)]
+      }
     }
   }
 
-  # 3. Genus register fallback for rows the backbone left unknown.
-  need <- matched[is.na(kg[matched])]
-  if (length(need) > 0L && "genus" %in% names(result)) {
-    reg <- load_register_or_null()
-    if (!is.null(reg) && all(c("genus", "kingdom_group") %in% names(reg))) {
-      gk <- stats::setNames(reg$kingdom_group, reg$genus)
-      kg[need] <- normalize_kingdom_group(unname(gk[result$genus[need]]))
-    }
-  }
+  kg <- row_kingdom_groups(
+    bb_name, kingdom = bb_kingdom,
+    genus = if ("genus" %in% names(result)) result$genus[matched] else NULL,
+    n = length(matched))
 
-  bad <- matched[!is.na(kg[matched]) & !(kg[matched] %in% kingdom_set)]
+  bad <- matched[!is.na(kg) & !(kg %in% kingdom_set)]
   demote_match_rows(result, bad)
 }
 
@@ -1338,6 +1439,8 @@ as_taxify_result <- function(result, backbone) {
     case_insensitive = sum(mt == "exact_ci",    na.rm = TRUE),
     fuzzy            = sum(mt == "fuzzy",        na.rm = TRUE),
     abbrev           = sum(mt == "abbrev",      na.rm = TRUE),
+    rank_fallback    = sum(mt == "rank_fallback", na.rm = TRUE),
+    basionym         = sum(mt == "basionym",     na.rm = TRUE),
     hybrid_formula   = sum(mt == "hybrid_formula", na.rm = TRUE),
     out_of_scope     = sum(mt == "out_of_scope", na.rm = TRUE),
     unmatched        = sum(mt == "none",         na.rm = TRUE)
@@ -1410,11 +1513,19 @@ as_taxify_result <- function(result, backbone) {
                stringsAsFactors = FALSE)
   }
 
-  version <- NA_character_
-  if ("backbone_version" %in% names(result)) {
-    bv <- result$backbone_version[!is.na(result$backbone_version)]
-    if (length(bv) > 0L) {
-      version <- sub("^[^:]+:([^ ]+).*$", "\\1", bv[1L])
+  # One version per backbone, named by backbone: a chained result carries a
+  # `backbone_version` per matched row, so reporting the first row's version
+  # against the whole chain labels every backbone with one backbone's build.
+  version <- stats::setNames(rep(NA_character_, length(backbone)), backbone)
+  if (all(c("backbone_version", "backbone") %in% names(result))) {
+    keep <- !is.na(result$backbone_version) & !is.na(result$backbone)
+    if (any(keep)) {
+      bb    <- result$backbone[keep]
+      ver   <- sub("^[^:]+:([^ ]+).*$", "\\1",
+                   result$backbone_version[keep])
+      first <- !duplicated(bb)
+      hit   <- match(names(version), bb[first])
+      version[!is.na(hit)] <- ver[first][hit[!is.na(hit)]]
     }
   }
 

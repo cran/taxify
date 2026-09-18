@@ -42,18 +42,28 @@ nz_or <- function(x, y) if (length(x) == 0L || is.null(x)) y else x
 
 
 #' Build a lockfile entry for one enrichment
+#'
+#' The version and content id come from what `register_enrichment()` recorded at
+#' join time -- the build the result was produced from. The installed build is
+#' only the fallback, for a result registered before those fields existed:
+#' reading it first would pin whatever a refresh or a restore left in place
+#' since.
 #' @noRd
 .enrichment_lock_entry <- function(e) {
   name <- e$name
   vtr  <- enrichment_vtr_path(name, "latest")
   meta <- tryCatch(read_enrichment_meta(vtr), error = function(e) NULL)
+  pick <- function(recorded, installed) {
+    recorded <- nz_or(recorded, NA_character_)
+    if (!is.na(recorded[[1L]])) recorded else nz_or(installed, NA_character_)
+  }
   list(
     name          = name,
-    source        = e$source %||% (meta$source %||% NA_character_),
-    version       = e$version %||% (meta$version %||% NA_character_),
-    license       = e$license %||% (meta$license %||% NA_character_),
-    content_id    = meta$content_id %||% NA_character_,
-    downloaded_at = meta$downloaded_at %||% NA_character_,
+    source        = pick(e$source, meta$source),
+    version       = pick(e$version, meta$version),
+    license       = pick(e$license, meta$license),
+    content_id    = pick(e$content_id, meta$content_id),
+    downloaded_at = nz_or(meta$downloaded_at, NA_character_),
     installed     = file.exists(vtr)
   )
 }
@@ -103,7 +113,11 @@ taxify_lock <- function(x = NULL, file = NULL, verbose = TRUE) {
       unique(x$backbone[!is.na(x$backbone)])
     } else character(0L)
     if (length(bb_names) == 0L) bb_names <- as.character(meta$backbone %||% character(0L))
-    enrich <- meta$enrichments %||% list()
+    # Only the sources that supplied a value: the same rule cite() applies, so a
+    # source consulted and matching nothing is neither credited nor pinned, and
+    # taxify_restore(install = TRUE) does not fetch an asset the result never
+    # used.
+    enrich <- Filter(enrichment_contributed, meta$enrichments %||% list())
   } else {
     bb_names <- installed_backbones()
     enrich <- list()
@@ -132,9 +146,9 @@ taxify_lock <- function(x = NULL, file = NULL, verbose = TRUE) {
 #' Compare one locked entry against what is installed now
 #'
 #' Returns `"missing"` (not installed), `"content_drift"` / `"version_drift"`
-#' (a compared identity differs, or was locked but the install exposes no
-#' counterpart to compare it against), `"unverified"` (installed but neither a
-#' version nor a content id could be compared on either side), or `"ok"`.
+#' (a compared identity differs), `"unverified"` (installed, but what the lock
+#' pinned cannot be compared -- the install exposes no counterpart, or neither
+#' side carries an identity at all), or `"ok"`.
 #' @noRd
 .restore_status <- function(locked_ver, locked_cid, cur_ver, cur_cid, installed) {
   # Normalize zero-length lock fields (jsonlite emits them for empty JSON) so a
@@ -147,7 +161,15 @@ taxify_lock <- function(x = NULL, file = NULL, verbose = TRUE) {
   if (!isTRUE(installed)) return("missing")
 
   # Content id is the strongest signal (catches a same-version republish).
-  if (!is.na(locked_cid) && !is.na(cur_cid)) {
+  if (!is.na(locked_cid)) {
+    if (is.na(cur_cid)) {
+      # The lock pinned bytes, and this install exposes none to compare them
+      # against (a pre-content-id cache, a local taxifydb build). Matching
+      # version labels prove nothing here -- a same-tag republish is exactly
+      # what the content id exists to catch -- so the row is unverified, not
+      # "ok".
+      return("unverified")
+    }
     if (!identical(locked_cid, cur_cid)) return("content_drift")
     return("ok")
   }
@@ -273,8 +295,10 @@ taxify_lock <- function(x = NULL, file = NULL, verbose = TRUE) {
 #' immutable copy published beside the rolling asset, and makes it the active
 #' one: the recorded run is put back in place in a single call. The build each
 #' pinned build replaces is kept on disk under its own content id, so restoring
-#' a lockfile is reversible. A pinned build is not refreshed away by the next
-#' session's version check.
+#' a lockfile is reversible. Every build that matches the lock afterwards is
+#' pinned, including one that already matched and needed no download, so the
+#' next session's version check does not refresh it away from the lock. Release
+#' a pin with [taxify_pin()].
 #'
 #' A build published before taxifydb began uploading an immutable copy cannot be
 #' recovered -- the re-cut replaced it in place -- and its row keeps reporting
@@ -291,11 +315,14 @@ taxify_lock <- function(x = NULL, file = NULL, verbose = TRUE) {
 #'   `type` (`"backbone"`/`"enrichment"`), `locked_version`, `installed_version`,
 #'   `locked_content_id` and `installed_content_id` (short), and `status`
 #'   (`"ok"`, `"version_drift"`, `"content_drift"`, `"missing"`, or
-#'   `"unverified"` when neither a version nor a content id could be compared).
-#'   With `install = TRUE` the statuses describe the install afterwards, and a
-#'   `restored` column records which rows were fetched.
+#'   `"unverified"` when what the lock pinned cannot be compared against this
+#'   install).
+#'   With `install = TRUE` the statuses describe the install afterwards, a
+#'   `restored` column records which rows were fetched, and a `pinned` column
+#'   which rows are now pinned (every row whose status is `"ok"`).
 #'
-#' @seealso [taxify_lock()], [taxify_store()] for the builds on disk,
+#' @seealso [taxify_lock()], [taxify_pin()] to pin or release an installed
+#'   build without a lockfile, [taxify_store()] for the builds on disk,
 #'   [taxify_download_enrichment()] to fetch a single build by content id.
 #'
 #' @examples
@@ -349,6 +376,19 @@ taxify_restore <- function(file, install = FALSE, verbose = TRUE) {
       out <- report()
     }
     out$restored <- restored
+
+    # Restoring holds the install to the lock, so a build that already matched
+    # is pinned exactly like one fetched above; otherwise the next version
+    # check refreshes it away from the lock.
+    held <- which(out$status == "ok")
+    if (!is_example_data_dir()) {
+      for (i in held) {
+        .set_pinned(entries[[i]]$locked$name, entries[[i]]$kind, TRUE)
+      }
+    } else {
+      held <- integer(0L)
+    }
+    out$pinned <- seq_len(nrow(out)) %in% held
   }
 
   if (verbose) {
@@ -369,4 +409,155 @@ taxify_restore <- function(file, install = FALSE, verbose = TRUE) {
     }
   }
   out
+}
+
+
+#' Pin or release installed taxify assets
+#'
+#' A pinned build stays active: the version check that [taxify()],
+#' [install_backbones()] and the `add_*()` doors run against the manifest leaves
+#' it in place instead of replacing it with the current release. Pin the builds a
+#' project was run against to keep a shared data directory from moving under it,
+#' and release them when the project is done. The pin is recorded in the build's
+#' `meta.json` together with its content id (the md5 of its `.vtr`, as
+#' [taxify_lock()] records it), so a pinned build can also be named in a
+#' lockfile.
+#'
+#' Every name is checked before anything is written: when one is not installed,
+#' or is installed as both a backbone and an enrichment and `kind` does not say
+#' which, nothing is pinned.
+#'
+#' [taxify_restore()] with `install = TRUE` pins every build matching a lockfile,
+#' and a build fetched with `taxify_download(content_id = )` or
+#' `taxify_download_enrichment(content_id = )` is pinned when it is activated.
+#'
+#' @param name Character vector of installed backbone and/or enrichment names.
+#' @param pin Logical. `TRUE` (default) pins; `FALSE` releases the pin, so the
+#'   next version check compares the build against the manifest again.
+#' @param kind `NULL` (default) to find each name among the installed backbones
+#'   and enrichments, or `"backbone"` / `"enrichment"` to look only there. Needed
+#'   for a name installed as both (e.g. `"wcvp"`).
+#' @param verbose Logical. Default `TRUE`.
+#'
+#' @return A data.frame with one row per name: `component`, `type`, `version`,
+#'   `content_id` (the full id of the build pinned or released) and `pinned`.
+#'
+#' @seealso [taxify_restore()] to pin the builds a lockfile records,
+#'   [taxify_store()] to list the builds on disk and whether each is pinned.
+#'
+#' @examples
+#' \dontrun{
+#' taxify_pin(c("wfo", "col"))
+#' taxify_pin("iucn", kind = "enrichment")
+#' taxify_pin(c("wfo", "col"), pin = FALSE)
+#' }
+#'
+#' @export
+taxify_pin <- function(name, pin = TRUE, kind = NULL, verbose = TRUE) {
+  if (!is.character(name) || length(name) == 0L || anyNA(name) ||
+      !all(nzchar(name))) {
+    stop("name must be a character vector of installed asset names.",
+         call. = FALSE)
+  }
+  if (!is.logical(pin) || length(pin) != 1L || is.na(pin)) {
+    stop("pin must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.null(kind)) kind <- match.arg(kind, c("backbone", "enrichment"))
+  if (is_example_data_dir()) {
+    stop("The bundled example database is read-only; its builds cannot be pinned.",
+         call. = FALSE)
+  }
+
+  name <- unique(name)
+  kinds <- vapply(name, .pin_kind, character(1L), kind = kind)
+  rows <- lapply(seq_along(name), function(i) .set_pinned(name[[i]], kinds[[i]], pin))
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+
+  if (verbose) {
+    for (i in seq_len(nrow(out))) {
+      message(sprintf("%s %s '%s' %s build %s.",
+                      if (pin) "\u2713 Pinned" else "\u2713 Released",
+                      out$type[[i]], out$component[[i]],
+                      if (pin) "to" else "from", short_cid(out$content_id[[i]])))
+    }
+  }
+  out
+}
+
+
+#' Which kind of installed asset a name refers to
+#'
+#' @param name Character scalar.
+#' @param kind `NULL`, `"backbone"` or `"enrichment"`.
+#' @return `"backbone"` or `"enrichment"`; stops when the name is not
+#'   installed as the kind asked for, or is installed as both and `kind` is
+#'   `NULL`.
+#' @noRd
+.pin_kind <- function(name, kind = NULL) {
+  installed <- c(
+    backbone   = file.exists(asset_vtr_path(name, "latest", "backbone")),
+    enrichment = file.exists(asset_vtr_path(name, "latest", "enrichment"))
+  )
+  if (!is.null(kind)) {
+    if (!installed[[kind]]) {
+      stop(sprintf("No %s '%s' is installed in %s; nothing to pin.",
+                   kind, name, taxify_data_dir()), call. = FALSE)
+    }
+    return(kind)
+  }
+  hit <- names(installed)[installed]
+  if (length(hit) == 0L) {
+    stop(sprintf(
+      "'%s' is not installed as a backbone or an enrichment in %s; nothing to pin.",
+      name, taxify_data_dir()), call. = FALSE)
+  }
+  if (length(hit) > 1L) {
+    stop(sprintf(
+      "'%s' is installed both as a backbone and as an enrichment; say which with kind =.",
+      name), call. = FALSE)
+  }
+  hit
+}
+
+
+#' Set the pin flag on the active build of an installed asset
+#'
+#' Records the build's content id alongside the flag, hashing the `.vtr` when
+#' its `meta.json` carries none, so the pin names the bytes it holds. Releasing
+#' a pin also clears the session's version-check flag, so the next check in this
+#' session compares the build against the manifest.
+#'
+#' @param name Character scalar.
+#' @param kind `"backbone"` or `"enrichment"`.
+#' @param pin Logical scalar.
+#' @return A one-row data.frame: `component`, `type`, `version`, `content_id`,
+#'   `pinned`.
+#' @noRd
+.set_pinned <- function(name, kind, pin) {
+  dir <- asset_dir(name, "latest", kind)
+  vtr <- file.path(dir, paste0(name, ".vtr"))
+  meta_path <- file.path(dir, "meta.json")
+  meta <- if (file.exists(meta_path)) {
+    read_json_bom(meta_path, simplifyVector = TRUE)
+  } else {
+    list()
+  }
+
+  cid <- nz_or(meta$content_id, NA_character_)
+  if (is.na(cid) || !is_content_key(cid)) {
+    cid <- content_id_of(vtr)
+    meta$content_id <- cid
+  }
+  meta$pinned <- isTRUE(pin)
+  jsonlite::write_json(meta, meta_path, pretty = TRUE, auto_unbox = TRUE)
+
+  if (!isTRUE(pin)) {
+    flag <- if (kind == "backbone") ".version_checked." else ".enrichment_version_checked."
+    .taxify_env[[paste0(flag, name)]] <- NULL
+  }
+
+  data.frame(component = name, type = kind,
+             version = as.character(nz_or(meta$version, NA_character_)),
+             content_id = cid, pinned = isTRUE(pin), stringsAsFactors = FALSE)
 }

@@ -401,7 +401,7 @@ library(taxify)
 #   "Ambrosia artemisiifolia", "Solidago canadensis"
 # ))
 # 
-# aliens |> add_alien_first_records(country = "AT")
+# aliens |> add_alien_first_records(location = "AT")
 # #>              input_name alien_first_record alien_first_record_source alien_first_record_reference
 # #> 1   Robinia pseudoacacia               1850                   NOBANIS                      NOBANIS
 # #> 2    Ailanthus altissima               1870                   NOBANIS                      NOBANIS
@@ -411,17 +411,21 @@ library(taxify)
 # #> 6  Solidago canadensis                 1850                   NOBANIS                      NOBANIS
 
 ## ----alien-fr-multi-----------------------------------------------------------
-# aliens |> add_alien_first_records(country = c("AT", "DE", "GB"))
+# aliens |> add_alien_first_records(location = c("AT", "DE", "GB"))
 # #>              input_name alien_first_record_AT alien_first_record_DE alien_first_record_GB ...
 # #> 1   Robinia pseudoacacia                  1850                  1630                  1640 ...
 # #> 2    Ailanthus altissima                  1870                  1780                  1751 ...
 # #> 3 Impatiens glandulifera                  1900                  1839                  1855 ...
 
+## ----alien-island-------------------------------------------------------------
+# aliens |> add_alien_first_records(location = c("ES", "Canary Islands"),
+#                                   cols = c("alien_first_record", "country_code"))
+
 ## ----alien-fr-long------------------------------------------------------------
 # aliens |>
-#   add_alien_first_records(country = c("AT", "DE", "GB")) |>
+#   add_alien_first_records(location = c("AT", "DE", "GB")) |>
 #   taxify_long()
-# #>              input_name country_code alien_first_record alien_first_record_source ...
+# #>              input_name location alien_first_record alien_first_record_source ...
 # #> 1   Robinia pseudoacacia           AT               1850                   NOBANIS ...
 # #> 2    Ailanthus altissima           AT               1870                   NOBANIS ...
 # #> ...
@@ -436,8 +440,8 @@ library(taxify)
 ## ----taxify-long-combined-----------------------------------------------------
 # aliens |>
 #   add_griis(country = c("AT", "DE")) |>
-#   add_alien_first_records(country = c("AT", "DE", "CH")) |>
-#   taxify_long()
+#   add_alien_first_records(location = c("AT", "DE", "CH")) |>
+#   taxify_long(group_col = "country_code")
 
 ## ----wcvp-single--------------------------------------------------------------
 # trees <- taxify(c(

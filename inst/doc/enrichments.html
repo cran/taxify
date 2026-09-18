@@ -996,8 +996,8 @@ only (about 4,000 genera). The dataset is distributed under CC BY-NC
 per-observation labels, not FungalRoot’s own published genus
 assignment.</p>
 </div>
-<div id="global-traits-gift-on-demand" class="section level4">
-<h4>Global traits (GIFT, on demand)</h4>
+<div id="global-traits-gift" class="section level4">
+<h4>Global traits (GIFT)</h4>
 <p>GIFT, the Global Inventory of Floras and Traits (Weigelt et
 al. 2020), aggregates published plant trait records worldwide into one
 value per species. <code>add_gift()</code> attaches the traits you ask
@@ -1023,15 +1023,6 @@ time and it ships as a pre-built <code>.vtr</code>, so
 <code>add_gift()</code> joins it offline, with no runtime API calls.
 Cite GIFT and, where applicable, the underlying references
 (<code>GIFT::GIFT_references()</code>).</p>
-<p>GIFT trait values are aggregated from many source references, each
-under its own licence, and are served from a live API rather than an
-openly-licensed bulk dump, so taxify does not redistribute them.
-<code>add_gift()</code> fetches them on demand through the suggested
-GIFT package: the full trait table is downloaded once per session and
-cached, and the values are joined to your result by accepted name. The
-first call needs internet access, and you are responsible for citing
-GIFT and the underlying references
-(<code>GIFT::GIFT_references()</code>) when you use the values.</p>
 </div>
 </div>
 <div id="conservation-status-iucn-red-list" class="section level3">
@@ -1889,23 +1880,30 @@ across 196 groups naturally takes longer than a single-country join.</p>
 </div>
 <div id="alien-species-first-records-seebens-et-al." class="section level3">
 <h3>Alien species first records (Seebens et al.)</h3>
-<p>The Global Alien Species First Record Database (Seebens et al. 2017)
-records the year each alien species was first documented in a given
-country or territory. Unlike GRIIS (which records current status), this
-enrichment provides a historical timeline of alien species arrivals. The
-dataset covers all taxa (plants, animals, fungi) with ~77,000
-species-country combinations across 241 countries. The
-<code>country</code> argument takes ISO 3166-1 alpha-2 codes, same as
-<code>add_griis()</code>.</p>
-<div id="single-country-1" class="section level4">
-<h4>Single country</h4>
+<p>The FirstRecords dataset (Seebens et al. 2017; version 4.0, Seebens
+&amp; Renard Truong 2026) records the year each alien species was first
+documented in a location. Unlike GRIIS (which records current status),
+this enrichment provides a historical timeline of alien species
+arrivals, across all taxa (plants, animals, fungi).</p>
+<p>A location is a country, or an island or other part of a country that
+the source records as a region of its own: Hawaii and Alaska apart from
+the United States, the Canary and Balearic Islands apart from Spain, the
+Azores and Madeira apart from Portugal. The locations do not overlap, so
+a country’s first record excludes its separately recorded islands. The
+<code>location</code> argument takes the ISO 3166-1 alpha-2 code for a
+country (same codes as <code>add_griis()</code>) and the name for a
+sub-national location;
+<code>enrichment_groups(&quot;alien_first_records&quot;)</code> lists them
+all.</p>
+<div id="single-location" class="section level4">
+<h4>Single location</h4>
 <div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a>aliens <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
 <span id="cb37-2"><a href="#cb37-2" tabindex="-1"></a>  <span class="st">&quot;Robinia pseudoacacia&quot;</span>, <span class="st">&quot;Ailanthus altissima&quot;</span>,</span>
 <span id="cb37-3"><a href="#cb37-3" tabindex="-1"></a>  <span class="st">&quot;Impatiens glandulifera&quot;</span>, <span class="st">&quot;Quercus robur&quot;</span>,</span>
 <span id="cb37-4"><a href="#cb37-4" tabindex="-1"></a>  <span class="st">&quot;Ambrosia artemisiifolia&quot;</span>, <span class="st">&quot;Solidago canadensis&quot;</span></span>
 <span id="cb37-5"><a href="#cb37-5" tabindex="-1"></a>))</span>
 <span id="cb37-6"><a href="#cb37-6" tabindex="-1"></a></span>
-<span id="cb37-7"><a href="#cb37-7" tabindex="-1"></a>aliens <span class="sc">|&gt;</span> <span class="fu">add_alien_first_records</span>(<span class="at">country =</span> <span class="st">&quot;AT&quot;</span>)</span>
+<span id="cb37-7"><a href="#cb37-7" tabindex="-1"></a>aliens <span class="sc">|&gt;</span> <span class="fu">add_alien_first_records</span>(<span class="at">location =</span> <span class="st">&quot;AT&quot;</span>)</span>
 <span id="cb37-8"><a href="#cb37-8" tabindex="-1"></a><span class="co">#&gt;              input_name alien_first_record alien_first_record_source alien_first_record_reference</span></span>
 <span id="cb37-9"><a href="#cb37-9" tabindex="-1"></a><span class="co">#&gt; 1   Robinia pseudoacacia               1850                   NOBANIS                      NOBANIS</span></span>
 <span id="cb37-10"><a href="#cb37-10" tabindex="-1"></a><span class="co">#&gt; 2    Ailanthus altissima               1870                   NOBANIS                      NOBANIS</span></span>
@@ -1925,18 +1923,30 @@ matters because a second first-records source (GBIF occurrence-based
 records) will be added in a future version, and the <code>source</code>
 column will distinguish which database contributed each record.</p>
 </div>
-<div id="multiple-countries-1" class="section level4">
-<h4>Multiple countries</h4>
-<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span> <span class="fu">add_alien_first_records</span>(<span class="at">country =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>, <span class="st">&quot;GB&quot;</span>))</span>
+<div id="multiple-locations" class="section level4">
+<h4>Multiple locations</h4>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span> <span class="fu">add_alien_first_records</span>(<span class="at">location =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>, <span class="st">&quot;GB&quot;</span>))</span>
 <span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a><span class="co">#&gt;              input_name alien_first_record_AT alien_first_record_DE alien_first_record_GB ...</span></span>
 <span id="cb38-3"><a href="#cb38-3" tabindex="-1"></a><span class="co">#&gt; 1   Robinia pseudoacacia                  1850                  1630                  1640 ...</span></span>
 <span id="cb38-4"><a href="#cb38-4" tabindex="-1"></a><span class="co">#&gt; 2    Ailanthus altissima                  1870                  1780                  1751 ...</span></span>
 <span id="cb38-5"><a href="#cb38-5" tabindex="-1"></a><span class="co">#&gt; 3 Impatiens glandulifera                  1900                  1839                  1855 ...</span></span></code></pre></div>
-<p>With multiple countries, each of the three value columns gets a
-country suffix: <code>alien_first_record_AT</code>,
+<p>With multiple locations, each of the three value columns gets a
+location suffix: <code>alien_first_record_AT</code>,
 <code>alien_first_record_source_AT</code>,
 <code>alien_first_record_reference_AT</code>, etc. This makes
 cross-country comparisons of invasion history straightforward.</p>
+</div>
+<div id="islands-and-their-country" class="section level4">
+<h4>Islands and their country</h4>
+<p>An island’s first record can be decades older than the mainland’s, or
+the only record the source holds in that country. Request the island by
+name to see it next to the country:</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span> <span class="fu">add_alien_first_records</span>(<span class="at">location =</span> <span class="fu">c</span>(<span class="st">&quot;ES&quot;</span>, <span class="st">&quot;Canary Islands&quot;</span>),</span>
+<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a>                                  <span class="at">cols =</span> <span class="fu">c</span>(<span class="st">&quot;alien_first_record&quot;</span>, <span class="st">&quot;country_code&quot;</span>))</span></code></pre></div>
+<p>Every location carries <code>country_code</code>, the country it lies
+in. A first record for a country including its islands is then an
+explicit roll-up: request all of the country’s locations and take the
+earliest year.</p>
 </div>
 <div id="reshaping-to-long-format" class="section level4">
 <h4>Reshaping to long format</h4>
@@ -1944,37 +1954,38 @@ cross-country comparisons of invasion history straightforward.</p>
 for modelling, mapping, or timeline analyses. The
 <code>taxify_long()</code> helper reshapes any group-based enrichment
 columns back to long format:</p>
-<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span></span>
-<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a>  <span class="fu">add_alien_first_records</span>(<span class="at">country =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>, <span class="st">&quot;GB&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb39-3"><a href="#cb39-3" tabindex="-1"></a>  <span class="fu">taxify_long</span>()</span>
-<span id="cb39-4"><a href="#cb39-4" tabindex="-1"></a><span class="co">#&gt;              input_name country_code alien_first_record alien_first_record_source ...</span></span>
-<span id="cb39-5"><a href="#cb39-5" tabindex="-1"></a><span class="co">#&gt; 1   Robinia pseudoacacia           AT               1850                   NOBANIS ...</span></span>
-<span id="cb39-6"><a href="#cb39-6" tabindex="-1"></a><span class="co">#&gt; 2    Ailanthus altissima           AT               1870                   NOBANIS ...</span></span>
-<span id="cb39-7"><a href="#cb39-7" tabindex="-1"></a><span class="co">#&gt; ...</span></span>
-<span id="cb39-8"><a href="#cb39-8" tabindex="-1"></a><span class="co">#&gt; 7   Robinia pseudoacacia           DE               1630              Long (2003) ...</span></span>
-<span id="cb39-9"><a href="#cb39-9" tabindex="-1"></a><span class="co">#&gt; ...</span></span></code></pre></div>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span></span>
+<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a>  <span class="fu">add_alien_first_records</span>(<span class="at">location =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>, <span class="st">&quot;GB&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a>  <span class="fu">taxify_long</span>()</span>
+<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a><span class="co">#&gt;              input_name location alien_first_record alien_first_record_source ...</span></span>
+<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a><span class="co">#&gt; 1   Robinia pseudoacacia           AT               1850                   NOBANIS ...</span></span>
+<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a><span class="co">#&gt; 2    Ailanthus altissima           AT               1870                   NOBANIS ...</span></span>
+<span id="cb40-7"><a href="#cb40-7" tabindex="-1"></a><span class="co">#&gt; ...</span></span>
+<span id="cb40-8"><a href="#cb40-8" tabindex="-1"></a><span class="co">#&gt; 7   Robinia pseudoacacia           DE               1630              Long (2003) ...</span></span>
+<span id="cb40-9"><a href="#cb40-9" tabindex="-1"></a><span class="co">#&gt; ...</span></span></code></pre></div>
 <p>When <code>cols</code> and <code>group_col</code> are omitted,
 <code>taxify_long()</code> auto-detects them from metadata stamped by
 the <code>add_*()</code> functions. The result has one row per species
-per country, with the base column names (no suffix) and a new
-<code>country_code</code> column. The <code>drop_na = TRUE</code>
-argument removes rows where all value columns are <code>NA</code> (e.g.,
-native species with no alien first record in any queried country).</p>
+per location, with the base column names (no suffix) and a new
+<code>location</code> column. The <code>drop_na = TRUE</code> argument
+removes rows where all value columns are <code>NA</code> (e.g., native
+species with no alien first record in any queried country).</p>
 <p><code>taxify_long()</code> works with any group-based enrichment, not
 just alien first records. It can reshape <code>invasive_status</code>,
 <code>native_status</code>, or <code>common_name</code> columns just as
 easily:</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span></span>
-<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a>  <span class="fu">add_griis</span>(<span class="at">country =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a>  <span class="fu">taxify_long</span>()</span></code></pre></div>
-<p>When multiple grouped enrichments share the same group column, they
-are reshaped together. If an enrichment covers different groups than
-another (e.g., GRIIS for AT/DE but first records for AT/DE/CH), the
-missing combinations are padded with <code>NA</code>:</p>
 <div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span></span>
 <span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a>  <span class="fu">add_griis</span>(<span class="at">country =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a>  <span class="fu">add_alien_first_records</span>(<span class="at">country =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>, <span class="st">&quot;CH&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a>  <span class="fu">taxify_long</span>()</span></code></pre></div>
+<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a>  <span class="fu">taxify_long</span>()</span></code></pre></div>
+<p>Grouped enrichments are reshaped together when they share a group
+column, or when <code>group_col</code> names the one output column for
+all of them. If an enrichment covers different groups than another
+(e.g., GRIIS for AT/DE but first records for AT/DE/CH), the missing
+combinations are padded with <code>NA</code>:</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a>aliens <span class="sc">|&gt;</span></span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a>  <span class="fu">add_griis</span>(<span class="at">country =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a>  <span class="fu">add_alien_first_records</span>(<span class="at">location =</span> <span class="fu">c</span>(<span class="st">&quot;AT&quot;</span>, <span class="st">&quot;DE&quot;</span>, <span class="st">&quot;CH&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a>  <span class="fu">taxify_long</span>(<span class="at">group_col =</span> <span class="st">&quot;country_code&quot;</span>)</span></code></pre></div>
 <p>You can still provide <code>cols</code> and <code>group_col</code>
 explicitly to override auto-detection or to rename the group column.</p>
 </div>
@@ -2000,18 +2011,18 @@ codes include:</p>
 <li><p><code>PAC</code> (Pacific)</p></li>
 <li><p><code>ANT</code> (Antarctica)</p></li>
 </ul>
-<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a>trees <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Quercus suber&quot;</span>, <span class="st">&quot;Eucalyptus globulus&quot;</span>,</span>
-<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a>  <span class="st">&quot;Nothofagus pumilio&quot;</span>, <span class="st">&quot;Sequoiadendron giganteum&quot;</span></span>
-<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a>))</span>
-<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a></span>
-<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a>trees <span class="sc">|&gt;</span> <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="st">&quot;EUR&quot;</span>)</span>
-<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a><span class="co">#&gt;              input_name native_status</span></span>
-<span id="cb42-8"><a href="#cb42-8" tabindex="-1"></a><span class="co">#&gt; 1          Quercus robur        native</span></span>
-<span id="cb42-9"><a href="#cb42-9" tabindex="-1"></a><span class="co">#&gt; 2          Quercus suber        native</span></span>
-<span id="cb42-10"><a href="#cb42-10" tabindex="-1"></a><span class="co">#&gt; 3    Eucalyptus globulus            NA</span></span>
-<span id="cb42-11"><a href="#cb42-11" tabindex="-1"></a><span class="co">#&gt; 4    Nothofagus pumilio            NA</span></span>
-<span id="cb42-12"><a href="#cb42-12" tabindex="-1"></a><span class="co">#&gt; 5 Sequoiadendron giganteum          NA</span></span></code></pre></div>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a>trees <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Quercus suber&quot;</span>, <span class="st">&quot;Eucalyptus globulus&quot;</span>,</span>
+<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a>  <span class="st">&quot;Nothofagus pumilio&quot;</span>, <span class="st">&quot;Sequoiadendron giganteum&quot;</span></span>
+<span id="cb43-4"><a href="#cb43-4" tabindex="-1"></a>))</span>
+<span id="cb43-5"><a href="#cb43-5" tabindex="-1"></a></span>
+<span id="cb43-6"><a href="#cb43-6" tabindex="-1"></a>trees <span class="sc">|&gt;</span> <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="st">&quot;EUR&quot;</span>)</span>
+<span id="cb43-7"><a href="#cb43-7" tabindex="-1"></a><span class="co">#&gt;              input_name native_status</span></span>
+<span id="cb43-8"><a href="#cb43-8" tabindex="-1"></a><span class="co">#&gt; 1          Quercus robur        native</span></span>
+<span id="cb43-9"><a href="#cb43-9" tabindex="-1"></a><span class="co">#&gt; 2          Quercus suber        native</span></span>
+<span id="cb43-10"><a href="#cb43-10" tabindex="-1"></a><span class="co">#&gt; 3    Eucalyptus globulus            NA</span></span>
+<span id="cb43-11"><a href="#cb43-11" tabindex="-1"></a><span class="co">#&gt; 4    Nothofagus pumilio            NA</span></span>
+<span id="cb43-12"><a href="#cb43-12" tabindex="-1"></a><span class="co">#&gt; 5 Sequoiadendron giganteum          NA</span></span></code></pre></div>
 <p><em>Eucalyptus globulus</em> returns <code>NA</code> for Europe
 because it is native to Australia, not because it is absent from the
 WCVP dataset. The dataset records where a species is natively
@@ -2020,13 +2031,13 @@ important distinction: many cultivated species will show <code>NA</code>
 in regions where they are widespread in gardens and plantations.</p>
 <p>Querying multiple regions reveals each species’ native continental
 range:</p>
-<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a>trees <span class="sc">|&gt;</span> <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;EUR&quot;</span>, <span class="st">&quot;AUS&quot;</span>, <span class="st">&quot;SAM&quot;</span>))</span>
-<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a><span class="co">#&gt;              input_name native_status_EUR native_status_AUS native_status_SAM</span></span>
-<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a><span class="co">#&gt; 1          Quercus robur           native                NA                NA</span></span>
-<span id="cb43-4"><a href="#cb43-4" tabindex="-1"></a><span class="co">#&gt; 2          Quercus suber           native                NA                NA</span></span>
-<span id="cb43-5"><a href="#cb43-5" tabindex="-1"></a><span class="co">#&gt; 3    Eucalyptus globulus               NA            native                NA</span></span>
-<span id="cb43-6"><a href="#cb43-6" tabindex="-1"></a><span class="co">#&gt; 4    Nothofagus pumilio               NA                NA            native</span></span>
-<span id="cb43-7"><a href="#cb43-7" tabindex="-1"></a><span class="co">#&gt; 5 Sequoiadendron giganteum              NA                NA                NA</span></span></code></pre></div>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>trees <span class="sc">|&gt;</span> <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;EUR&quot;</span>, <span class="st">&quot;AUS&quot;</span>, <span class="st">&quot;SAM&quot;</span>))</span>
+<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a><span class="co">#&gt;              input_name native_status_EUR native_status_AUS native_status_SAM</span></span>
+<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a><span class="co">#&gt; 1          Quercus robur           native                NA                NA</span></span>
+<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a><span class="co">#&gt; 2          Quercus suber           native                NA                NA</span></span>
+<span id="cb44-5"><a href="#cb44-5" tabindex="-1"></a><span class="co">#&gt; 3    Eucalyptus globulus               NA            native                NA</span></span>
+<span id="cb44-6"><a href="#cb44-6" tabindex="-1"></a><span class="co">#&gt; 4    Nothofagus pumilio               NA                NA            native</span></span>
+<span id="cb44-7"><a href="#cb44-7" tabindex="-1"></a><span class="co">#&gt; 5 Sequoiadendron giganteum              NA                NA                NA</span></span></code></pre></div>
 <p><em>Sequoiadendron giganteum</em> (Giant Sequoia) returns
 <code>NA</code> for all three regions because it is native to western
 North America (<code>NAM</code>), which was not included in the query.
@@ -2048,17 +2059,17 @@ classifies species as native/introduced/invasive per country), GloNAF
 provides a binary naturalization flag per region with finer geographic
 resolution, using TDWG-compatible codes extended with dot notation for
 sub-national units (e.g., <code>&quot;USA.CA&quot;</code> for California).</p>
-<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>  <span class="st">&quot;Robinia pseudoacacia&quot;</span>, <span class="st">&quot;Ailanthus altissima&quot;</span>,</span>
-<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a>  <span class="st">&quot;Impatiens glandulifera&quot;</span>, <span class="st">&quot;Quercus robur&quot;</span></span>
-<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a>))</span>
-<span id="cb44-5"><a href="#cb44-5" tabindex="-1"></a></span>
-<span id="cb44-6"><a href="#cb44-6" tabindex="-1"></a>plants <span class="sc">|&gt;</span> <span class="fu">add_glonaf</span>(<span class="at">region =</span> <span class="st">&quot;EUR&quot;</span>)</span>
-<span id="cb44-7"><a href="#cb44-7" tabindex="-1"></a><span class="co">#&gt;              input_name naturalized</span></span>
-<span id="cb44-8"><a href="#cb44-8" tabindex="-1"></a><span class="co">#&gt; 1   Robinia pseudoacacia           1</span></span>
-<span id="cb44-9"><a href="#cb44-9" tabindex="-1"></a><span class="co">#&gt; 2    Ailanthus altissima           1</span></span>
-<span id="cb44-10"><a href="#cb44-10" tabindex="-1"></a><span class="co">#&gt; 3 Impatiens glandulifera           1</span></span>
-<span id="cb44-11"><a href="#cb44-11" tabindex="-1"></a><span class="co">#&gt; 4          Quercus robur          NA</span></span></code></pre></div>
+<div class="sourceCode" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb45-2"><a href="#cb45-2" tabindex="-1"></a>  <span class="st">&quot;Robinia pseudoacacia&quot;</span>, <span class="st">&quot;Ailanthus altissima&quot;</span>,</span>
+<span id="cb45-3"><a href="#cb45-3" tabindex="-1"></a>  <span class="st">&quot;Impatiens glandulifera&quot;</span>, <span class="st">&quot;Quercus robur&quot;</span></span>
+<span id="cb45-4"><a href="#cb45-4" tabindex="-1"></a>))</span>
+<span id="cb45-5"><a href="#cb45-5" tabindex="-1"></a></span>
+<span id="cb45-6"><a href="#cb45-6" tabindex="-1"></a>plants <span class="sc">|&gt;</span> <span class="fu">add_glonaf</span>(<span class="at">region =</span> <span class="st">&quot;EUR&quot;</span>)</span>
+<span id="cb45-7"><a href="#cb45-7" tabindex="-1"></a><span class="co">#&gt;              input_name naturalized</span></span>
+<span id="cb45-8"><a href="#cb45-8" tabindex="-1"></a><span class="co">#&gt; 1   Robinia pseudoacacia           1</span></span>
+<span id="cb45-9"><a href="#cb45-9" tabindex="-1"></a><span class="co">#&gt; 2    Ailanthus altissima           1</span></span>
+<span id="cb45-10"><a href="#cb45-10" tabindex="-1"></a><span class="co">#&gt; 3 Impatiens glandulifera           1</span></span>
+<span id="cb45-11"><a href="#cb45-11" tabindex="-1"></a><span class="co">#&gt; 4          Quercus robur          NA</span></span></code></pre></div>
 <p>The output column <code>naturalized</code> is <code>1</code> if the
 species is recorded as naturalized in the queried region, and
 <code>NA</code> otherwise. Multiple regions produce suffixed columns
@@ -2081,28 +2092,28 @@ which aggregates names from many national and regional nomenclature
 sources. It is the most multilingual of the enrichments, covering dozens
 of languages. The <code>lang</code> argument takes ISO 639-1 two-letter
 language codes.</p>
-<div class="sourceCode" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" tabindex="-1"></a>species <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb45-2"><a href="#cb45-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Parus major&quot;</span>, <span class="st">&quot;Vulpes vulpes&quot;</span>,</span>
-<span id="cb45-3"><a href="#cb45-3" tabindex="-1"></a>  <span class="st">&quot;Bufo bufo&quot;</span>, <span class="st">&quot;Picea abies&quot;</span></span>
-<span id="cb45-4"><a href="#cb45-4" tabindex="-1"></a>))</span>
-<span id="cb45-5"><a href="#cb45-5" tabindex="-1"></a></span>
-<span id="cb45-6"><a href="#cb45-6" tabindex="-1"></a>species <span class="sc">|&gt;</span> <span class="fu">add_common_names</span>()</span>
-<span id="cb45-7"><a href="#cb45-7" tabindex="-1"></a><span class="co">#&gt;     input_name common_name</span></span>
-<span id="cb45-8"><a href="#cb45-8" tabindex="-1"></a><span class="co">#&gt; 1 Quercus robur   Pedunculate Oak</span></span>
-<span id="cb45-9"><a href="#cb45-9" tabindex="-1"></a><span class="co">#&gt; 2   Parus major    Great Tit</span></span>
-<span id="cb45-10"><a href="#cb45-10" tabindex="-1"></a><span class="co">#&gt; 3  Vulpes vulpes    Red Fox</span></span>
-<span id="cb45-11"><a href="#cb45-11" tabindex="-1"></a><span class="co">#&gt; 4     Bufo bufo    Common Toad</span></span>
-<span id="cb45-12"><a href="#cb45-12" tabindex="-1"></a><span class="co">#&gt; 5   Picea abies    Norway Spruce</span></span></code></pre></div>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a>species <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Parus major&quot;</span>, <span class="st">&quot;Vulpes vulpes&quot;</span>,</span>
+<span id="cb46-3"><a href="#cb46-3" tabindex="-1"></a>  <span class="st">&quot;Bufo bufo&quot;</span>, <span class="st">&quot;Picea abies&quot;</span></span>
+<span id="cb46-4"><a href="#cb46-4" tabindex="-1"></a>))</span>
+<span id="cb46-5"><a href="#cb46-5" tabindex="-1"></a></span>
+<span id="cb46-6"><a href="#cb46-6" tabindex="-1"></a>species <span class="sc">|&gt;</span> <span class="fu">add_common_names</span>()</span>
+<span id="cb46-7"><a href="#cb46-7" tabindex="-1"></a><span class="co">#&gt;     input_name common_name</span></span>
+<span id="cb46-8"><a href="#cb46-8" tabindex="-1"></a><span class="co">#&gt; 1 Quercus robur   Pedunculate Oak</span></span>
+<span id="cb46-9"><a href="#cb46-9" tabindex="-1"></a><span class="co">#&gt; 2   Parus major    Great Tit</span></span>
+<span id="cb46-10"><a href="#cb46-10" tabindex="-1"></a><span class="co">#&gt; 3  Vulpes vulpes    Red Fox</span></span>
+<span id="cb46-11"><a href="#cb46-11" tabindex="-1"></a><span class="co">#&gt; 4     Bufo bufo    Common Toad</span></span>
+<span id="cb46-12"><a href="#cb46-12" tabindex="-1"></a><span class="co">#&gt; 5   Picea abies    Norway Spruce</span></span></code></pre></div>
 <p>The default language is English (<code>lang = &quot;en&quot;</code>). Switching
 to another language is a matter of changing the <code>lang</code>
 argument:</p>
-<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a>species <span class="sc">|&gt;</span> <span class="fu">add_common_names</span>(<span class="at">lang =</span> <span class="st">&quot;de&quot;</span>)</span>
-<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a><span class="co">#&gt;     input_name common_name</span></span>
-<span id="cb46-3"><a href="#cb46-3" tabindex="-1"></a><span class="co">#&gt; 1 Quercus robur   Stieleiche</span></span>
-<span id="cb46-4"><a href="#cb46-4" tabindex="-1"></a><span class="co">#&gt; 2   Parus major    Kohlmeise</span></span>
-<span id="cb46-5"><a href="#cb46-5" tabindex="-1"></a><span class="co">#&gt; 3  Vulpes vulpes    Rotfuchs</span></span>
-<span id="cb46-6"><a href="#cb46-6" tabindex="-1"></a><span class="co">#&gt; 4     Bufo bufo    Erdkroete</span></span>
-<span id="cb46-7"><a href="#cb46-7" tabindex="-1"></a><span class="co">#&gt; 5   Picea abies    Gemeine Fichte</span></span></code></pre></div>
+<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" tabindex="-1"></a>species <span class="sc">|&gt;</span> <span class="fu">add_common_names</span>(<span class="at">lang =</span> <span class="st">&quot;de&quot;</span>)</span>
+<span id="cb47-2"><a href="#cb47-2" tabindex="-1"></a><span class="co">#&gt;     input_name common_name</span></span>
+<span id="cb47-3"><a href="#cb47-3" tabindex="-1"></a><span class="co">#&gt; 1 Quercus robur   Stieleiche</span></span>
+<span id="cb47-4"><a href="#cb47-4" tabindex="-1"></a><span class="co">#&gt; 2   Parus major    Kohlmeise</span></span>
+<span id="cb47-5"><a href="#cb47-5" tabindex="-1"></a><span class="co">#&gt; 3  Vulpes vulpes    Rotfuchs</span></span>
+<span id="cb47-6"><a href="#cb47-6" tabindex="-1"></a><span class="co">#&gt; 4     Bufo bufo    Erdkroete</span></span>
+<span id="cb47-7"><a href="#cb47-7" tabindex="-1"></a><span class="co">#&gt; 5   Picea abies    Gemeine Fichte</span></span></code></pre></div>
 <p>When multiple common names exist for a species in the requested
 language, the first (most commonly used) entry is returned. Coverage
 varies substantially by language: English and German have the broadest
@@ -2128,14 +2139,14 @@ including the metadata used by <code>summary()</code>. This means they
 compose naturally with the pipe operator. A typical workflow chains
 <code>taxify()</code> with several enrichment calls, building up the
 desired set of columns incrementally.</p>
-<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" tabindex="-1"></a>plant_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb47-2"><a href="#cb47-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>, <span class="st">&quot;Picea abies&quot;</span>,</span>
-<span id="cb47-3"><a href="#cb47-3" tabindex="-1"></a>  <span class="st">&quot;Arrhenatherum elatius&quot;</span>, <span class="st">&quot;Festuca rubra&quot;</span>, <span class="st">&quot;Plantago lanceolata&quot;</span></span>
-<span id="cb47-4"><a href="#cb47-4" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
-<span id="cb47-5"><a href="#cb47-5" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb47-6"><a href="#cb47-6" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb47-7"><a href="#cb47-7" tabindex="-1"></a>  <span class="fu">add_eive</span>() <span class="sc">|&gt;</span></span>
-<span id="cb47-8"><a href="#cb47-8" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a>plant_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb48-2"><a href="#cb48-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>, <span class="st">&quot;Picea abies&quot;</span>,</span>
+<span id="cb48-3"><a href="#cb48-3" tabindex="-1"></a>  <span class="st">&quot;Arrhenatherum elatius&quot;</span>, <span class="st">&quot;Festuca rubra&quot;</span>, <span class="st">&quot;Plantago lanceolata&quot;</span></span>
+<span id="cb48-4"><a href="#cb48-4" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb48-5"><a href="#cb48-5" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb48-6"><a href="#cb48-6" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb48-7"><a href="#cb48-7" tabindex="-1"></a>  <span class="fu">add_eive</span>() <span class="sc">|&gt;</span></span>
+<span id="cb48-8"><a href="#cb48-8" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>()</span></code></pre></div>
 <p>Each enrichment appends its columns to the right of the data.frame.
 The result of this chain has the original 16 taxify columns plus
 <code>conservation_status</code>, <code>woodiness</code>, the five EIVE
@@ -2150,14 +2161,14 @@ between LEDA and Diaz (<code>seed_mass_mg</code>), discussed
 earlier.</p>
 <p>Here is a similar chain for birds, combining morphological
 measurements with diet data and vernacular names:</p>
-<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a>bird_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb48-2"><a href="#cb48-2" tabindex="-1"></a>  <span class="st">&quot;Parus major&quot;</span>, <span class="st">&quot;Cyanistes caeruleus&quot;</span>, <span class="st">&quot;Erithacus rubecula&quot;</span>,</span>
-<span id="cb48-3"><a href="#cb48-3" tabindex="-1"></a>  <span class="st">&quot;Turdus merula&quot;</span>, <span class="st">&quot;Falco peregrinus&quot;</span></span>
-<span id="cb48-4"><a href="#cb48-4" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
-<span id="cb48-5"><a href="#cb48-5" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb48-6"><a href="#cb48-6" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
-<span id="cb48-7"><a href="#cb48-7" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb48-8"><a href="#cb48-8" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" tabindex="-1"></a>bird_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb49-2"><a href="#cb49-2" tabindex="-1"></a>  <span class="st">&quot;Parus major&quot;</span>, <span class="st">&quot;Cyanistes caeruleus&quot;</span>, <span class="st">&quot;Erithacus rubecula&quot;</span>,</span>
+<span id="cb49-3"><a href="#cb49-3" tabindex="-1"></a>  <span class="st">&quot;Turdus merula&quot;</span>, <span class="st">&quot;Falco peregrinus&quot;</span></span>
+<span id="cb49-4"><a href="#cb49-4" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb49-5"><a href="#cb49-5" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb49-6"><a href="#cb49-6" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
+<span id="cb49-7"><a href="#cb49-7" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb49-8"><a href="#cb49-8" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>This produces 16 (base) + 1 (conservation) + 11 (AVONET) + 18
 (EltonTraits) + 1 (common name) = 47 columns. Both AVONET and
 EltonTraits contribute body mass, but in distinct columns
@@ -2165,14 +2176,14 @@ EltonTraits contribute body mass, but in distinct columns
 there is no overwriting.</p>
 <p>And for mammals, combining life-history traits from PanTHERIA with
 diet data from EltonTraits and German common names:</p>
-<div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" tabindex="-1"></a>mammal_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb49-2"><a href="#cb49-2" tabindex="-1"></a>  <span class="st">&quot;Vulpes vulpes&quot;</span>, <span class="st">&quot;Canis lupus&quot;</span>, <span class="st">&quot;Ursus arctos&quot;</span>,</span>
-<span id="cb49-3"><a href="#cb49-3" tabindex="-1"></a>  <span class="st">&quot;Lutra lutra&quot;</span>, <span class="st">&quot;Lynx lynx&quot;</span></span>
-<span id="cb49-4"><a href="#cb49-4" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
-<span id="cb49-5"><a href="#cb49-5" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb49-6"><a href="#cb49-6" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
-<span id="cb49-7"><a href="#cb49-7" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb49-8"><a href="#cb49-8" tabindex="-1"></a>  <span class="fu">add_common_names</span>(<span class="at">lang =</span> <span class="st">&quot;de&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a>mammal_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb50-2"><a href="#cb50-2" tabindex="-1"></a>  <span class="st">&quot;Vulpes vulpes&quot;</span>, <span class="st">&quot;Canis lupus&quot;</span>, <span class="st">&quot;Ursus arctos&quot;</span>,</span>
+<span id="cb50-3"><a href="#cb50-3" tabindex="-1"></a>  <span class="st">&quot;Lutra lutra&quot;</span>, <span class="st">&quot;Lynx lynx&quot;</span></span>
+<span id="cb50-4"><a href="#cb50-4" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb50-5"><a href="#cb50-5" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb50-6"><a href="#cb50-6" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
+<span id="cb50-7"><a href="#cb50-7" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb50-8"><a href="#cb50-8" tabindex="-1"></a>  <span class="fu">add_common_names</span>(<span class="at">lang =</span> <span class="st">&quot;de&quot;</span>)</span></code></pre></div>
 <p>Both EltonTraits and PanTHERIA cover mammals, so both contribute data
 to the mammal chain. EltonTraits provides diet composition percentages
 and foraging strata; PanTHERIA provides life-history traits like
@@ -2181,12 +2192,12 @@ multidimensional view of each species’ ecology without any manual data
 assembly.</p>
 <p>The same pattern works for fungi, combining lifestyle traits from
 FungalTraits with guild classifications from FUNGuild:</p>
-<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a>fungal_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb50-2"><a href="#cb50-2" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>, <span class="st">&quot;Boletus edulis&quot;</span>, <span class="st">&quot;Trametes versicolor&quot;</span></span>
-<span id="cb50-3"><a href="#cb50-3" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
-<span id="cb50-4"><a href="#cb50-4" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb50-5"><a href="#cb50-5" tabindex="-1"></a>  <span class="fu">add_fungal_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb50-6"><a href="#cb50-6" tabindex="-1"></a>  <span class="fu">add_funguild</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" tabindex="-1"></a>fungal_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb51-2"><a href="#cb51-2" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>, <span class="st">&quot;Boletus edulis&quot;</span>, <span class="st">&quot;Trametes versicolor&quot;</span></span>
+<span id="cb51-3"><a href="#cb51-3" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb51-4"><a href="#cb51-4" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb51-5"><a href="#cb51-5" tabindex="-1"></a>  <span class="fu">add_fungal_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb51-6"><a href="#cb51-6" tabindex="-1"></a>  <span class="fu">add_funguild</span>()</span></code></pre></div>
 <p>FungalTraits provides the detailed ecological traits (lifestyle,
 growth form, substrate, mycorrhizal exploration type), while FUNGuild
 adds the trophic mode and guild classification. The two enrichments have
@@ -2197,12 +2208,12 @@ FUNGuild is a useful quality filter: restricting to “Highly Probable”
 assignments before downstream analysis reduces noise.</p>
 <p>Fish analyses can similarly combine morphological and ecological
 enrichments:</p>
-<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" tabindex="-1"></a>fish_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb51-2"><a href="#cb51-2" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>, <span class="st">&quot;Esox lucius&quot;</span>, <span class="st">&quot;Gadus morhua&quot;</span></span>
-<span id="cb51-3"><a href="#cb51-3" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
-<span id="cb51-4"><a href="#cb51-4" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb51-5"><a href="#cb51-5" tabindex="-1"></a>  <span class="fu">add_fishmorph</span>() <span class="sc">|&gt;</span></span>
-<span id="cb51-6"><a href="#cb51-6" tabindex="-1"></a>  <span class="fu">add_fishbase</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a>fish_result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb52-2"><a href="#cb52-2" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>, <span class="st">&quot;Esox lucius&quot;</span>, <span class="st">&quot;Gadus morhua&quot;</span></span>
+<span id="cb52-3"><a href="#cb52-3" tabindex="-1"></a>)) <span class="sc">|&gt;</span></span>
+<span id="cb52-4"><a href="#cb52-4" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb52-5"><a href="#cb52-5" tabindex="-1"></a>  <span class="fu">add_fishmorph</span>() <span class="sc">|&gt;</span></span>
+<span id="cb52-6"><a href="#cb52-6" tabindex="-1"></a>  <span class="fu">add_fishbase</span>()</span></code></pre></div>
 <p>FISHMORPH provides the morphological ratios (body elongation, fin
 shape, eye size) that define the ecomorphological profile of each
 species, while FishBase adds the ecological and life-history context
@@ -2236,29 +2247,29 @@ enrichment has no data for a species, the corresponding columns contain
 <code>NA</code>. Understanding coverage patterns is essential for
 interpreting enriched results correctly and for choosing which
 enrichments to apply.</p>
-<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a>mixed <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
-<span id="cb52-2"><a href="#cb52-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,     <span class="co"># plant</span></span>
-<span id="cb52-3"><a href="#cb52-3" tabindex="-1"></a>  <span class="st">&quot;Parus major&quot;</span>,       <span class="co"># bird</span></span>
-<span id="cb52-4"><a href="#cb52-4" tabindex="-1"></a>  <span class="st">&quot;Vulpes vulpes&quot;</span>,     <span class="co"># mammal</span></span>
-<span id="cb52-5"><a href="#cb52-5" tabindex="-1"></a>  <span class="st">&quot;Bufo bufo&quot;</span>,         <span class="co"># amphibian</span></span>
-<span id="cb52-6"><a href="#cb52-6" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>,  <span class="co"># fungus</span></span>
-<span id="cb52-7"><a href="#cb52-7" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>       <span class="co"># fish</span></span>
-<span id="cb52-8"><a href="#cb52-8" tabindex="-1"></a>))</span>
-<span id="cb52-9"><a href="#cb52-9" tabindex="-1"></a></span>
-<span id="cb52-10"><a href="#cb52-10" tabindex="-1"></a>mixed <span class="sc">|&gt;</span></span>
-<span id="cb52-11"><a href="#cb52-11" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb52-12"><a href="#cb52-12" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
-<span id="cb52-13"><a href="#cb52-13" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
-<span id="cb52-14"><a href="#cb52-14" tabindex="-1"></a>  <span class="fu">add_amphibio</span>() <span class="sc">|&gt;</span></span>
-<span id="cb52-15"><a href="#cb52-15" tabindex="-1"></a>  <span class="fu">add_fungal_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb52-16"><a href="#cb52-16" tabindex="-1"></a>  <span class="fu">add_fishbase</span>()</span>
-<span id="cb52-17"><a href="#cb52-17" tabindex="-1"></a><span class="co">#&gt;        input_name woodiness beak_length pantheria_body_mass_g body_size_mm primary_lifestyle fb_trophic_level ...</span></span>
-<span id="cb52-18"><a href="#cb52-18" tabindex="-1"></a><span class="co">#&gt; 1   Quercus robur     woody          NA                    NA           NA              &lt;NA&gt;               NA ...</span></span>
-<span id="cb52-19"><a href="#cb52-19" tabindex="-1"></a><span class="co">#&gt; 2     Parus major        NA        11.2                    NA           NA              &lt;NA&gt;               NA ...</span></span>
-<span id="cb52-20"><a href="#cb52-20" tabindex="-1"></a><span class="co">#&gt; 3   Vulpes vulpes        NA          NA                5480.0           NA              &lt;NA&gt;               NA ...</span></span>
-<span id="cb52-21"><a href="#cb52-21" tabindex="-1"></a><span class="co">#&gt; 4       Bufo bufo        NA          NA                    NA        150.0              &lt;NA&gt;               NA ...</span></span>
-<span id="cb52-22"><a href="#cb52-22" tabindex="-1"></a><span class="co">#&gt; 5 Amanita muscaria       NA          NA                    NA           NA   ectomycorrhizal               NA ...</span></span>
-<span id="cb52-23"><a href="#cb52-23" tabindex="-1"></a><span class="co">#&gt; 6    Salmo trutta        NA          NA                    NA           NA              &lt;NA&gt;              3.4 ...</span></span></code></pre></div>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" tabindex="-1"></a>mixed <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(</span>
+<span id="cb53-2"><a href="#cb53-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,     <span class="co"># plant</span></span>
+<span id="cb53-3"><a href="#cb53-3" tabindex="-1"></a>  <span class="st">&quot;Parus major&quot;</span>,       <span class="co"># bird</span></span>
+<span id="cb53-4"><a href="#cb53-4" tabindex="-1"></a>  <span class="st">&quot;Vulpes vulpes&quot;</span>,     <span class="co"># mammal</span></span>
+<span id="cb53-5"><a href="#cb53-5" tabindex="-1"></a>  <span class="st">&quot;Bufo bufo&quot;</span>,         <span class="co"># amphibian</span></span>
+<span id="cb53-6"><a href="#cb53-6" tabindex="-1"></a>  <span class="st">&quot;Amanita muscaria&quot;</span>,  <span class="co"># fungus</span></span>
+<span id="cb53-7"><a href="#cb53-7" tabindex="-1"></a>  <span class="st">&quot;Salmo trutta&quot;</span>       <span class="co"># fish</span></span>
+<span id="cb53-8"><a href="#cb53-8" tabindex="-1"></a>))</span>
+<span id="cb53-9"><a href="#cb53-9" tabindex="-1"></a></span>
+<span id="cb53-10"><a href="#cb53-10" tabindex="-1"></a>mixed <span class="sc">|&gt;</span></span>
+<span id="cb53-11"><a href="#cb53-11" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb53-12"><a href="#cb53-12" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
+<span id="cb53-13"><a href="#cb53-13" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
+<span id="cb53-14"><a href="#cb53-14" tabindex="-1"></a>  <span class="fu">add_amphibio</span>() <span class="sc">|&gt;</span></span>
+<span id="cb53-15"><a href="#cb53-15" tabindex="-1"></a>  <span class="fu">add_fungal_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb53-16"><a href="#cb53-16" tabindex="-1"></a>  <span class="fu">add_fishbase</span>()</span>
+<span id="cb53-17"><a href="#cb53-17" tabindex="-1"></a><span class="co">#&gt;        input_name woodiness beak_length pantheria_body_mass_g body_size_mm primary_lifestyle fb_trophic_level ...</span></span>
+<span id="cb53-18"><a href="#cb53-18" tabindex="-1"></a><span class="co">#&gt; 1   Quercus robur     woody          NA                    NA           NA              &lt;NA&gt;               NA ...</span></span>
+<span id="cb53-19"><a href="#cb53-19" tabindex="-1"></a><span class="co">#&gt; 2     Parus major        NA        11.2                    NA           NA              &lt;NA&gt;               NA ...</span></span>
+<span id="cb53-20"><a href="#cb53-20" tabindex="-1"></a><span class="co">#&gt; 3   Vulpes vulpes        NA          NA                5480.0           NA              &lt;NA&gt;               NA ...</span></span>
+<span id="cb53-21"><a href="#cb53-21" tabindex="-1"></a><span class="co">#&gt; 4       Bufo bufo        NA          NA                    NA        150.0              &lt;NA&gt;               NA ...</span></span>
+<span id="cb53-22"><a href="#cb53-22" tabindex="-1"></a><span class="co">#&gt; 5 Amanita muscaria       NA          NA                    NA           NA   ectomycorrhizal               NA ...</span></span>
+<span id="cb53-23"><a href="#cb53-23" tabindex="-1"></a><span class="co">#&gt; 6    Salmo trutta        NA          NA                    NA           NA              &lt;NA&gt;              3.4 ...</span></span></code></pre></div>
 <p>Each species populates only the columns from enrichments that cover
 its taxon group. The <code>NA</code> values are not errors or data
 quality problems; they reflect the scope of the underlying datasets.
@@ -2476,9 +2487,9 @@ measurements), consult the original source cited on the
 <p>To check the overall enrichment rate for a result, the
 <code>summary()</code> output reports the number of matched rows per
 enrichment. We can also compute it directly:</p>
-<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list) <span class="sc">|&gt;</span> <span class="fu">add_zanne</span>()</span>
-<span id="cb53-2"><a href="#cb53-2" tabindex="-1"></a><span class="co"># Fraction of matched species with woodiness data</span></span>
-<span id="cb53-3"><a href="#cb53-3" tabindex="-1"></a><span class="fu">mean</span>(<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>woodiness[<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>accepted_name)]))</span></code></pre></div>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list) <span class="sc">|&gt;</span> <span class="fu">add_zanne</span>()</span>
+<span id="cb54-2"><a href="#cb54-2" tabindex="-1"></a><span class="co"># Fraction of matched species with woodiness data</span></span>
+<span id="cb54-3"><a href="#cb54-3" tabindex="-1"></a><span class="fu">mean</span>(<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>woodiness[<span class="sc">!</span><span class="fu">is.na</span>(result<span class="sc">$</span>accepted_name)]))</span></code></pre></div>
 </div>
 </div>
 <div id="the-enrichment-register-in-summary-output" class="section level2">
@@ -2490,23 +2501,23 @@ string, and the count of rows that received non-<code>NA</code> trait
 values. Calling <code>summary()</code> on a taxify result displays this
 information alongside the standard match statistics, providing a compact
 overview of the entire analysis pipeline.</p>
-<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb54-2"><a href="#cb54-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb54-3"><a href="#cb54-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb54-4"><a href="#cb54-4" tabindex="-1"></a>  <span class="fu">add_eive</span>()</span>
-<span id="cb54-5"><a href="#cb54-5" tabindex="-1"></a></span>
-<span id="cb54-6"><a href="#cb54-6" tabindex="-1"></a><span class="fu">summary</span>(result)</span>
-<span id="cb54-7"><a href="#cb54-7" tabindex="-1"></a><span class="co">#&gt; -- taxify results --------------------------------------------------------</span></span>
-<span id="cb54-8"><a href="#cb54-8" tabindex="-1"></a><span class="co">#&gt;   backbone: COL v2026.07  |  3 names submitted</span></span>
-<span id="cb54-9"><a href="#cb54-9" tabindex="-1"></a><span class="co">#&gt;</span></span>
-<span id="cb54-10"><a href="#cb54-10" tabindex="-1"></a><span class="co">#&gt;   matched       3  (exact: 3, case-insensitive: 0, fuzzy: 0)</span></span>
-<span id="cb54-11"><a href="#cb54-11" tabindex="-1"></a><span class="co">#&gt;   --------------------------------------------------------</span></span>
-<span id="cb54-12"><a href="#cb54-12" tabindex="-1"></a><span class="co">#&gt;   taxon groups: plant: 3</span></span>
-<span id="cb54-13"><a href="#cb54-13" tabindex="-1"></a><span class="co">#&gt;</span></span>
-<span id="cb54-14"><a href="#cb54-14" tabindex="-1"></a><span class="co">#&gt;   enrichments:</span></span>
-<span id="cb54-15"><a href="#cb54-15" tabindex="-1"></a><span class="co">#&gt;     iucn                 (IUCN Red List 2025.1)     -- 3 of 3 matched</span></span>
-<span id="cb54-16"><a href="#cb54-16" tabindex="-1"></a><span class="co">#&gt;     zanne                (Zanne et al. 2014 1.0)    -- 3 of 3 matched</span></span>
-<span id="cb54-17"><a href="#cb54-17" tabindex="-1"></a><span class="co">#&gt;     eive                 (EIVE 1.0 2023.1)          -- 3 of 3 matched</span></span></code></pre></div>
+<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb55-2"><a href="#cb55-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb55-3"><a href="#cb55-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb55-4"><a href="#cb55-4" tabindex="-1"></a>  <span class="fu">add_eive</span>()</span>
+<span id="cb55-5"><a href="#cb55-5" tabindex="-1"></a></span>
+<span id="cb55-6"><a href="#cb55-6" tabindex="-1"></a><span class="fu">summary</span>(result)</span>
+<span id="cb55-7"><a href="#cb55-7" tabindex="-1"></a><span class="co">#&gt; -- taxify results --------------------------------------------------------</span></span>
+<span id="cb55-8"><a href="#cb55-8" tabindex="-1"></a><span class="co">#&gt;   backbone: COL v2026.07  |  3 names submitted</span></span>
+<span id="cb55-9"><a href="#cb55-9" tabindex="-1"></a><span class="co">#&gt;</span></span>
+<span id="cb55-10"><a href="#cb55-10" tabindex="-1"></a><span class="co">#&gt;   matched       3  (exact: 3, case-insensitive: 0, fuzzy: 0)</span></span>
+<span id="cb55-11"><a href="#cb55-11" tabindex="-1"></a><span class="co">#&gt;   --------------------------------------------------------</span></span>
+<span id="cb55-12"><a href="#cb55-12" tabindex="-1"></a><span class="co">#&gt;   taxon groups: plant: 3</span></span>
+<span id="cb55-13"><a href="#cb55-13" tabindex="-1"></a><span class="co">#&gt;</span></span>
+<span id="cb55-14"><a href="#cb55-14" tabindex="-1"></a><span class="co">#&gt;   enrichments:</span></span>
+<span id="cb55-15"><a href="#cb55-15" tabindex="-1"></a><span class="co">#&gt;     iucn                 (IUCN Red List 2025.1)     -- 3 of 3 matched</span></span>
+<span id="cb55-16"><a href="#cb55-16" tabindex="-1"></a><span class="co">#&gt;     zanne                (Zanne et al. 2014 1.0)    -- 3 of 3 matched</span></span>
+<span id="cb55-17"><a href="#cb55-17" tabindex="-1"></a><span class="co">#&gt;     eive                 (EIVE 1.0 2023.1)          -- 3 of 3 matched</span></span></code></pre></div>
 <p>The enrichment register lists each applied enrichment with its source
 name, version, and the fraction of successfully matched names. In this
 example, all three enrichments achieved 100% coverage (3 of 3 matched),
@@ -2539,15 +2550,15 @@ contributes.</p>
 A full stack combines conservation status, growth form, ecological niche
 position, global functional traits, regional functional traits, native
 range, and vernacular names.</p>
-<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb55-2"><a href="#cb55-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb55-3"><a href="#cb55-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb55-4"><a href="#cb55-4" tabindex="-1"></a>  <span class="fu">add_fungalroot</span>() <span class="sc">|&gt;</span></span>
-<span id="cb55-5"><a href="#cb55-5" tabindex="-1"></a>  <span class="fu">add_eive</span>() <span class="sc">|&gt;</span></span>
-<span id="cb55-6"><a href="#cb55-6" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb55-7"><a href="#cb55-7" tabindex="-1"></a>  <span class="fu">add_leda</span>() <span class="sc">|&gt;</span></span>
-<span id="cb55-8"><a href="#cb55-8" tabindex="-1"></a>  <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="st">&quot;EUR&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb55-9"><a href="#cb55-9" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb56-2"><a href="#cb56-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb56-3"><a href="#cb56-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb56-4"><a href="#cb56-4" tabindex="-1"></a>  <span class="fu">add_fungalroot</span>() <span class="sc">|&gt;</span></span>
+<span id="cb56-5"><a href="#cb56-5" tabindex="-1"></a>  <span class="fu">add_eive</span>() <span class="sc">|&gt;</span></span>
+<span id="cb56-6"><a href="#cb56-6" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb56-7"><a href="#cb56-7" tabindex="-1"></a>  <span class="fu">add_leda</span>() <span class="sc">|&gt;</span></span>
+<span id="cb56-8"><a href="#cb56-8" tabindex="-1"></a>  <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="st">&quot;EUR&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb56-9"><a href="#cb56-9" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>EIVE and LEDA both cover European plants, but their trait columns are
 complementary. EIVE provides niche position along five environmental
 gradients (where does this species grow?). LEDA provides morphological
@@ -2568,13 +2579,13 @@ LEDA value is preferred, reverse the order or omit
 <p>Outside Europe, EIVE and LEDA coverage drops to near zero. The global
 plant stack relies on the wider-coverage datasets and omits the regional
 enrichments.</p>
-<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb56-2"><a href="#cb56-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb56-3"><a href="#cb56-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb56-4"><a href="#cb56-4" tabindex="-1"></a>  <span class="fu">add_fungalroot</span>() <span class="sc">|&gt;</span></span>
-<span id="cb56-5"><a href="#cb56-5" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb56-6"><a href="#cb56-6" tabindex="-1"></a>  <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;NAM&quot;</span>, <span class="st">&quot;SAM&quot;</span>, <span class="st">&quot;AFR&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb56-7"><a href="#cb56-7" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;wfo&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb57-2"><a href="#cb57-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-3"><a href="#cb57-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-4"><a href="#cb57-4" tabindex="-1"></a>  <span class="fu">add_fungalroot</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-5"><a href="#cb57-5" tabindex="-1"></a>  <span class="fu">add_diaz_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-6"><a href="#cb57-6" tabindex="-1"></a>  <span class="fu">add_wcvp</span>(<span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;NAM&quot;</span>, <span class="st">&quot;SAM&quot;</span>, <span class="st">&quot;AFR&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb57-7"><a href="#cb57-7" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>Woodiness, Diaz traits, and FungalRoot mycorrhizal type all have
 global coverage, so they contribute useful data regardless of the
 geographic origin of the species list. WCVP can be queried for any TDWG
@@ -2587,11 +2598,11 @@ to the study.</p>
 morphology and migration, EltonTraits for diet and foraging. Together
 they provide a detailed functional profile spanning body plan, habitat
 use, dietary niche, and movement ecology.</p>
-<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb57-2"><a href="#cb57-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb57-3"><a href="#cb57-3" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
-<span id="cb57-4"><a href="#cb57-4" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb57-5"><a href="#cb57-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb58-2"><a href="#cb58-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb58-3"><a href="#cb58-3" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
+<span id="cb58-4"><a href="#cb58-4" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb58-5"><a href="#cb58-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>Both AVONET and EltonTraits include body mass, stored in separate
 columns (<code>avonet_body_mass_g</code> from specimen measurements and
 <code>elton_body_mass_g</code> from literature compilation). Small
@@ -2607,11 +2618,11 @@ EltonTraits (diet and foraging behavior). The combination provides body
 mass from two independent sources (<code>pantheria_body_mass_g</code>
 and <code>elton_body_mass_g</code>), which can serve as a
 cross-validation of the mass data.</p>
-<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb58-2"><a href="#cb58-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb58-3"><a href="#cb58-3" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
-<span id="cb58-4"><a href="#cb58-4" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb58-5"><a href="#cb58-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb59-2"><a href="#cb59-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb59-3"><a href="#cb59-3" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
+<span id="cb59-4"><a href="#cb59-4" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb59-5"><a href="#cb59-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>PanTHERIA contributes life-history variables that EltonTraits does
 not cover (longevity, litter size, gestation, weaning age, home range,
 diet breadth, habitat breadth). EltonTraits contributes the detailed
@@ -2622,10 +2633,10 @@ does not provide. There is no redundancy except body mass.</p>
 <h3>Amphibians</h3>
 <p>AmphiBIO is the sole dedicated amphibian enrichment. It can be
 combined with conservation status and common names.</p>
-<div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb59-2"><a href="#cb59-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb59-3"><a href="#cb59-3" tabindex="-1"></a>  <span class="fu">add_amphibio</span>() <span class="sc">|&gt;</span></span>
-<span id="cb59-4"><a href="#cb59-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb60"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb60-2"><a href="#cb60-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb60-3"><a href="#cb60-3" tabindex="-1"></a>  <span class="fu">add_amphibio</span>() <span class="sc">|&gt;</span></span>
+<span id="cb60-4"><a href="#cb60-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>Amphibians are the most threatened vertebrate class, with roughly 40%
 of assessed species listed in threatened categories (VU, EN, or CR)
 according to the IUCN. Conservation status is therefore particularly
@@ -2640,11 +2651,11 @@ morphological traits of freshwater species, and FishBase for ecological
 and life-history traits across all fish (freshwater + marine). The WoRMS
 backbone provides authoritative taxonomy for marine fish; COL and GBIF
 cover both freshwater and marine species.</p>
-<div class="sourceCode" id="cb60"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;worms&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb60-2"><a href="#cb60-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb60-3"><a href="#cb60-3" tabindex="-1"></a>  <span class="fu">add_fishmorph</span>() <span class="sc">|&gt;</span></span>
-<span id="cb60-4"><a href="#cb60-4" tabindex="-1"></a>  <span class="fu">add_fishbase</span>() <span class="sc">|&gt;</span></span>
-<span id="cb60-5"><a href="#cb60-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb61"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;worms&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb61-2"><a href="#cb61-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb61-3"><a href="#cb61-3" tabindex="-1"></a>  <span class="fu">add_fishmorph</span>() <span class="sc">|&gt;</span></span>
+<span id="cb61-4"><a href="#cb61-4" tabindex="-1"></a>  <span class="fu">add_fishbase</span>() <span class="sc">|&gt;</span></span>
+<span id="cb61-5"><a href="#cb61-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>For freshwater fish community studies, both enrichments contribute
 data. FISHMORPH provides the ecomorphological ratios used in functional
 diversity calculations, while FishBase adds trophic level, depth range,
@@ -2662,10 +2673,10 @@ life-history, morphological, and distribution traits for 12,060 species
 across all reptile groups. Combined with conservation status, it gives a
 functional profile suitable for reptile community analyses and
 conservation assessments.</p>
-<div class="sourceCode" id="cb61"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;reptiledb&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb61-2"><a href="#cb61-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb61-3"><a href="#cb61-3" tabindex="-1"></a>  <span class="fu">add_repttraits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb61-4"><a href="#cb61-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb62"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;reptiledb&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb62-2"><a href="#cb62-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb62-3"><a href="#cb62-3" tabindex="-1"></a>  <span class="fu">add_repttraits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb62-4"><a href="#cb62-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>For cross-class longevity and metabolic comparisons,
 <code>add_anage()</code> covers reptiles alongside mammals, birds,
 amphibians, and fish.</p>
@@ -2676,10 +2687,10 @@ amphibians, and fish.</p>
 voltinism, habitat affinities, and host plant data for ~12,400 species
 globally. For European butterfly ecology, it can be combined with the NW
 European Arthropod traits for additional life-history variables.</p>
-<div class="sourceCode" id="cb62"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb62-2"><a href="#cb62-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb62-3"><a href="#cb62-3" tabindex="-1"></a>  <span class="fu">add_leptraits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb62-4"><a href="#cb62-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb63"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb63-2"><a href="#cb63-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb63-3"><a href="#cb63-3" tabindex="-1"></a>  <span class="fu">add_leptraits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb63-4"><a href="#cb63-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 </div>
 <div id="arthropods-nw-european" class="section level3">
 <h3>Arthropods (NW European)</h3>
@@ -2687,11 +2698,11 @@ European Arthropod traits for additional life-history variables.</p>
 enrichment provides the most comprehensive trait coverage. It can be
 combined with AnimalTraits for cross-taxon body mass comparisons and
 with LepTraits for additional butterfly-specific traits.</p>
-<div class="sourceCode" id="cb63"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb63-2"><a href="#cb63-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb63-3"><a href="#cb63-3" tabindex="-1"></a>  <span class="fu">add_arthropod_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb63-4"><a href="#cb63-4" tabindex="-1"></a>  <span class="fu">add_animaltraits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb63-5"><a href="#cb63-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb64"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb64-2"><a href="#cb64-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb64-3"><a href="#cb64-3" tabindex="-1"></a>  <span class="fu">add_arthropod_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb64-4"><a href="#cb64-4" tabindex="-1"></a>  <span class="fu">add_animaltraits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb64-5"><a href="#cb64-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>For arthropod studies outside NW Europe, AnimalTraits provides body
 mass for ~1,700 arthropod species globally, though with fewer trait
 dimensions than the Logghe et al. dataset.</p>
@@ -2701,11 +2712,11 @@ dimensions than the Logghe et al. dataset.</p>
 <p>Fungi are covered by two enrichments: FungalTraits for genus-level
 ecological traits and FUNGuild for trophic guild classifications. The
 COL and GBIF backbones provide fungal taxonomy.</p>
-<div class="sourceCode" id="cb64"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb64-2"><a href="#cb64-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb64-3"><a href="#cb64-3" tabindex="-1"></a>  <span class="fu">add_fungal_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb64-4"><a href="#cb64-4" tabindex="-1"></a>  <span class="fu">add_funguild</span>() <span class="sc">|&gt;</span></span>
-<span id="cb64-5"><a href="#cb64-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb65"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb65-2"><a href="#cb65-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb65-3"><a href="#cb65-3" tabindex="-1"></a>  <span class="fu">add_fungal_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb65-4"><a href="#cb65-4" tabindex="-1"></a>  <span class="fu">add_funguild</span>() <span class="sc">|&gt;</span></span>
+<span id="cb65-5"><a href="#cb65-5" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>FungalTraits provides the lifestyle, growth form, and interaction
 capability traits that describe what each genus does ecologically.
 FUNGuild adds the trophic mode and guild classification used in fungal
@@ -2719,10 +2730,10 @@ introduce systematic bias.</p>
 <p>European macroalgae are covered by AlgaeTraits, which provides
 morphological and ecological traits for ~1,745 species. The WoRMS
 backbone is recommended for marine algae taxonomy.</p>
-<div class="sourceCode" id="cb65"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;worms&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb65-2"><a href="#cb65-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb65-3"><a href="#cb65-3" tabindex="-1"></a>  <span class="fu">add_algae_traits</span>() <span class="sc">|&gt;</span></span>
-<span id="cb65-4"><a href="#cb65-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list, <span class="at">backbone =</span> <span class="st">&quot;worms&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb66-2"><a href="#cb66-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb66-3"><a href="#cb66-3" tabindex="-1"></a>  <span class="fu">add_algae_traits</span>() <span class="sc">|&gt;</span></span>
+<span id="cb66-4"><a href="#cb66-4" tabindex="-1"></a>  <span class="fu">add_common_names</span>()</span></code></pre></div>
 <p>AlgaeTraits is geographically scoped to European coastlines. For
 non-European macroalgae studies, the <code>add_data()</code> function
 can join custom datasets. The key advantage of AlgaeTraits over general
@@ -2737,28 +2748,28 @@ with plants, birds, and mammals), there are two strategies.</p>
 <p>The first is to apply all relevant enrichments to the full result and
 accept <code>NA</code> values where taxonomic scope does not
 overlap:</p>
-<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list) <span class="sc">|&gt;</span></span>
-<span id="cb66-2"><a href="#cb66-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
-<span id="cb66-3"><a href="#cb66-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
-<span id="cb66-4"><a href="#cb66-4" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
-<span id="cb66-5"><a href="#cb66-5" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
-<span id="cb66-6"><a href="#cb66-6" tabindex="-1"></a>  <span class="fu">add_amphibio</span>() <span class="sc">|&gt;</span></span>
-<span id="cb66-7"><a href="#cb66-7" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb67"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list) <span class="sc">|&gt;</span></span>
+<span id="cb67-2"><a href="#cb67-2" tabindex="-1"></a>  <span class="fu">add_iucn</span>() <span class="sc">|&gt;</span></span>
+<span id="cb67-3"><a href="#cb67-3" tabindex="-1"></a>  <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span></span>
+<span id="cb67-4"><a href="#cb67-4" tabindex="-1"></a>  <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span></span>
+<span id="cb67-5"><a href="#cb67-5" tabindex="-1"></a>  <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span></span>
+<span id="cb67-6"><a href="#cb67-6" tabindex="-1"></a>  <span class="fu">add_amphibio</span>() <span class="sc">|&gt;</span></span>
+<span id="cb67-7"><a href="#cb67-7" tabindex="-1"></a>  <span class="fu">add_elton_traits</span>()</span></code></pre></div>
 <p>This produces a wide data.frame where most cells in any given row are
 <code>NA</code> (a plant row has woodiness data but <code>NA</code> for
 beak length, body mass, etc.). The advantage is simplicity: one
 data.frame, one <code>summary()</code> call, no manual splitting.</p>
 <p>The second strategy is to split the result by taxon group, enrich
 each subset with the appropriate stack, and recombine:</p>
-<div class="sourceCode" id="cb67"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list)</span>
-<span id="cb67-2"><a href="#cb67-2" tabindex="-1"></a></span>
-<span id="cb67-3"><a href="#cb67-3" tabindex="-1"></a>plants  <span class="ot">&lt;-</span> result[result<span class="sc">$</span>kingdom <span class="sc">==</span> <span class="st">&quot;Plantae&quot;</span>, ]</span>
-<span id="cb67-4"><a href="#cb67-4" tabindex="-1"></a>birds   <span class="ot">&lt;-</span> result[result<span class="sc">$</span>family <span class="sc">%in%</span> bird_families, ]</span>
-<span id="cb67-5"><a href="#cb67-5" tabindex="-1"></a>mammals <span class="ot">&lt;-</span> result[result<span class="sc">$</span>family <span class="sc">%in%</span> mammal_families, ]</span>
-<span id="cb67-6"><a href="#cb67-6" tabindex="-1"></a></span>
-<span id="cb67-7"><a href="#cb67-7" tabindex="-1"></a>plants  <span class="ot">&lt;-</span> plants <span class="sc">|&gt;</span> <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span> <span class="fu">add_eive</span>()</span>
-<span id="cb67-8"><a href="#cb67-8" tabindex="-1"></a>birds   <span class="ot">&lt;-</span> birds <span class="sc">|&gt;</span> <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span> <span class="fu">add_elton_traits</span>()</span>
-<span id="cb67-9"><a href="#cb67-9" tabindex="-1"></a>mammals <span class="ot">&lt;-</span> mammals <span class="sc">|&gt;</span> <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span> <span class="fu">add_elton_traits</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb68"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(species_list)</span>
+<span id="cb68-2"><a href="#cb68-2" tabindex="-1"></a></span>
+<span id="cb68-3"><a href="#cb68-3" tabindex="-1"></a>plants  <span class="ot">&lt;-</span> result[result<span class="sc">$</span>kingdom <span class="sc">==</span> <span class="st">&quot;Plantae&quot;</span>, ]</span>
+<span id="cb68-4"><a href="#cb68-4" tabindex="-1"></a>birds   <span class="ot">&lt;-</span> result[result<span class="sc">$</span>family <span class="sc">%in%</span> bird_families, ]</span>
+<span id="cb68-5"><a href="#cb68-5" tabindex="-1"></a>mammals <span class="ot">&lt;-</span> result[result<span class="sc">$</span>family <span class="sc">%in%</span> mammal_families, ]</span>
+<span id="cb68-6"><a href="#cb68-6" tabindex="-1"></a></span>
+<span id="cb68-7"><a href="#cb68-7" tabindex="-1"></a>plants  <span class="ot">&lt;-</span> plants <span class="sc">|&gt;</span> <span class="fu">add_zanne</span>() <span class="sc">|&gt;</span> <span class="fu">add_eive</span>()</span>
+<span id="cb68-8"><a href="#cb68-8" tabindex="-1"></a>birds   <span class="ot">&lt;-</span> birds <span class="sc">|&gt;</span> <span class="fu">add_avonet</span>() <span class="sc">|&gt;</span> <span class="fu">add_elton_traits</span>()</span>
+<span id="cb68-9"><a href="#cb68-9" tabindex="-1"></a>mammals <span class="ot">&lt;-</span> mammals <span class="sc">|&gt;</span> <span class="fu">add_pantheria</span>() <span class="sc">|&gt;</span> <span class="fu">add_elton_traits</span>()</span></code></pre></div>
 <p>The second approach avoids wide data.frames with many <code>NA</code>
 columns and produces cleaner trait matrices for downstream analyses that
 treat columns as features (ordination, clustering, machine learning).
@@ -2790,17 +2801,17 @@ and selecting the column with the highest match rate, or via an explicit
 <code>species_col</code> argument), resolves those names through the
 same backbone(s) used in the original <code>taxify()</code> call, and
 joins on <code>accepted_id</code>.</p>
-<div class="sourceCode" id="cb68"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>))</span>
-<span id="cb68-2"><a href="#cb68-2" tabindex="-1"></a></span>
-<span id="cb68-3"><a href="#cb68-3" tabindex="-1"></a><span class="co"># From a CSV file (auto-detect species column)</span></span>
-<span id="cb68-4"><a href="#cb68-4" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(<span class="st">&quot;my_traits.csv&quot;</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb69"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" tabindex="-1"></a><span class="co"># From a data.frame with explicit species column</span></span>
-<span id="cb69-2"><a href="#cb69-2" tabindex="-1"></a>my_traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb69-3"><a href="#cb69-3" tabindex="-1"></a>  <span class="at">species =</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>),</span>
-<span id="cb69-4"><a href="#cb69-4" tabindex="-1"></a>  <span class="at">bark_thickness_mm =</span> <span class="fu">c</span>(<span class="dv">25</span>, <span class="dv">15</span>, <span class="dv">8</span>),</span>
-<span id="cb69-5"><a href="#cb69-5" tabindex="-1"></a>  <span class="at">shade_tolerance =</span> <span class="fu">c</span>(<span class="fl">0.6</span>, <span class="fl">0.3</span>, <span class="fl">0.8</span>)</span>
-<span id="cb69-6"><a href="#cb69-6" tabindex="-1"></a>)</span>
-<span id="cb69-7"><a href="#cb69-7" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(my_traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb69"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>))</span>
+<span id="cb69-2"><a href="#cb69-2" tabindex="-1"></a></span>
+<span id="cb69-3"><a href="#cb69-3" tabindex="-1"></a><span class="co"># From a CSV file (auto-detect species column)</span></span>
+<span id="cb69-4"><a href="#cb69-4" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(<span class="st">&quot;my_traits.csv&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb70"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" tabindex="-1"></a><span class="co"># From a data.frame with explicit species column</span></span>
+<span id="cb70-2"><a href="#cb70-2" tabindex="-1"></a>my_traits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb70-3"><a href="#cb70-3" tabindex="-1"></a>  <span class="at">species =</span> <span class="fu">c</span>(<span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Fagus sylvatica&quot;</span>),</span>
+<span id="cb70-4"><a href="#cb70-4" tabindex="-1"></a>  <span class="at">bark_thickness_mm =</span> <span class="fu">c</span>(<span class="dv">25</span>, <span class="dv">15</span>, <span class="dv">8</span>),</span>
+<span id="cb70-5"><a href="#cb70-5" tabindex="-1"></a>  <span class="at">shade_tolerance =</span> <span class="fu">c</span>(<span class="fl">0.6</span>, <span class="fl">0.3</span>, <span class="fl">0.8</span>)</span>
+<span id="cb70-6"><a href="#cb70-6" tabindex="-1"></a>)</span>
+<span id="cb70-7"><a href="#cb70-7" tabindex="-1"></a>result <span class="sc">|&gt;</span> <span class="fu">add_data</span>(my_traits, <span class="at">species_col =</span> <span class="st">&quot;species&quot;</span>)</span></code></pre></div>
 <p>Because <code>add_data()</code> resolves names through the backbone
 before joining, it handles synonyms correctly. If the external data uses
 “Pinus abies” and the backbone resolves it to “Picea abies”, the join

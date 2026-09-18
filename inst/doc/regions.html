@@ -402,13 +402,12 @@ European code; <code>&quot;Middle Europe&quot;</code> is a Level 2 region;
 <code>&quot;Belgium&quot;</code> is a single Level 3 country. You can pass
 several, and they union:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;Belgium&quot;</span>, <span class="st">&quot;Netherlands&quot;</span>, <span class="st">&quot;Germany&quot;</span>))</span></code></pre></div>
-<p>A three-letter token is read as a TDWG code directly, so
-<code>region = &quot;BGM&quot;</code> (Belgium) and
-<code>region = &quot;Belgium&quot;</code> reach the same place. An unrecognised
-region is dropped with a warning rather than failing the call, and a
-code that matches no WCVP record simply makes the filter a no-op, so a
-typo in the region degrades gracefully instead of producing wrong
-matches.</p>
+<p>A TDWG code is read directly, so <code>region = &quot;BGM&quot;</code>
+(Belgium) and <code>region = &quot;Belgium&quot;</code> reach the same place. An
+unrecognised region or code (<code>&quot;GRE&quot;</code> for Greece, which is
+<code>GRC</code>) is dropped with a warning rather than failing the
+call, so the match runs unconstrained. A valid region with no WCVP
+record for a candidate leaves that candidate unfiltered.</p>
 </div>
 <div id="by-coordinates" class="section level2">
 <h2>By coordinates</h2>

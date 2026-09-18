@@ -24,9 +24,12 @@ no matching. The backbones used are printed in the report header. Ignored
 when \code{x} is already a \code{taxify_result} (it was matched already).}
 
 \item{region, coords, range}{Geographic constraint for the \code{geographic} /
-\code{out_of_range} checks, as in \code{\link[=taxify]{taxify()}}. These act on a \code{taxify_result}
-(which carries the accepted names they need); on a character vector there is
-nothing matched to place, so they have no effect.}
+\code{out_of_range} checks, as in \code{\link[=taxify]{taxify()}}. These act on matched names: a
+\code{taxify_result}, or a character vector with \code{backbones = TRUE}. On a
+character vector inspected without matching there is nothing matched to
+place, so they have no effect and are not resolved. A \code{region} / \code{coords}
+that resolves to no known region is named under \verb{not checked} rather than
+treated as a region no species occurs in.}
 
 \item{min_tier}{Lowest tier to report: \code{"note"} (default, everything),
 \code{"review"}, or \code{"unresolved"}.}
@@ -38,7 +41,8 @@ A \code{taxify_inspection} data.frame (one row per anomalous name, ordered
 most-notable first) with columns \code{input_name}, \code{suggestion} (the name to use
 instead, or \code{NA}), \code{anomalies} (\code{|}-joined labels), \code{tier} (ordered factor
 \code{note} < \code{review} < \code{unresolved}), \code{reason}, \code{fuzzy_dist}, and \code{backbone}.
-Zero rows means nothing stood out.
+Zero rows means nothing stood out among the checks that ran; the header's
+\verb{not checked} line names any that could not.
 }
 \description{
 A quality-control pass over a name list. By default \code{inspect()} does not match
@@ -68,6 +72,8 @@ Checks read from a \code{taxify()} result (only present when you inspect one):
 \describe{
 \item{\code{typo}}{Resolved only after fuzzy correction (\code{match_type = "fuzzy"}):
 the input most likely contains a spelling error; \code{suggestion} is the name.}
+\item{\code{rank_fallback}}{An infraspecific name the backbone does not carry,
+resolved to its species (\code{match_type = "rank_fallback"}).}
 \item{\code{ambiguous}}{A homonym resolving to more than one accepted taxon.}
 \item{\code{geographic}}{The matched species is real but has no WCVP record in the
 declared \code{region} / \code{coords} (vascular plants only).}
@@ -75,8 +81,9 @@ declared \code{region} / \code{coords} (vascular plants only).}
 outside the list's main TDWG continents (skipped for globally spread
 lists).}
 \item{\code{case}}{Resolved only after ignoring case (\code{match_type = "exact_ci"}).}
-\item{\code{synonym}}{The input is an outdated synonym; \code{suggestion} is the
-current accepted name.}
+\item{\code{synonym}}{The input is an outdated synonym, or a name the backbone
+keeps unplaced whose basionym it places (\code{match_type = "basionym"});
+\code{suggestion} is the current accepted name.}
 }
 Rows with no anomaly are dropped.
 
@@ -91,8 +98,9 @@ The list-context labels (\code{near_duplicate}, \code{out_of_range}, \code{outli
 judge a name against the rest of the batch, so they cannot apply to a single
 name: \code{inspect()} on one name warns and reports only the per-name labels. The
 register checks (\code{unknown}, and the register-derived \code{outlier_group}) need the
-genus register installed; without it they are skipped (with a message at
-\code{verbose}).
+genus register installed, and the range checks need the WCVP range data; a
+check that could not run is named in the report header under \verb{not checked},
+so an empty report is never mistaken for a clean one.
 }
 \examples{
 old <- options(taxify.data_dir = taxify_example_data())

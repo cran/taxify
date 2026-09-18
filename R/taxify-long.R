@@ -45,7 +45,8 @@ enrichment_group_vocabulary <- function() {
 #'   enrichment metadata stamped by the `add_*()` functions.
 #' @param group_col Character. Name for the output group column.
 #'   If omitted, auto-detected from enrichment metadata (e.g.,
-#'   `"country_code"` for invasive status or alien first records).
+#'   `"country_code"` for invasive status, `"location"` for alien first
+#'   records).
 #' @param drop_na Logical. If `TRUE`, drop rows where all value columns
 #'   are `NA`. Default `FALSE`.
 #'
@@ -78,7 +79,7 @@ enrichment_group_vocabulary <- function() {
 #'
 #' # Auto-detected: no cols or group_col needed
 #' taxify("Robinia pseudoacacia") |>
-#'   add_alien_first_records(country = c("AT", "DE")) |>
+#'   add_alien_first_records(location = c("AT", "DE")) |>
 #'   taxify_long()
 #'
 #' # Explicit: override auto-detection
@@ -129,18 +130,6 @@ taxify_long <- function(x, cols = NULL, group_col = NULL, drop_na = FALSE) {
 
   all_names <- names(x)
 
-  # Single-group case: base columns exist without suffixes
-  if (all(cols %in% all_names)) {
-    # Check if there are also suffixed versions
-    has_suffixed <- any(vapply(cols, function(base) {
-      any(grepl(paste0("^", base, "_.+$"), all_names))
-    }, logical(1L)))
-    if (!has_suffixed) {
-      x[[group_col]] <- NA_character_
-      return(x)
-    }
-  }
-
   # Detect suffixed columns: match longest base first to avoid ambiguity. A
   # suffix only counts as a group when it is a real group code (a country / TDWG
   # / language code the manifest lists); companion columns an enrichment emits
@@ -171,6 +160,12 @@ taxify_long <- function(x, cols = NULL, group_col = NULL, drop_na = FALSE) {
   }
 
   if (length(col_assignments) == 0L) {
+    # Single-group case: the base columns exist and no group-suffixed variant
+    # does (a companion column such as <base>_sources is not a group).
+    if (all(cols %in% all_names)) {
+      x[[group_col]] <- NA_character_
+      return(x)
+    }
     stop(sprintf(
       "No suffixed columns found for base names: %s\nAvailable columns: %s",
       paste(cols, collapse = ", "),

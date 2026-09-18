@@ -13,8 +13,8 @@ reconcile(x, backbone = NULL, ..., verbose = TRUE)
 object, passed to \code{\link[=taxify]{taxify()}}. \code{NULL} (default) uses every installed
 backbone.}
 
-\item{...}{Further arguments passed to \code{\link[=taxify]{taxify()}} (e.g. \code{fuzzy},
-\code{fuzzy_threshold}, \code{kingdom}).}
+\item{...}{Matching arguments passed to \code{\link[=taxify]{taxify()}} (e.g. \code{fuzzy},
+\code{fuzzy_threshold}, \code{kingdom}, \code{region}). Must be named.}
 
 \item{verbose}{Logical. Default \code{TRUE}.}
 }
@@ -25,8 +25,11 @@ A data.frame with one row per input name, columns:
 \item{accepted_name}{The name it resolves to now (\code{NA} if unresolved).}
 \item{status}{One of:
 \code{"unchanged"} (resolves to itself, still accepted),
-\code{"synonym"} (now a synonym of a different accepted name),
+\code{"synonym"} (now a synonym of a different accepted name, including a
+name the backbone keeps unplaced but resolves through its basionym),
 \code{"misspelling"} (resolved by fuzzy/abbrev match to a corrected spelling),
+\code{"rank_fallback"} (an infraspecific name the backbone does not carry;
+\code{accepted_name} is the accepted name of its species),
 \code{"ambiguous"} (a homonym resolving to several accepted taxa; see
 \code{\link[=taxify_candidates]{taxify_candidates()}}),
 \code{"unresolved"} (no match).}

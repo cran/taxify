@@ -77,14 +77,14 @@ match_exact <- function(backend, names_df, vtr_path, ...) {
 #' @param vtr_path Path to the compiled backbone .vtr file.
 #' @param method Character. Distance algorithm.
 #' @param threshold Numeric. Maximum normalized distance.
-#' @param names_df Optional data.frame from `clean_names()` with pre-cleaned
-#'   names. When provided, avoids redundant per-name `clean_one()` calls.
+#' @param names_df Data.frame from `clean_names()` with pre-cleaned names, one
+#'   row per input.
 #' @param ... Additional arguments passed to methods.
 #' @return A data.frame of fuzzy matches.
 #' @noRd
 match_fuzzy <- function(backend, unmatched_df, vtr_path,
                         method = "dl", threshold = 0.2,
-                        names_df = NULL, region = NULL,
+                        names_df, region = NULL,
                         range_mode = "present", ...) {
   UseMethod("match_fuzzy")
 }
@@ -122,7 +122,7 @@ match_exact.taxify_backend <- function(backend, names_df, vtr_path, ...) {
 #' @exportS3Method
 match_fuzzy.taxify_backend <- function(backend, unmatched_df, vtr_path,
                                        method = "dl", threshold = 0.2,
-                                       names_df = NULL, region = NULL,
+                                       names_df, region = NULL,
                                        range_mode = "present", ...) {
   result  <- unmatched_df
   col_map <- backend$col_map
@@ -136,17 +136,9 @@ match_fuzzy.taxify_backend <- function(backend, unmatched_df, vtr_path,
                                  range_mode = range_mode)
 
   if (isTRUE(backend$prefix_fallback)) {
-    # Backbone rows the join pass already resolved a query onto. Each pass
-    # deduplicates its own targets, so without carrying these forward the
-    # fallback would hand a second query the row the first pass claimed.
-    claimed <- result$taxon_id[!is.na(result$match_type) &
-                               result$match_type == "fuzzy"]
-    claimed <- unique(claimed[!is.na(claimed)])
-
     result <- fuzzy_match_prefix_blocked(result, names_df, vtr_path, method,
                                          threshold, col_map, region = region,
-                                         range_mode = range_mode,
-                                         taken = claimed)
+                                         range_mode = range_mode)
   }
 
   result
@@ -322,13 +314,7 @@ match_exact_compiled <- function(result, names_df, vtr_path, col_map) {
   name_col  <- col_map$name
   genus_col <- col_map$genus
 
-  # --- Materialize backbone (cached per session) ---
-  cache_key <- paste0(".blk_", basename(vtr_path))
-  blk <- .taxify_env[[cache_key]]
-  if (is.null(blk)) {
-    blk <- vectra::materialize(vectra::tbl(vtr_path))
-    .taxify_env[[cache_key]] <- blk
-  }
+  blk <- backbone_block(vtr_path)
 
   # Helper: block_lookup → attach row_idx and feed to fill_compiled_matches
   lookup_and_fill <- function(result, keys, row_indices, column, match_type,
@@ -406,64 +392,102 @@ match_exact_compiled <- function(result, names_df, vtr_path, col_map) {
     }
   }
 
-  # --- Pass 2: Exact (case-sensitive) ---
-  exact_mask <- has_name & !genus_only & is.na(result$match_type)
-  if (any(exact_mask)) {
-    result <- lookup_and_fill(result, cleaned[exact_mask], which(exact_mask),
-                              name_col, "exact")
-  }
+  # --- Passes 2-4, over each rendering of the name ---
+  # The cleaned name first; for an infraspecific name then its rank written
+  # with and without the notho- prefix, then the marker-less trinomial
+  # (infra_key_variants()). Each
+  # rendering runs the full exact -> case-insensitive -> normalized ladder
+  # before the next is tried, so a backbone holding the name as written is
+  # never pre-empted by a looser rendering. The species a trinomial belongs to
+  # is not tried here: match_rank_fallback() settles that after fuzzy matching.
+  variants <- infra_key_variants(cleaned)
+  renderings <- list(cleaned, variants$folded, variants$notho, variants$bare)
+  for (v in seq_along(renderings)) {
+    key <- renderings[[v]]
+    has_key <- !is.na(key)
 
-  # --- Pass 3: Case-insensitive ---
-  ci_mask <- has_name & !genus_only & is.na(result$match_type)
-  if (any(ci_mask)) {
-    result <- lookup_and_fill(result, tolower(cleaned[ci_mask]), which(ci_mask),
-                              "key_ci", "exact_ci")
-  }
+    # Pass 2: Exact (case-sensitive)
+    exact_mask <- has_key & !genus_only & is.na(result$match_type)
+    if (any(exact_mask)) {
+      result <- lookup_and_fill(result, key[exact_mask], which(exact_mask),
+                                name_col, "exact")
+    }
 
-  # Precompute word counts once (used by pass 4 and 5)
-  # Counting spaces is faster than strsplit
-  word_count <- rep(1L, n)
-  word_count[has_name] <- nchar(gsub("[^ ]", "", cleaned[has_name])) + 1L
+    # Pass 3: Case-insensitive
+    ci_mask <- has_key & !genus_only & is.na(result$match_type)
+    if (any(ci_mask)) {
+      result <- lookup_and_fill(result, tolower(key[ci_mask]), which(ci_mask),
+                                "key_ci", "exact_ci")
+    }
 
-  # --- Pass 4: Latin orthographic normalization ---
-  norm_mask <- has_name & is.na(result$match_type)
-  if (any(norm_mask)) {
-    norm_idx   <- which(norm_mask)
-    norm_names <- cleaned[norm_mask]
-
-    norm_plain  <- normalize_epithets(norm_names)
-    norm_hybrid <- ifelse(!is.na(hybrid_name[norm_mask]),
-                          normalize_epithets(hybrid_name[norm_mask]),
-                          NA_character_)
-    wc_sub <- word_count[norm_mask]
-    norm_species <- ifelse(
-      wc_sub >= 3L,
-      normalize_epithets(sub("^(\\S+\\s+\\S+)\\s+.*$", "\\1", norm_names)),
-      NA_character_
-    )
-
-    has_hyb <- !is.na(norm_hybrid)
-    has_sp  <- !is.na(norm_species)
-    nk_ridx <- c(norm_idx, norm_idx[has_hyb], norm_idx[has_sp])
-    nk_keys <- c(norm_plain, norm_hybrid[has_hyb], norm_species[has_sp])
-    valid_nk <- !is.na(nk_keys)
-    nk_ridx  <- nk_ridx[valid_nk]
-    nk_keys  <- nk_keys[valid_nk]
-
-    if (length(nk_keys) > 0L) {
-      result <- lookup_and_fill(result, nk_keys, nk_ridx,
-                                "key_normalized", "exact_ci")
+    # Pass 4: Latin orthographic normalization (the hybrid backbone form rides
+    # with the cleaned name)
+    norm_mask <- has_key & is.na(result$match_type)
+    if (any(norm_mask)) {
+      norm_idx <- which(norm_mask)
+      nk_keys  <- normalize_epithets(key[norm_mask])
+      nk_ridx  <- norm_idx
+      if (v == 1L) {
+        norm_hybrid <- ifelse(!is.na(hybrid_name[norm_mask]),
+                              normalize_epithets(hybrid_name[norm_mask]),
+                              NA_character_)
+        has_hyb <- !is.na(norm_hybrid)
+        nk_ridx <- c(nk_ridx, norm_idx[has_hyb])
+        nk_keys <- c(nk_keys, norm_hybrid[has_hyb])
+      }
+      valid_nk <- !is.na(nk_keys)
+      if (any(valid_nk)) {
+        result <- lookup_and_fill(result, nk_keys[valid_nk], nk_ridx[valid_nk],
+                                  "key_normalized", "exact_ci")
+      }
     }
   }
 
-  # --- Pass 5: Infraspecific-to-species fallback ---
-  inf_mask <- has_name & is.na(result$match_type) & word_count >= 3L
-  if (any(inf_mask)) {
-    sp_names <- sub("^(\\S+\\s+\\S+)\\s+.*$", "\\1", cleaned[inf_mask])
-    result <- lookup_and_fill(result, sp_names, which(inf_mask),
-                              name_col, "exact")
-  }
+  result
+}
 
+
+#' Resolve an absent infraspecific name to its species
+#'
+#' The last matching stage, after exact and fuzzy matching have both failed on
+#' the full name: a trinomial the backbone does not carry ("Quercus robur var.
+#' xyz") resolves to the species it belongs to, labelled `"rank_fallback"` so
+#' the result says the rank was not reached. Running it last is what keeps an
+#' accepted subspecies from being answered by its parent, and a misspelled
+#' infraspecific epithet from skipping the fuzzy stage that would correct it.
+#'
+#' @param backend A taxify_backend object (supplies `col_map`).
+#' @param result The match result data.frame.
+#' @param names_df Data.frame from `clean_names()`.
+#' @param vtr_path Path to the compiled backbone .vtr file.
+#' @return The updated result data.frame.
+#' @noRd
+match_rank_fallback <- function(backend, result, names_df, vtr_path) {
+  cleaned <- names_df$cleaned
+  n_tok <- lengths(strsplit(ifelse(is.na(cleaned), "", cleaned), " ",
+                            fixed = TRUE))
+  rows <- which(is.na(result$match_type) & !is.na(result$input_name) &
+                  !is.na(cleaned) & n_tok >= 3L & !names_df$genus_only)
+  if (length(rows) == 0L) return(result)
+
+  col_map <- backend$col_map
+  blk <- backbone_block(vtr_path)
+
+  species <-sub("^(\\S+\\s+\\S+)\\s+.*$", "\\1", cleaned[rows])
+  ladder <- list(
+    list(col = col_map$name,     key = function(s) s),
+    list(col = "key_ci",         key = tolower),
+    list(col = "key_normalized", key = normalize_epithets)
+  )
+  for (step in ladder) {
+    todo <- is.na(result$match_type[rows])
+    if (!any(todo)) break
+    hits <- vectra::block_lookup(blk, step$col, step$key(species[todo]))
+    if (nrow(hits) == 0L) next
+    hits$row_idx <- rows[todo][hits$query_idx]
+    hits$query_idx <- NULL
+    result <- fill_compiled_matches(result, hits, "rank_fallback", col_map)
+  }
   result
 }
 
@@ -517,23 +541,64 @@ fill_compiled_matches <- function(result, matches, match_type, col_map) {
   idx <- idx[new_match]
   best <- best[new_match, , drop = FALSE]
 
-  result$matched_name[idx]      <- best[[col_map$name]]
-  result$taxon_id[idx]          <- best[[col_map$id]]
-  result$rank[idx]              <- tolower(best[[col_map$rank]])
-  result$family[idx]            <- best$accepted_family
-  result$genus[idx]             <- best$accepted_genus
-  result$epithet[idx]           <- best[[col_map$epithet]]
-  result$authorship[idx]        <- best[[col_map$authorship]]
-  result$accepted_authorship[idx] <- best$accepted_authorship %||% NA_character_
-  result$accepted_name[idx]     <- best$accepted_name
-  result$accepted_id[idx]       <- best$accepted_taxon_id
-  result$is_synonym[idx]        <- best$is_synonym
-  result$match_type[idx]        <- match_type
-  result$fuzzy_dist[idx]        <- NA_real_
-  result$is_ambiguous[idx]      <- best$is_ambiguous %||% FALSE
-  result$ambiguous_targets[idx] <- best$ambiguous_targets %||% NA_character_
-
+  result <- write_match_rows(result, idx, best, col_map)
+  result$match_type[idx] <- match_type
+  result$fuzzy_dist[idx] <- NA_real_
   result
+}
+
+
+#' Write the matched backbone records into result rows
+#'
+#' The one place a picked backbone row becomes result columns, shared by every
+#' matching pass: the matched record's own name, ID, rank, authorship and
+#' status, the accepted taxon it resolves to (with that taxon's family and
+#' genus), and the pick's ambiguity. `match_type` and `fuzzy_dist` describe how
+#' the row was reached and are left to the caller.
+#'
+#' @param result Match result data.frame.
+#' @param idx Integer result rows to write.
+#' @param best Backbone rows (unified schema plus the embedded `accepted_*`
+#'   columns), aligned with `idx`.
+#' @param col_map Named list mapping logical roles to column names.
+#' @return `result` with those rows written.
+#' @noRd
+write_match_rows <- function(result, idx, best, col_map) {
+  col_or_na <- function(col) {
+    if (!is.null(col) && col %in% names(best)) best[[col]]
+    else rep(NA_character_, nrow(best))
+  }
+  result$matched_name[idx]        <- best[[col_map$name]]
+  result$taxon_id[idx]            <- best[[col_map$id]]
+  result$rank[idx]                <- tolower(best[[col_map$rank]])
+  result$family[idx]              <- best$accepted_family
+  result$genus[idx]               <- best$accepted_genus
+  result$epithet[idx]             <- col_or_na(col_map$epithet)
+  result$authorship[idx]          <- col_or_na(col_map$authorship)
+  result$accepted_authorship[idx] <- col_or_na("accepted_authorship")
+  result$accepted_name[idx]       <- best$accepted_name
+  result$accepted_id[idx]         <- best$accepted_taxon_id
+  result$is_synonym[idx]          <- best$is_synonym
+  result$taxonomic_status[idx]    <- col_or_na(col_map$status)
+  result$is_ambiguous[idx]        <- best$is_ambiguous %||% FALSE
+  result$ambiguous_targets[idx]   <- best$ambiguous_targets %||% NA_character_
+  result
+}
+
+
+#' The materialized backbone block, loaded once per build per session
+#'
+#' @param vtr_path Path to the backbone `.vtr`.
+#' @return A `vectra_block`.
+#' @noRd
+backbone_block <- function(vtr_path) {
+  cache_key <- backbone_memo_key(".blk_", vtr_path)
+  blk <- .taxify_env[[cache_key]]
+  if (is.null(blk)) {
+    blk <- vectra::materialize(vectra::tbl(vtr_path))
+    .taxify_env[[cache_key]] <- blk
+  }
+  blk
 }
 
 
@@ -588,7 +653,7 @@ filter_by_raw_edits <- function(matches, threshold, probe_col, build_col) {
 #' match per input name, and fills the result data.frame.
 #'
 #' @param result The match result data.frame (from match_exact).
-#' @param names_df Optional data.frame from `clean_names()`.
+#' @param names_df Data.frame from `clean_names()`, one row per input.
 #' @param vtr_path Path to the compiled backbone .vtr file.
 #' @param method Character. Distance algorithm.
 #' @param threshold Numeric. Maximum normalized distance.
@@ -601,17 +666,10 @@ fuzzy_match_via_join <- function(result, names_df, vtr_path, method, threshold,
   unmatched_rows <- which(is.na(result$match_type) & !is.na(result$input_name))
   if (length(unmatched_rows) == 0L) return(result)
 
-  # Build cleaned names and genera for unmatched rows
-  if (!is.null(names_df)) {
-    cleaned_names <- names_df$cleaned[unmatched_rows]
-    cleaned_names <- ifelse(!is.na(cleaned_names) & nzchar(cleaned_names),
-                            cleaned_names, NA_character_)
-  } else {
-    cleaned_names <- vapply(unmatched_rows, function(i) {
-      cl <- clean_one(result$input_name[i])$cleaned
-      if (!is.na(cl) && nzchar(cl)) cl else NA_character_
-    }, character(1L))
-  }
+  # Cleaned names and genera for unmatched rows
+  cleaned_names <- names_df$cleaned[unmatched_rows]
+  cleaned_names <- ifelse(!is.na(cleaned_names) & nzchar(cleaned_names),
+                          cleaned_names, NA_character_)
 
   genera <- ifelse(!is.na(cleaned_names), sub(" .*", "", cleaned_names),
                    NA_character_)
@@ -631,12 +689,7 @@ fuzzy_match_via_join <- function(result, names_df, vtr_path, method, threshold,
   # materialization), use the already-materialized block to extract only
   # candidate rows for the relevant genera. This reduces the fuzzy_join
   # right side from millions of rows to thousands.
-  cache_key <- paste0(".blk_", basename(vtr_path))
-  blk <- .taxify_env[[cache_key]]
-  if (is.null(blk)) {
-    blk <- vectra::materialize(vectra::tbl(vtr_path))
-    .taxify_env[[cache_key]] <- blk
-  }
+  blk <- backbone_block(vtr_path)
 
   unique_genera <- unique(query_df$query_genus)
   unique_genera <- unique_genera[!is.na(unique_genera)]
@@ -685,23 +738,10 @@ fuzzy_match_via_join <- function(result, names_df, vtr_path, method, threshold,
 
   if (nrow(matches) > 0L) {
     best <- pick_best_vec(matches)
-    best <- dedup_fuzzy_targets(best, id_col = col_map$id)
     idx <- best$row_idx
-    result$matched_name[idx]      <- best[[col_map$name]]
-    result$taxon_id[idx]          <- best[[col_map$id]]
-    result$rank[idx]              <- tolower(best[[col_map$rank]])
-    result$accepted_name[idx]     <- best$accepted_name
-    result$accepted_id[idx]       <- best$accepted_taxon_id
-    result$family[idx]            <- best$accepted_family
-    result$genus[idx]             <- best$accepted_genus
-    result$epithet[idx]           <- best[[col_map$epithet]]
-    result$authorship[idx]        <- best[[col_map$authorship]]
-    result$accepted_authorship[idx] <- best$accepted_authorship %||% NA_character_
-    result$is_synonym[idx]        <- best$is_synonym
-    result$match_type[idx]        <- "fuzzy"
-    result$fuzzy_dist[idx]        <- best$fuzzy_dist
-    result$is_ambiguous[idx]      <- best$is_ambiguous %||% FALSE
-    result$ambiguous_targets[idx] <- best$ambiguous_targets %||% NA_character_
+    result <- write_match_rows(result, idx, best, col_map)
+    result$match_type[idx] <- "fuzzy"
+    result$fuzzy_dist[idx] <- best$fuzzy_dist
   }
 
   result
@@ -719,7 +759,7 @@ fuzzy_match_via_join <- function(result, names_df, vtr_path, method, threshold,
 #' @return Path to the compact .vtr (cached per session).
 #' @noRd
 get_fuzzy_bb <- function(vtr_path, col_map) {
-  cache_key <- paste0(".fuzzy_bb_", basename(vtr_path))
+  cache_key <- backbone_memo_key(".fuzzy_bb_", vtr_path)
   cached <- .taxify_env[[cache_key]]
   if (!is.null(cached) && file.exists(cached)) return(cached)
 
@@ -734,7 +774,7 @@ get_fuzzy_bb <- function(vtr_path, col_map) {
 
   # Drop any columns a pre-accepted_authorship backbone .vtr does not carry,
   # so selection stays valid against older downloads.
-  available <- names(vectra::collect(utils::head(vectra::tbl(vtr_path), 1L)))
+  available <- vtr_schema(vtr_path)
   keep_cols <- intersect(keep_cols, available)
 
   fuzzy_path <- tempfile(fileext = ".vtr")
@@ -762,27 +802,17 @@ get_fuzzy_bb <- function(vtr_path, col_map) {
 #' @param method Character. Distance algorithm.
 #' @param threshold Numeric. Maximum normalized distance.
 #' @param col_map Named list mapping logical roles to backbone column names.
-#' @param taken Character vector of backbone-row IDs the preceding fuzzy pass
-#'   already claimed, so this pass cannot collapse a second query onto one.
 #' @return The updated result data.frame.
 #' @noRd
 fuzzy_match_prefix_blocked <- function(result, names_df, vtr_path, method,
                                        threshold, col_map, region = NULL,
-                                       range_mode = "present",
-                                       taken = character(0L)) {
+                                       range_mode = "present") {
   unmatched_rows <- which(is.na(result$match_type) & !is.na(result$input_name))
   if (length(unmatched_rows) == 0L) return(result)
 
-  if (!is.null(names_df)) {
-    cleaned_names <- names_df$cleaned[unmatched_rows]
-    cleaned_names <- ifelse(!is.na(cleaned_names) & nzchar(cleaned_names),
-                            cleaned_names, NA_character_)
-  } else {
-    cleaned_names <- vapply(unmatched_rows, function(i) {
-      cl <- clean_one(result$input_name[i])$cleaned
-      if (!is.na(cl) && nzchar(cl)) cl else NA_character_
-    }, character(1L))
-  }
+  cleaned_names <- names_df$cleaned[unmatched_rows]
+  cleaned_names <- ifelse(!is.na(cleaned_names) & nzchar(cleaned_names),
+                          cleaned_names, NA_character_)
 
   valid <- !is.na(cleaned_names)
   if (!any(valid)) return(result)
@@ -847,26 +877,29 @@ fuzzy_match_prefix_blocked <- function(result, names_df, vtr_path, method,
 
   if (nrow(matches) > 0L) {
     best <- pick_best_vec(matches)
-    best <- dedup_fuzzy_targets(best, id_col = col_map$id, taken = taken)
     idx <- best$row_idx
-    result$matched_name[idx]      <- best[[col_map$name]]
-    result$taxon_id[idx]          <- best[[col_map$id]]
-    result$rank[idx]              <- tolower(best[[col_map$rank]])
-    result$accepted_name[idx]     <- best$accepted_name
-    result$accepted_id[idx]       <- best$accepted_taxon_id
-    result$family[idx]            <- best$accepted_family
-    result$genus[idx]             <- best$accepted_genus
-    result$epithet[idx]           <- best[[col_map$epithet]]
-    result$authorship[idx]        <- best[[col_map$authorship]]
-    result$accepted_authorship[idx] <- best$accepted_authorship %||% NA_character_
-    result$is_synonym[idx]        <- best$is_synonym
-    result$match_type[idx]        <- "fuzzy"
-    result$fuzzy_dist[idx]        <- best$fuzzy_dist
-    result$is_ambiguous[idx]      <- best$is_ambiguous %||% FALSE
-    result$ambiguous_targets[idx] <- best$ambiguous_targets %||% NA_character_
+    result <- write_match_rows(result, idx, best, col_map)
+    result$match_type[idx] <- "fuzzy"
+    result$fuzzy_dist[idx] <- best$fuzzy_dist
   }
 
   result
+}
+
+
+#' Genera written out in full in a set of cleaned names
+#'
+#' Multi-letter first tokens carrying no abbreviating period. These are what
+#' an abbreviated genus is read against, under the convention of abbreviating
+#' a genus only after spelling it out once.
+#'
+#' @param cleaned Character vector of cleaned names (`clean_names()$cleaned`).
+#' @return Lowercased character vector of genera, possibly empty.
+#' @noRd
+spelled_genera <- function(cleaned) {
+  first_tok <- sub(" .*", "", cleaned)
+  tolower(first_tok[!is.na(first_tok) & nchar(first_tok) > 1L &
+                    !grepl(".", first_tok, fixed = TRUE)])
 }
 
 
@@ -885,15 +918,21 @@ fuzzy_match_prefix_blocked <- function(result, names_df, vtr_path, method,
 #' Disambiguation prefers a genus the author spelled out in full elsewhere in
 #' the same input (the convention of abbreviating after first mention): when a
 #' candidate genus also appears unabbreviated in the batch, only those
-#' candidates are kept.
+#' candidates are kept. That context is a property of the query, not of a
+#' backbone, so it is computed once from the whole input and passed in: a
+#' fallback chain hands each later backbone only the names still unmatched, and
+#' deriving it here would hide a genus an earlier backbone had already answered.
 #'
 #' @param backend A taxify_backend object (supplies `col_map`).
 #' @param result The match result data.frame (from match_exact).
 #' @param names_df Data.frame from `clean_names()`, carrying `genus_abbrev`.
 #' @param vtr_path Path to the compiled backbone .vtr file.
+#' @param genus_context Genera written out in full anywhere in the whole query,
+#'   from `spelled_genera()`. `NULL` derives it from `names_df` alone.
 #' @return The updated result data.frame.
 #' @noRd
-match_abbrev_genus <- function(backend, result, names_df, vtr_path) {
+match_abbrev_genus <- function(backend, result, names_df, vtr_path,
+                               genus_context = NULL) {
   col_map <- backend$col_map
   if (is.null(names_df$genus_abbrev)) return(result)
 
@@ -905,19 +944,9 @@ match_abbrev_genus <- function(backend, result, names_df, vtr_path) {
   initial <- tolower(substr(cleaned, 1L, 1L))
   epithet <- tolower(sub("^\\S+\\s+(\\S+).*$", "\\1", cleaned))
 
-  # Genera the author spelled out in full elsewhere in this batch (multi-letter
-  # first tokens, no abbreviating period) — used to disambiguate by intent.
-  first_tok <- sub(" .*", "", names_df$cleaned)
-  spelled <- tolower(first_tok[!is.na(first_tok) & nchar(first_tok) > 1L &
-                               !grepl(".", first_tok, fixed = TRUE)])
+  spelled <- genus_context %||% spelled_genera(names_df$cleaned)
 
-  # Materialized backbone (shared session cache with the exact/fuzzy passes).
-  cache_key <- paste0(".blk_", basename(vtr_path))
-  blk <- .taxify_env[[cache_key]]
-  if (is.null(blk)) {
-    blk <- vectra::materialize(vectra::tbl(vtr_path))
-    .taxify_env[[cache_key]] <- blk
-  }
+  blk <- backbone_block(vtr_path)
 
   # Pull candidate rows by epithet via the same block-lookup the exact pass
   # uses, then constrain each query to its genus initial in R.
@@ -1009,6 +1038,7 @@ empty_match_result <- function(n) {
     authorship        = NA_character_,
     accepted_authorship = NA_character_,
     is_synonym        = NA,
+    taxonomic_status  = NA_character_,
     is_hybrid         = NA,
     match_type        = NA_character_,
     fuzzy_dist        = NA_real_,

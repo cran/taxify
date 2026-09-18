@@ -26,6 +26,8 @@
 #' \describe{
 #'   \item{`typo`}{Resolved only after fuzzy correction (`match_type = "fuzzy"`):
 #'     the input most likely contains a spelling error; `suggestion` is the name.}
+#'   \item{`rank_fallback`}{An infraspecific name the backbone does not carry,
+#'     resolved to its species (`match_type = "rank_fallback"`).}
 #'   \item{`ambiguous`}{A homonym resolving to more than one accepted taxon.}
 #'   \item{`geographic`}{The matched species is real but has no WCVP record in the
 #'     declared `region` / `coords` (vascular plants only).}
@@ -33,8 +35,9 @@
 #'     outside the list's main TDWG continents (skipped for globally spread
 #'     lists).}
 #'   \item{`case`}{Resolved only after ignoring case (`match_type = "exact_ci"`).}
-#'   \item{`synonym`}{The input is an outdated synonym; `suggestion` is the
-#'     current accepted name.}
+#'   \item{`synonym`}{The input is an outdated synonym, or a name the backbone
+#'     keeps unplaced whose basionym it places (`match_type = "basionym"`);
+#'     `suggestion` is the current accepted name.}
 #' }
 #' Rows with no anomaly are dropped.
 #'
@@ -49,8 +52,9 @@
 #' judge a name against the rest of the batch, so they cannot apply to a single
 #' name: `inspect()` on one name warns and reports only the per-name labels. The
 #' register checks (`unknown`, and the register-derived `outlier_group`) need the
-#' genus register installed; without it they are skipped (with a message at
-#' `verbose`).
+#' genus register installed, and the range checks need the WCVP range data; a
+#' check that could not run is named in the report header under `not checked`,
+#' so an empty report is never mistaken for a clean one.
 #'
 #' @param x A character vector of names, or a `taxify_result` from [taxify()].
 #' @param backbones Logical. When `x` is a character vector, `TRUE` matches it
@@ -59,9 +63,12 @@
 #'   no matching. The backbones used are printed in the report header. Ignored
 #'   when `x` is already a `taxify_result` (it was matched already).
 #' @param region,coords,range Geographic constraint for the `geographic` /
-#'   `out_of_range` checks, as in [taxify()]. These act on a `taxify_result`
-#'   (which carries the accepted names they need); on a character vector there is
-#'   nothing matched to place, so they have no effect.
+#'   `out_of_range` checks, as in [taxify()]. These act on matched names: a
+#'   `taxify_result`, or a character vector with `backbones = TRUE`. On a
+#'   character vector inspected without matching there is nothing matched to
+#'   place, so they have no effect and are not resolved. A `region` / `coords`
+#'   that resolves to no known region is named under `not checked` rather than
+#'   treated as a region no species occurs in.
 #' @param min_tier Lowest tier to report: `"note"` (default, everything),
 #'   `"review"`, or `"unresolved"`.
 #' @param verbose Logical. Print progress messages. Default `TRUE`.
@@ -70,7 +77,8 @@
 #'   most-notable first) with columns `input_name`, `suggestion` (the name to use
 #'   instead, or `NA`), `anomalies` (`|`-joined labels), `tier` (ordered factor
 #'   `note` < `review` < `unresolved`), `reason`, `fuzzy_dist`, and `backbone`.
-#'   Zero rows means nothing stood out.
+#'   Zero rows means nothing stood out among the checks that ran; the header's
+#'   `not checked` line names any that could not.
 #'
 #' @examples
 #' old <- options(taxify.data_dir = taxify_example_data())
@@ -99,39 +107,51 @@ inspect <- function(x,
   range    <- match.arg(range)
   min_tier <- match.arg(min_tier)
 
-  if (inherits(x, "taxify_result")) {
-    res <- x
-  } else if (is.character(x)) {
-    if (isTRUE(backbones)) {
-      # Opt-in matching: run taxify() against every installed backbone so the
-      # match-derived labels (typo, synonym, ...) become available. The report
-      # header records which backbones were used.
-      inst <- installed_backbones()
-      if (length(inst) == 0L) {
-        warning("inspect(): backbones = TRUE but none are installed; running ",
-                "the register and list checks only.", call. = FALSE)
-        res <- bare_taxify_result(x)
-      } else {
-        res <- tryCatch(
-          taxify(x, backbone = inst, region = region, coords = coords,
-                 range = range, verbose = verbose),
-          error = function(e) {
-            warning("inspect(): backbone matching failed (",
-                    conditionMessage(e), "); register and list checks only.",
-                    call. = FALSE)
-            bare_taxify_result(x)
-          }
-        )
-      }
-    } else {
-      res <- bare_taxify_result(x)
-    }
-  } else {
+  is_result <- inherits(x, "taxify_result")
+  if (!is_result && !is.character(x)) {
     stop("`x` must be a character vector or a taxify_result.", call. = FALSE)
   }
 
-  region_codes <- resolve_region(region, coords, verbose = FALSE)
-  build_inspection(res, region_codes, range, min_tier, verbose = verbose)
+  # region / coords are read only by the checks on matched names. A character
+  # vector inspected without matching has none, so they are not resolved there:
+  # resolving coords can download the region boundaries.
+  matches <- is_result || isTRUE(backbones)
+  region_declared <- matches && (!is.null(region) || !is.null(coords))
+  region_codes <- if (region_declared) {
+    resolve_region(region, coords, verbose = FALSE)
+  } else {
+    NULL
+  }
+
+  if (is_result) {
+    res <- x
+  } else if (isTRUE(backbones)) {
+    # Opt-in matching: run taxify() against every installed backbone so the
+    # match-derived labels (typo, synonym, ...) become available. The report
+    # header records which backbones were used.
+    inst <- installed_backbones()
+    if (length(inst) == 0L) {
+      warning("inspect(): backbones = TRUE but none are installed; running ",
+              "the register and list checks only.", call. = FALSE)
+      res <- bare_taxify_result(x)
+    } else {
+      res <- tryCatch(
+        taxify(x, backbone = inst, region = region_codes, range = range,
+               verbose = verbose),
+        error = function(e) {
+          warning("inspect(): backbone matching failed (",
+                  conditionMessage(e), "); register and list checks only.",
+                  call. = FALSE)
+          bare_taxify_result(x)
+        }
+      )
+    }
+  } else {
+    res <- bare_taxify_result(x)
+  }
+
+  build_inspection(res, region_codes, range, min_tier,
+                   region_declared = region_declared, verbose = verbose)
 }
 
 
@@ -173,11 +193,16 @@ inspect_load_register <- function() {
 #' @param region_codes Validated TDWG Level 3 codes, or `NULL`.
 #' @param range_mode One of `"present"`, `"native"`, `"introduced"`.
 #' @param min_tier Lowest tier to keep.
+#' @param region_declared Logical. Whether the caller supplied `region` or
+#'   `coords`. With `region_codes` `NULL`, that means none of it resolved: the
+#'   geographic check is reported as not run, and the list-inferred range check
+#'   does not stand in for the region that was asked for.
 #' @param verbose Logical.
 #' @return A `taxify_inspection` data.frame.
 #' @noRd
 build_inspection <- function(res, region_codes = NULL, range_mode = "present",
-                             min_tier = "note", verbose = TRUE) {
+                             min_tier = "note", region_declared = FALSE,
+                             verbose = TRUE) {
   n  <- nrow(res)
   mt <- res$match_type
 
@@ -191,20 +216,28 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
   input     <- res$input_name
 
   is_true <- function(v) !is.na(v) & v
-  matched <- !is.na(mt) & mt %in% c("exact", "exact_ci", "fuzzy", "abbrev")
+  matched <- is_backbone_match(mt)
 
   min_batch  <- getOption("taxify.inspect_min_batch", 4L)
   dominance  <- getOption("taxify.inspect_dominance", 0.7)
   minor_frac <- getOption("taxify.inspect_minor_frac", 0.1)
 
-  gtok <- sub(" .*", "", trimws(input))
-  gtok[is.na(input) | !nzchar(trimws(input))] <- NA_character_
+  # Checks that could not run, and why. An anomaly-only report has no way to
+  # show the difference between a check that ran clean and one that never ran:
+  # both contribute no rows, and the report then says "nothing stood out". The
+  # skipped set travels with the object so a printed or saved report carries it.
+  skipped <- character(0L)
+
+  # The genus is read from the cleaned name (qualifiers, hybrid signs and
+  # authorship removed, as taxify() does) and looked up case-insensitively.
+  gtok <- sub(" .*", "", clean_names(input)$cleaned)
+  gkey <- tolower(gtok)
 
   # ---- genus register (the recognition authority) ----
   reg        <- inspect_load_register()
-  reg_genera <- if (!is.null(reg) && nrow(reg) > 0L) reg$genus else NULL
+  reg_genera <- if (!is.null(reg) && nrow(reg) > 0L) tolower(reg$genus) else NULL
   reg_kmap   <- if (!is.null(reg) && "kingdom_group" %in% names(reg)) {
-    stats::setNames(reg$kingdom_group, reg$genus)
+    stats::setNames(reg$kingdom_group, tolower(reg$genus))
   } else {
     NULL
   }
@@ -215,26 +248,26 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
   unresolved     <- is.na(mt) | mt %in% c("none", "out_of_scope")
   if (any(unresolved)) {
     if (!is.null(reg_genera)) {
-      hit <- unresolved & !is.na(gtok) & !(gtok %in% reg_genera)
+      hit <- unresolved & !is.na(gkey) & !(gkey %in% reg_genera)
       m_unknown[hit]      <- TRUE
       reason_unknown[hit] <- sprintf("genus '%s' is not in the taxonomic register",
                                      gtok[hit])
-    } else if (verbose) {
-      message("  inspect(): genus register not installed; ",
-              "skipping the genus-recognition check.")
+    } else {
+      skipped["unknown"] <- "genus register not installed"
     }
   }
 
   # kingdom group: from the result if present, else looked up by genus
   kg <- col("kingdom_group", rep(NA_character_, n))
   if (!is.null(reg_kmap) && any(is.na(kg))) {
-    fill     <- is.na(kg) & !is.na(gtok)
-    kg[fill] <- unname(reg_kmap[gtok[fill]])
+    fill     <- is.na(kg) & !is.na(gkey)
+    kg[fill] <- unname(reg_kmap[gkey[fill]])
   }
 
   # ---- match-derived per-name labels (only fire on a taxify result) ----
   m_typo      <- !is.na(mt) & mt == "fuzzy"
   m_case      <- !is.na(mt) & mt == "exact_ci"
+  m_rankfb    <- !is.na(mt) & mt == "rank_fallback"
   m_synonym   <- matched & is_true(syn_raw)
   m_ambiguous <- is_true(amb_raw)
 
@@ -267,13 +300,16 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
   }
 
   # list-inferred range outlier (only when no region was declared)
+  no_region    <- is.null(region_codes) || length(region_codes) == 0L
   m_range      <- rep(FALSE, n)
   reason_range <- rep(NA_character_, n)
-  if ((is.null(region_codes) || length(region_codes) == 0L) &&
-      sum(matched) >= min_batch) {
+  if (!region_declared && sum(matched) >= min_batch) {
     rr <- range_outlier_rows(acc, matched, min_batch, verbose)
     m_range      <- rr$mask
     reason_range <- rr$reason
+    if (isTRUE(rr$skipped)) {
+      skipped["out_of_range"] <- "WCVP range data not installed"
+    }
   }
 
   # declared-region geographic outlier
@@ -283,12 +319,18 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
     "outside region per WCVP"
   }
   m_geo <- rep(FALSE, n)
-  if (!is.null(region_codes) && length(region_codes) > 0L && any(matched)) {
+  if (region_declared && no_region && any(matched)) {
+    skipped["geographic"] <- "no recognised region in `region` / `coords`"
+  } else if (!no_region && any(matched)) {
     sets <- tryCatch(
       region_range_sets(acc[matched], region_codes, range_mode, verbose = verbose),
-      error = function(e) NULL
+      error = function(e) structure(conditionMessage(e), class = "try_failed")
     )
-    if (!is.null(sets)) {
+    if (inherits(sets, "try_failed")) {
+      skipped["geographic"] <- sprintf("range lookup failed (%s)", sets)
+    } else if (is.null(sets)) {
+      skipped["geographic"] <- "no range data available for the declared region"
+    } else {
       m_geo <- matched & (acc %in% sets$has_data) & !(acc %in% sets$present)
     }
   }
@@ -301,6 +343,9 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
          reason = rep("likely misspelling", n)),
     list(name = "near_duplicate", mask = m_neardup,  rank = 2L,
          reason = sprintf("near-duplicate of more frequent '%s'", dup_target)),
+    list(name = "rank_fallback", mask = m_rankfb,    rank = 2L,
+         reason = rep("infraspecific taxon not in the backbone; matched its species",
+                      n)),
     list(name = "ambiguous",     mask = m_ambiguous, rank = 2L,
          reason = ifelse(!is.na(amb_tgt),
                          sprintf("ambiguous (targets: %s)", amb_tgt),
@@ -314,7 +359,9 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
     list(name = "case",          mask = m_case,      rank = 1L,
          reason = rep("case mismatch", n)),
     list(name = "synonym",       mask = m_synonym,   rank = 1L,
-         reason = rep("outdated synonym", n))
+         reason = ifelse(!is.na(mt) & mt == "basionym",
+                         "unplaced name; its basionym is placed as this taxon",
+                         "outdated synonym"))
   )
 
   anomalies_chr <- rep("", n)
@@ -366,7 +413,8 @@ build_inspection <- function(res, region_codes = NULL, range_mode = "present",
     n_input     = n_active,
     n_flagged   = length(keep),
     tier_counts = tier_counts,
-    backbones   = bk
+    backbones   = bk,
+    skipped     = skipped
   )
   class(out) <- c("taxify_inspection", "data.frame")
   out
@@ -465,11 +513,18 @@ near_duplicate_targets <- function(x) {
 #' @noRd
 range_outlier_rows <- function(acc, matched, min_batch, verbose = FALSE) {
   n     <- length(acc)
-  blank <- list(mask = rep(FALSE, n), reason = rep(NA_character_, n))
+  blank <- list(mask = rep(FALSE, n), reason = rep(NA_character_, n),
+                skipped = FALSE)
 
+  # No range data at all is "could not check", not "checked and found nothing":
+  # the two are the same empty mask, and only the caller can tell the report
+  # which one it got.
   cmap <- tryCatch(species_range_continents(acc[matched], verbose = verbose),
                    error = function(e) NULL)
-  if (is.null(cmap) || length(cmap) == 0L) return(blank)
+  if (is.null(cmap) || length(cmap) == 0L) {
+    blank$skipped <- TRUE
+    return(blank)
+  }
 
   conts  <- cmap[acc]                       # per row; NULL where no data
   placed <- matched & vapply(conts, function(z) !is.null(z) && length(z) > 0L,
@@ -541,6 +596,12 @@ print.taxify_inspection <- function(x, ...) {
       parts <- sprintf("%s: %d", names(tc), as.integer(tc))
       parts <- parts[as.integer(tc) > 0L]
       cat(sprintf("  %s\n", paste(rev(parts), collapse = "   ")))
+    }
+    sk <- meta$skipped
+    if (!is.null(sk) && length(sk) > 0L) {
+      cat(sprintf("  not checked: %s\n",
+                  paste(sprintf("%s (%s)", names(sk), unname(sk)),
+                        collapse = "; ")))
     }
   }
   cat(sprintf("  %s\n", rule))
