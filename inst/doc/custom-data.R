@@ -4,6 +4,8 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
 library(taxify)
 
 ## -----------------------------------------------------------------------------
@@ -14,7 +16,7 @@ library(taxify)
 # )
 # result <- taxify(species, backbone = "col")
 # 
-# # External trait data: note one synonym and one subspecies
+# # External trait data: note one synonym
 # traits <- data.frame(
 #   taxon = c(
 #     "Quercus robur", "Fagus sylvatica", "Picea excelsa",
@@ -36,6 +38,10 @@ library(taxify)
 
 ## -----------------------------------------------------------------------------
 # result |> add_data("global_leaf_traits.csv.gz", species_col = "species")
+
+## -----------------------------------------------------------------------------
+# result |> add_data("leaf_traits.tsv", species_col = "species")
+# result |> add_data("leaf_traits.tsv.gz")
 
 ## -----------------------------------------------------------------------------
 # # install.packages("openxlsx2")  # if not already installed
@@ -74,10 +80,6 @@ library(taxify)
 ## -----------------------------------------------------------------------------
 # result |> export_data("for_excel_users.xlsx")
 # result |> export_data("for_python.csv")
-
-## -----------------------------------------------------------------------------
-# result |> add_data("leaf_traits.tsv", species_col = "species")
-# result |> add_data("leaf_traits.tsv.gz")
 
 ## -----------------------------------------------------------------------------
 # my_data <- readRDS("legacy_traits.rds")
@@ -142,9 +144,9 @@ library(taxify)
 #   sla = c(18.2, 21.5, 24.1)
 # )
 # result |> add_data(dup_bad, species_col = "species")
-# # Error: 1 species resolved to the same accepted_id but have
+# # Error: 1 species in data resolved to the same accepted name but have
 # #   different trait values.
-# #   Examples: 'Quercus robur' (wfo-0000309171)
+# #   Examples: 'Quercus robur'
 
 ## -----------------------------------------------------------------------------
 # # Aggregate first, then join

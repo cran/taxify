@@ -4,9 +4,12 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
 library(taxify)
 
 ## ----taxify-lcvp-wcvp---------------------------------------------------------
+# plant_names <- c("Quercus robur", "Pinus sylvestris", "Betula pendula")
 # result <- taxify(plant_names, backbone = c("wcvp", "lcvp", "wfo"))
 # result[, c("input_name", "accepted_name", "backbone")]
 
@@ -100,6 +103,5 @@ library(taxify)
 # result |> add_data(my_traits, species_col = "species")
 
 ## ----list-enrichments---------------------------------------------------------
-# # See all available enrichments and their metadata
 # list_enrichments()
 

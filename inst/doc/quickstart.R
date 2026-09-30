@@ -4,7 +4,6 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
-library(taxify)
 
 ## ----va-engine, echo = FALSE, results = "asis", eval = TRUE-------------------
 cat('
@@ -29,6 +28,9 @@ window.VA = {
 };
 </script>
 ')
+
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
+library(taxify)
 
 ## -----------------------------------------------------------------------------
 # field_names <- c(
@@ -95,94 +97,8 @@ cat(paste0(
   "var SYN=[0,0,0,0,1,0,1,0,1,0];\n",
   body, "\n})();\n</script>\n"))
 
-## ----block-anim, echo = FALSE, results = "asis", eval = TRUE------------------
-body <- "
-var s=VA.setup('bl-cv'); if(!s)return; var x=s.ctx,W=s.w,H=s.h,C=VA.C;
-var GX=16,GY=64,COLS=44,ROWS=22,TW=13,TH=15,GW=COLS*TW,GH=ROWS*TH;
-var bc0=8,bc1=15,br0=7,br1=13;
-var winC=12,winR=10;
-var GGX=GX+GW+44,GGW=64,GGY=64,GGH=GH;
-var T1=4.8,H1=2.0,T2=5.9,H2=3.4,CYCLE=T1+H1+T2+H2;
-function inBlock(c,r){return c>=bc0&&c<=bc1&&r>=br0&&r<=br1;}
-function tile(c,r,col,a){x.globalAlpha=a;x.fillStyle=col;x.fillRect(GX+c*TW,GY+r*TH,TW-1.4,TH-1.4);x.globalAlpha=1;}
-function frame(){VA.glow(x,C.cyan,6);x.strokeStyle=C.cyan;x.strokeRect(GX,GY,GW,GH);VA.noglow(x);}
-function blockOutline(){VA.glow(x,C.green,10);x.strokeStyle=C.green;x.lineWidth=2;x.strokeRect(GX+bc0*TW-1,GY+br0*TH-1,(bc1-bc0+1)*TW,(br1-br0+1)*TH);x.lineWidth=1;VA.noglow(x);}
-function gauge(frac,col,ghost,pct){x.strokeStyle=C.mut;x.strokeRect(GGX,GGY,GGW,GGH);var h=Math.max(frac>0?2:0,frac*GGH);VA.glow(x,col,8);x.fillStyle=col;x.fillRect(GGX+1,GGY+GGH-h,GGW-2,h);VA.noglow(x);if(ghost){x.strokeStyle=C.red;x.setLineDash([5,4]);x.lineWidth=1.5;x.beginPath();x.moveTo(GGX-4,GGY+2);x.lineTo(GGX+GGW+4,GGY+2);x.stroke();x.setLineDash([]);x.lineWidth=1;x.fillStyle=C.red;x.font=VA.F(11);x.textAlign='left';x.fillText('whole backbone',GGX-6,GGY-10);}x.fillStyle=C.ink;x.font=VA.F(14,true);x.textAlign='center';x.fillText(pct,GGX+GGW/2,GGY+GGH+20);x.fillStyle=C.mut;x.font=VA.F(11);x.fillText('names scored',GGX+GGW/2,GGY+GGH+36);}
-function header(t,col){x.textAlign='left';VA.glow(x,C.cyan,7);x.fillStyle=C.cyan;x.font=VA.F(15,true);x.fillText('FUZZY MATCH :: Quercus robus',16,26);VA.noglow(x);x.fillStyle=col;x.font=VA.F(13);x.fillText(t,16,46);}
-function draw(tc){VA.bg(x,W,H);
-  var c,r;
-  if(tc<T1){var f=VA.ease(tc/T1);var lim=Math.floor(f*ROWS);
-    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var on=r<lim;tile(c,r,on?C.red:C.off,on?0.85:0.5);}
-    frame();gauge(f,C.red,false,Math.round(f*100)+'%');
-    header('without blocking: every name on disk is a candidate',C.red);
-  } else if(tc<T1+H1){
-    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++)tile(c,r,C.red,0.85);
-    frame();gauge(1,C.red,false,'100%');
-    header('without blocking: every name on disk is a candidate',C.red);
-  } else if(tc<T1+H1+T2){
-    var ff=(tc-T1-H1)/T2;
-    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var ib=inBlock(c,r);tile(c,r,ib?C.green:C.off,ib?0.85:0.34);}
-    blockOutline();frame();
-    var scanned=Math.floor(ff*(bc1-bc0+1));
-    VA.glow(x,C.amber,7);x.strokeStyle=C.amber;x.lineWidth=2;var sc=Math.min(bc1,bc0+scanned);x.beginPath();x.moveTo(GX+sc*TW,GY+br0*TH);x.lineTo(GX+sc*TW,GY+(br1+1)*TH);x.stroke();x.lineWidth=1;VA.noglow(x);
-    if(ff>0.7){VA.glow(x,'#fff',10);x.fillStyle='#fff';x.fillRect(GX+winC*TW,GY+winR*TH,TW-1.4,TH-1.4);VA.noglow(x);}
-    gauge(0.06,C.green,true,'one genus');
-    header('genus-blocked: scored only against other Quercus',C.green);
-  } else {
-    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var ib2=inBlock(c,r);tile(c,r,ib2?C.green:C.off,ib2?0.55:0.3);}
-    blockOutline();frame();
-    VA.glow(x,'#fff',12);x.fillStyle='#fff';x.fillRect(GX+winC*TW,GY+winR*TH,TW-1.4,TH-1.4);VA.noglow(x);
-    x.fillStyle=C.green;x.font=VA.F(13,true);x.textAlign='left';x.fillText('-> '+QACC+'   (1 edit, dist '+QD+')',GX,GY+GH+24);
-    gauge(0.06,C.green,true,'one genus');
-    header('match found inside the block',C.green);
-  }
-  VA.scan(x,W,H);
-}
-VA.run(draw,CYCLE,null,'bl','bl-cv');
-"
-cat(paste0(
-  "<canvas id='bl-cv' width='860' height='460' style='max-width:100%'></canvas>\n",
-  "<script>\n(function(){\n",
-  "var QACC=\"Quercus robur\",QD=0.077;\n",
-  body, "\n})();\n</script>\n"))
-
 ## -----------------------------------------------------------------------------
 # summary(res)
-
-## ----benchmark-anim, echo = FALSE, results = "asis", eval = TRUE--------------
-body <- "
-var s=VA.setup('sp-cv'); if(!s)return; var x=s.ctx,W=s.w,H=s.h,C=VA.C;
-var BX=150,BW=W-150-150,b1=96,b2=190,bh=46;
-var PERIOD=17,HOLD=4;
-function fmt(sec){if(sec<60)return sec.toFixed(1)+' s';var m=sec/60;return sec.toFixed(0)+' s ('+m.toFixed(0)+' min)';}
-function bar(y,frac,col,name,done,lab){
-  x.fillStyle=C.off;x.fillRect(BX,y,BW,bh);
-  var w=Math.max(frac>0?3:0,frac*BW);
-  if(done)VA.glow(x,col,10);x.fillStyle=col;x.fillRect(BX,y,w,bh);VA.noglow(x);
-  x.strokeStyle=C.grid;x.strokeRect(BX,y,BW,bh);
-  x.fillStyle=C.ink;x.font=VA.F(14,true);x.textAlign='right';x.fillText(name,BX-12,y+bh/2+5);
-  x.fillStyle=done?col:C.mut;x.font=VA.F(13,true);x.textAlign='left';x.fillText(lab,BX+w+12,y+bh/2+5);
-}
-function draw(tc){VA.bg(x,W,H);
-  VA.glow(x,C.cyan,7);x.fillStyle=C.cyan;x.textAlign='left';x.font=VA.F(15,true);x.fillText('FUZZY MATCH :: 1,000 NAMES',16,28);VA.noglow(x);
-  var run=Math.min(tc,PERIOD-HOLD);var prog=run/(PERIOD-HOLD);
-  var simSec=prog*WFO;
-  var taxDone=simSec>=TAX;
-  var taxFrac=taxDone?1:simSec/TAX;
-  var wfoFrac=Math.min(1,simSec/WFO);
-  bar(b1,taxFrac,C.green,'taxify',taxDone,taxDone?fmt(TAX):'');
-  bar(b2,wfoFrac,C.red,'WorldFlora',wfoFrac>=1,wfoFrac>=1?fmt(WFO):fmt(simSec));
-  x.fillStyle=C.mut;x.font=VA.F(12);x.textAlign='left';x.fillText('elapsed (simulated): '+fmt(simSec),BX,b2+bh+22);
-  if(taxDone&&tc>PERIOD-HOLD-0.01){var aa=VA.clamp((tc-(PERIOD-HOLD))/1.0,0,1);x.globalAlpha=aa;VA.glow(x,C.green,8);x.fillStyle=C.green;x.font=VA.F(20,true);x.textAlign='center';x.fillText(Math.round(WFO/TAX)+'x faster',W/2,H-40);VA.noglow(x);x.globalAlpha=1;}
-  VA.scan(x,W,H);
-}
-VA.run(draw,PERIOD,null,'sp','sp-cv');
-"
-cat(paste0(
-  "<canvas id='sp-cv' width='760' height='330' style='max-width:100%'></canvas>\n",
-  "<script>\n(function(){\n",
-  "var TAX=18.8,WFO=4192.4;\n",
-  body, "\n})();\n</script>\n"))
 
 ## -----------------------------------------------------------------------------
 # my_traits <- data.frame(
@@ -280,4 +196,90 @@ cat(paste0(
 
 ## -----------------------------------------------------------------------------
 # cor.test(dat$eive_reaction, dat$eive_nutrients)
+
+## ----block-anim, echo = FALSE, results = "asis", eval = TRUE------------------
+body <- "
+var s=VA.setup('bl-cv'); if(!s)return; var x=s.ctx,W=s.w,H=s.h,C=VA.C;
+var GX=16,GY=64,COLS=44,ROWS=22,TW=13,TH=15,GW=COLS*TW,GH=ROWS*TH;
+var bc0=8,bc1=15,br0=7,br1=13;
+var winC=12,winR=10;
+var GGX=GX+GW+44,GGW=64,GGY=64,GGH=GH;
+var T1=4.8,H1=2.0,T2=5.9,H2=3.4,CYCLE=T1+H1+T2+H2;
+function inBlock(c,r){return c>=bc0&&c<=bc1&&r>=br0&&r<=br1;}
+function tile(c,r,col,a){x.globalAlpha=a;x.fillStyle=col;x.fillRect(GX+c*TW,GY+r*TH,TW-1.4,TH-1.4);x.globalAlpha=1;}
+function frame(){VA.glow(x,C.cyan,6);x.strokeStyle=C.cyan;x.strokeRect(GX,GY,GW,GH);VA.noglow(x);}
+function blockOutline(){VA.glow(x,C.green,10);x.strokeStyle=C.green;x.lineWidth=2;x.strokeRect(GX+bc0*TW-1,GY+br0*TH-1,(bc1-bc0+1)*TW,(br1-br0+1)*TH);x.lineWidth=1;VA.noglow(x);}
+function gauge(frac,col,ghost,pct){x.strokeStyle=C.mut;x.strokeRect(GGX,GGY,GGW,GGH);var h=Math.max(frac>0?2:0,frac*GGH);VA.glow(x,col,8);x.fillStyle=col;x.fillRect(GGX+1,GGY+GGH-h,GGW-2,h);VA.noglow(x);if(ghost){x.strokeStyle=C.red;x.setLineDash([5,4]);x.lineWidth=1.5;x.beginPath();x.moveTo(GGX-4,GGY+2);x.lineTo(GGX+GGW+4,GGY+2);x.stroke();x.setLineDash([]);x.lineWidth=1;x.fillStyle=C.red;x.font=VA.F(11);x.textAlign='left';x.fillText('whole backbone',GGX-6,GGY-10);}x.fillStyle=C.ink;x.font=VA.F(14,true);x.textAlign='center';x.fillText(pct,GGX+GGW/2,GGY+GGH+20);x.fillStyle=C.mut;x.font=VA.F(11);x.fillText('names scored',GGX+GGW/2,GGY+GGH+36);}
+function header(t,col){x.textAlign='left';VA.glow(x,C.cyan,7);x.fillStyle=C.cyan;x.font=VA.F(15,true);x.fillText('FUZZY MATCH :: Quercus robus',16,26);VA.noglow(x);x.fillStyle=col;x.font=VA.F(13);x.fillText(t,16,46);}
+function draw(tc){VA.bg(x,W,H);
+  var c,r;
+  if(tc<T1){var f=VA.ease(tc/T1);var lim=Math.floor(f*ROWS);
+    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var on=r<lim;tile(c,r,on?C.red:C.off,on?0.85:0.5);}
+    frame();gauge(f,C.red,false,Math.round(f*100)+'%');
+    header('without blocking: every name on disk is a candidate',C.red);
+  } else if(tc<T1+H1){
+    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++)tile(c,r,C.red,0.85);
+    frame();gauge(1,C.red,false,'100%');
+    header('without blocking: every name on disk is a candidate',C.red);
+  } else if(tc<T1+H1+T2){
+    var ff=(tc-T1-H1)/T2;
+    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var ib=inBlock(c,r);tile(c,r,ib?C.green:C.off,ib?0.85:0.34);}
+    blockOutline();frame();
+    var scanned=Math.floor(ff*(bc1-bc0+1));
+    VA.glow(x,C.amber,7);x.strokeStyle=C.amber;x.lineWidth=2;var sc=Math.min(bc1,bc0+scanned);x.beginPath();x.moveTo(GX+sc*TW,GY+br0*TH);x.lineTo(GX+sc*TW,GY+(br1+1)*TH);x.stroke();x.lineWidth=1;VA.noglow(x);
+    if(ff>0.7){VA.glow(x,'#fff',10);x.fillStyle='#fff';x.fillRect(GX+winC*TW,GY+winR*TH,TW-1.4,TH-1.4);VA.noglow(x);}
+    gauge(0.06,C.green,true,'one genus');
+    header('genus-blocked: scored only against other Quercus',C.green);
+  } else {
+    for(r=0;r<ROWS;r++)for(c=0;c<COLS;c++){var ib2=inBlock(c,r);tile(c,r,ib2?C.green:C.off,ib2?0.55:0.3);}
+    blockOutline();frame();
+    VA.glow(x,'#fff',12);x.fillStyle='#fff';x.fillRect(GX+winC*TW,GY+winR*TH,TW-1.4,TH-1.4);VA.noglow(x);
+    x.fillStyle=C.green;x.font=VA.F(13,true);x.textAlign='left';x.fillText('-> '+QACC+'   (1 edit, dist '+QD+')',GX,GY+GH+24);
+    gauge(0.06,C.green,true,'one genus');
+    header('match found inside the block',C.green);
+  }
+  VA.scan(x,W,H);
+}
+VA.run(draw,CYCLE,null,'bl','bl-cv');
+"
+cat(paste0(
+  "<canvas id='bl-cv' width='860' height='460' style='max-width:100%'></canvas>\n",
+  "<script>\n(function(){\n",
+  "var QACC=\"Quercus robur\",QD=0.077;\n",
+  body, "\n})();\n</script>\n"))
+
+## ----benchmark-anim, echo = FALSE, results = "asis", eval = TRUE--------------
+body <- "
+var s=VA.setup('sp-cv'); if(!s)return; var x=s.ctx,W=s.w,H=s.h,C=VA.C;
+var BX=150,BW=W-150-150,b1=96,b2=190,bh=46;
+var PERIOD=17,HOLD=4;
+function fmt(sec){if(sec<60)return sec.toFixed(1)+' s';var m=sec/60;return sec.toFixed(0)+' s ('+m.toFixed(0)+' min)';}
+function bar(y,frac,col,name,done,lab){
+  x.fillStyle=C.off;x.fillRect(BX,y,BW,bh);
+  var w=Math.max(frac>0?3:0,frac*BW);
+  if(done)VA.glow(x,col,10);x.fillStyle=col;x.fillRect(BX,y,w,bh);VA.noglow(x);
+  x.strokeStyle=C.grid;x.strokeRect(BX,y,BW,bh);
+  x.fillStyle=C.ink;x.font=VA.F(14,true);x.textAlign='right';x.fillText(name,BX-12,y+bh/2+5);
+  x.fillStyle=done?col:C.mut;x.font=VA.F(13,true);x.textAlign='left';x.fillText(lab,BX+w+12,y+bh/2+5);
+}
+function draw(tc){VA.bg(x,W,H);
+  VA.glow(x,C.cyan,7);x.fillStyle=C.cyan;x.textAlign='left';x.font=VA.F(15,true);x.fillText('FUZZY MATCH :: 1,000 NAMES',16,28);VA.noglow(x);
+  var run=Math.min(tc,PERIOD-HOLD);var prog=run/(PERIOD-HOLD);
+  var simSec=prog*WFO;
+  var taxDone=simSec>=TAX;
+  var taxFrac=taxDone?1:simSec/TAX;
+  var wfoFrac=Math.min(1,simSec/WFO);
+  bar(b1,taxFrac,C.green,'taxify',taxDone,taxDone?fmt(TAX):'');
+  bar(b2,wfoFrac,C.red,'WorldFlora',wfoFrac>=1,wfoFrac>=1?fmt(WFO):fmt(simSec));
+  x.fillStyle=C.mut;x.font=VA.F(12);x.textAlign='left';x.fillText('elapsed (simulated): '+fmt(simSec),BX,b2+bh+22);
+  if(taxDone&&tc>PERIOD-HOLD-0.01){var aa=VA.clamp((tc-(PERIOD-HOLD))/1.0,0,1);x.globalAlpha=aa;VA.glow(x,C.green,8);x.fillStyle=C.green;x.font=VA.F(20,true);x.textAlign='center';x.fillText(Math.round(WFO/TAX)+'x faster',W/2,H-40);VA.noglow(x);x.globalAlpha=1;}
+  VA.scan(x,W,H);
+}
+VA.run(draw,PERIOD,null,'sp','sp-cv');
+"
+cat(paste0(
+  "<canvas id='sp-cv' width='760' height='330' style='max-width:100%'></canvas>\n",
+  "<script>\n(function(){\n",
+  "var TAX=18.8,WFO=4192.4;\n",
+  body, "\n})();\n</script>\n"))
 

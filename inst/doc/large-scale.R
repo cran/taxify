@@ -4,11 +4,9 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
-library(taxify)
 
-## -----------------------------------------------------------------------------
-# taxify_data_dir()
-# #> [1] "C:/Users/jane/AppData/Local/R/taxify"
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
+library(taxify)
 
 ## -----------------------------------------------------------------------------
 # # Assume `species_list` is a character vector of 10,000 plant names
@@ -64,16 +62,13 @@ library(taxify)
 # t_col_first["elapsed"]
 
 ## -----------------------------------------------------------------------------
-# # Match names
-# result <- taxify(species_list, backbone = "gbif")
+# # Tight threshold for clean input
+# result <- taxify(clean_names, backbone = "col",
+#                  fuzzy = TRUE, fuzzy_threshold = 0.1)
 # 
-# # Save result
-# saveRDS(result, "matched_names.rds")
-# 
-# # Free the backbone from memory
-# taxify_clear_cache()
-# 
-# gc()
+# # Integer threshold: at most 2 edits, period
+# result <- taxify(noisy_names, backbone = "col",
+#                  fuzzy = TRUE, fuzzy_threshold = 2L)
 
 ## -----------------------------------------------------------------------------
 # # 300,000 names from a herbarium digitization project
@@ -124,29 +119,6 @@ library(taxify)
 # }
 
 ## -----------------------------------------------------------------------------
-# # After finishing all matching work
-# taxify_clear_cache()
-# gc()
-
-## -----------------------------------------------------------------------------
-# taxify_refresh_manifest()
-
-## -----------------------------------------------------------------------------
-# # Total size of all backbones and enrichments
-# data_dir <- taxify_data_dir()
-# files <- list.files(data_dir, recursive = TRUE, full.names = TRUE)
-# total_mb <- sum(file.size(files), na.rm = TRUE) / 1048576
-# message(sprintf("taxify data: %.0f MB across %d files",
-#                 total_mb, length(files)))
-
-## -----------------------------------------------------------------------------
-# # Remove GBIF backbone (frees ~500-700 MB)
-# unlink(file.path(taxify_data_dir(), "gbif"), recursive = TRUE)
-# 
-# # Clear the session cache so taxify() doesn't try to use the old path
-# taxify_clear_cache()
-
-## -----------------------------------------------------------------------------
 # # Pre-download everything needed for a multi-kingdom analysis
 # # with conservation status and trait enrichments
 # 
@@ -178,6 +150,40 @@ library(taxify)
 # #> ...
 
 ## -----------------------------------------------------------------------------
+# # Match names
+# result <- taxify(species_list, backbone = "gbif")
+# 
+# # Save result
+# saveRDS(result, "matched_names.rds")
+# 
+# # Free the backbone from memory
+# taxify_clear_cache()
+# 
+# gc()
+
+## -----------------------------------------------------------------------------
+# taxify_refresh_manifest()
+
+## -----------------------------------------------------------------------------
+# taxify_data_dir()
+# #> [1] "C:/Users/jane/AppData/Local/R/taxify"
+
+## -----------------------------------------------------------------------------
+# # Total size of all backbones and enrichments
+# data_dir <- taxify_data_dir()
+# files <- list.files(data_dir, recursive = TRUE, full.names = TRUE)
+# total_mb <- sum(file.size(files), na.rm = TRUE) / 1048576
+# message(sprintf("taxify data: %.0f MB across %d files",
+#                 total_mb, length(files)))
+
+## -----------------------------------------------------------------------------
+# # Remove GBIF backbone (frees ~1.6 GB)
+# unlink(file.path(taxify_data_dir(), "gbif"), recursive = TRUE)
+# 
+# # Clear the session cache so taxify() doesn't try to use the old path
+# taxify_clear_cache()
+
+## -----------------------------------------------------------------------------
 # # Pattern for 500,000+ names with enrichments
 # for (i in seq_along(chunks)) {
 #   res <- taxify(chunks[[i]], backbone = "wfo",
@@ -186,13 +192,4 @@ library(taxify)
 #   res <- add_zanne(res, verbose = FALSE)
 #   saveRDS(res, sprintf("results/chunk_%04d.rds", i))
 # }
-
-## -----------------------------------------------------------------------------
-# # Tight threshold for clean input
-# result <- taxify(clean_names, backbone = "col",
-#                  fuzzy = TRUE, fuzzy_threshold = 0.1)
-# 
-# # Integer threshold: at most 2 edits, period
-# result <- taxify(noisy_names, backbone = "col",
-#                  fuzzy = TRUE, fuzzy_threshold = 2L)
 

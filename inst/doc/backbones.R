@@ -1,5 +1,7 @@
 ## ----setup, include = FALSE---------------------------------------------------
 knitr::opts_chunk$set(eval = FALSE)
+
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
 library(taxify)
 
 ## ----download-single----------------------------------------------------------
@@ -204,7 +206,4 @@ library(taxify)
 # 
 # result$life_form
 # # [1] "animal"
-
-## ----reproducibility----------------------------------------------------------
-# taxify_download("wfo", version = "2024.01")
 

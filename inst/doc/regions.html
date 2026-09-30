@@ -342,199 +342,190 @@ region</h1>
 
 
 
-<div id="the-problem" class="section level2">
-<h2>The problem</h2>
-<p>Fuzzy matching corrects a typo by finding the nearest real name. Most
-of the time the nearest name is the one the recorder meant, but two
-species can sit a single edit apart while living on different
-continents. A recorder working in Belgium who writes a slightly
-misspelled name meant a Belgian plant, and its one-letter neighbour from
-New Zealand is a different species. The string distance alone cannot
-tell the two apart; the geography can.</p>
-<p><code>taxify()</code> takes a <code>region</code> argument for
-exactly this. When you set it, <code>taxify()</code> prefers the fuzzy
-candidates that actually occur where you work and sets the others aside.
-It never touches an exact match, so declaring a region only ever changes
-which spelling correction wins, never a name that was already right.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># a small regional list, with a couple of misspellings to correct</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>field_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Pulsatilla vulgaris&quot;</span>,</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulary&quot;</span>, <span class="st">&quot;Primula elatour&quot;</span></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>)</span></code></pre></div>
-</div>
-<div id="how-the-constraint-works" class="section level2">
-<h2>How the constraint works</h2>
-<p>The filter rests on two range sources. For vascular plants it uses
-WCVP, the World Checklist of Vascular Plants, which records where each
-accepted species occurs by TDWG botanical region. For marine taxa it
-uses WoRMS distribution records rolled up to Marine Ecoregions of the
-World. <code>taxify()</code> resolves your <code>region</code> input to
-codes in whichever vocabulary it belongs to, looks the candidate fuzzy
-names up in the matching source, and drops an out-of-region candidate
-when a better one survives. Three rules keep it conservative:</p>
-<ul>
-<li>It filters fuzzy candidates only. It trusts an exact or case-folded
-match as given.</li>
-<li>It never drops a candidate with no range data. Absence of data is
-not absence from the region, so a match neither source covers passes
-through untouched.</li>
-<li>It keeps every candidate for a name when all of them are out of
-region. The filter refines a match; it does not refuse one.</li>
-</ul>
-<p>So the constraint is a soft preference. It breaks ties toward local
-species and otherwise stays out of the way.</p>
-</div>
-<div id="by-region-name" class="section level2">
-<h2>By region name</h2>
-<p>The clearest input is a name. The bundled WGSRPD crosswalk accepts
-botanical regions at three levels, so a country, a sub-continental
-region, or a continent all work, case- and accent-insensitively.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>)</span></code></pre></div>
+<p>This vignette shows how to steer <code>taxify()</code>’s spelling
+corrections toward the species that occur where the data were collected.
+Two species can sit a single edit apart on different continents, and a
+recorder in Belgium who misspells a name meant the Belgian plant. With a
+<code>region</code> declared, <code>taxify()</code> prefers the fuzzy
+candidates recorded in that region. Plant ranges come from the World
+Checklist of Vascular Plants (WCVP, Govaerts et al. <a href="https://doi.org/10.1038/s41597-021-00997-6">2021</a>) on the
+botanical regions of the World Geographical Scheme for Recording Plant
+Distributions (WGSRPD, Brummitt <a href="https://github.com/tdwg/wgsrpd">2001</a>); marine ranges come from
+WoRMS distribution records rolled up to the Marine Ecoregions of the
+World (MEOW, Spalding et al. <a href="https://doi.org/10.1641/B570707">2007</a>).</p>
+<ol style="list-style-type: decimal">
+<li><strong>Declare</strong> the region by name or code with the
+<code>region</code> argument of <code>taxify()</code>.</li>
+<li><strong>Locate</strong> the records by coordinates with
+<code>coords</code>.</li>
+<li><strong>Narrow</strong> to native or introduced occurrences with
+<code>range</code>.</li>
+<li><strong>Look up</strong> the accepted region names and codes with
+<code>taxify_regions()</code>.</li>
+</ol>
+<div id="example" class="section level2">
+<h2>Example</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
+<p>The example uses a short regional list with two misspellings:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>field_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Pulsatilla vulgaris&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Gentiana acaulary&quot;</span>, <span class="st">&quot;Primula elatour&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>)</span></code></pre></div>
+<div id="by-region-name" class="section level3">
+<h3>By region name</h3>
+<p>A region name is matched case- and accent-insensitively at any of the
+three WGSRPD levels: a continent (<code>&quot;Europe&quot;</code>, Level 1), a
+sub-continental region (<code>&quot;Middle Europe&quot;</code>, Level 2) or a
+country (<code>&quot;Belgium&quot;</code>, Level 3). Several regions union.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;Belgium&quot;</span>, <span class="st">&quot;Netherlands&quot;</span>, <span class="st">&quot;Germany&quot;</span>))</span></code></pre></div>
+<p>The region acts on fuzzy candidates only. An exact match comes back
+unchanged:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Gentiana acaulis&quot;</span>, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>)</span></code></pre></div>
 <pre><code>#&gt;         input_name    accepted_name       family match_type fuzzy_dist backbone
 #&gt; 1 Gentiana acaulis Gentiana acaulis Gentianaceae      exact         NA     COL</code></pre>
-<p>The exact match comes back unchanged, since the region never touches
-one. The constraint earns its keep on the fuzzy names in the same call:
-when a typo has two corrections a single edit apart and only one of them
-grows in Europe, the European one wins the tie. A name with no such
-conflict resolves exactly as it would without a region.</p>
-<p><code>&quot;Europe&quot;</code> is a Level 1 region and expands to every
-European code; <code>&quot;Middle Europe&quot;</code> is a Level 2 region;
-<code>&quot;Belgium&quot;</code> is a single Level 3 country. You can pass
-several, and they union:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="fu">c</span>(<span class="st">&quot;Belgium&quot;</span>, <span class="st">&quot;Netherlands&quot;</span>, <span class="st">&quot;Germany&quot;</span>))</span></code></pre></div>
-<p>A TDWG code is read directly, so <code>region = &quot;BGM&quot;</code>
-(Belgium) and <code>region = &quot;Belgium&quot;</code> reach the same place. An
-unrecognised region or code (<code>&quot;GRE&quot;</code> for Greece, which is
-<code>GRC</code>) is dropped with a warning rather than failing the
-call, so the match runs unconstrained. A valid region with no WCVP
-record for a candidate leaves that candidate unfiltered.</p>
+<p>A TDWG code is read directly, so <code>region = &quot;BGM&quot;</code> and
+<code>region = &quot;Belgium&quot;</code> select the same region. An unrecognised
+name or code (<code>&quot;GRE&quot;</code> for Greece, whose code is
+<code>GRC</code>) is dropped with a warning, and the call runs without
+that constraint.</p>
 </div>
-<div id="by-coordinates" class="section level2">
-<h2>By coordinates</h2>
-<p>When the data carry coordinates, hand them over directly. A point is
-mapped to its botanical region by point-in-polygon against the WGSRPD
-Level 3 boundaries, and the resulting codes are used the same way a
-region name would be.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Brussels: c(longitude, latitude)</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">coords =</span> <span class="fu">c</span>(<span class="fl">4.35</span>, <span class="fl">50.85</span>))</span></code></pre></div>
-<p>The order is <code>c(lon, lat)</code>. A single point, a two-column
-matrix or data.frame of points, or a point-geometry spatial object all
-work; an <code>sf</code> object or a terra <code>SpatVector</code> is
-reprojected to longitude/latitude on the way in. Points and a
-<code>region</code> name can be combined, and their regions union.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>occ <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">lon =</span> <span class="fu">c</span>(<span class="fl">4.35</span>, <span class="fl">5.12</span>, <span class="fl">4.40</span>),</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">lat =</span> <span class="fu">c</span>(<span class="fl">50.85</span>, <span class="fl">51.21</span>, <span class="fl">50.50</span>)</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>)</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">coords =</span> occ)</span></code></pre></div>
-<p>The boundary file downloads once and stays cached. By default the
-lookup runs a native ray-casting test, so no spatial package is
-required. With terra or sf installed taxify uses that instead, which is
-faster on large point sets, and
+<div id="by-coordinates" class="section level3">
+<h3>By coordinates</h3>
+<p>Coordinates are mapped to their WGSRPD Level 3 region by
+point-in-polygon, in the order <code>c(lon, lat)</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Brussels</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">coords =</span> <span class="fu">c</span>(<span class="fl">4.35</span>, <span class="fl">50.85</span>))</span></code></pre></div>
+<p>A two-column matrix or data.frame of points, an <code>sf</code>
+object or a terra <code>SpatVector</code> work too; spatial objects are
+reprojected to longitude/latitude. Points and a <code>region</code> name
+can be combined, and their regions union.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>occ <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="at">lon =</span> <span class="fu">c</span>(<span class="fl">4.35</span>, <span class="fl">5.12</span>, <span class="fl">4.40</span>),</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">lat =</span> <span class="fu">c</span>(<span class="fl">50.85</span>, <span class="fl">51.21</span>, <span class="fl">50.50</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>)</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">coords =</span> occ)</span></code></pre></div>
+<p>The boundary file downloads once and is cached. The point-in-polygon
+test runs natively by default; with terra or sf installed taxify uses
+that package, and
 <code>options(taxify.pip_engine = &quot;terra&quot; | &quot;sf&quot; | &quot;native&quot;)</code>
 forces the choice.</p>
 </div>
-<div id="native-introduced-or-present" class="section level2">
-<h2>Native, introduced, or present</h2>
-<p>By default any WCVP record counts as in-region, native or introduced
-alike. The <code>range</code> argument narrows that.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># only count regions where WCVP lists the species as native</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>, <span class="at">range =</span> <span class="st">&quot;native&quot;</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co"># only introduced occurrences</span></span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>, <span class="at">range =</span> <span class="st">&quot;introduced&quot;</span>)</span></code></pre></div>
-<p><code>range = &quot;present&quot;</code> is the default and the most
-permissive. <code>&quot;native&quot;</code> is stricter and suits work that should
-ignore naturalised populations; a species present in your region only as
-an introduction will not satisfy it, and its out-of-region native
-correction can lose the tie. <code>&quot;introduced&quot;</code> is the mirror
-image, for invasion work that wants the alien records specifically. The
-argument is ignored when no region is set.</p>
+<div id="native-introduced-or-present" class="section level3">
+<h3>Native, introduced, or present</h3>
+<p>By default any WCVP record counts as in-region, native or introduced.
+The <code>range</code> argument narrows that:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>, <span class="at">range =</span> <span class="st">&quot;native&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>, <span class="at">range =</span> <span class="st">&quot;introduced&quot;</span>)</span></code></pre></div>
+<p><code>&quot;native&quot;</code> suits work that should ignore naturalised
+populations: a species present in the region only as an introduction
+does not satisfy it, so its out-of-region native neighbour can win the
+tie. <code>&quot;introduced&quot;</code> selects the alien records for invasion
+work. <code>range</code> has no effect without a region.</p>
 </div>
-<div id="looking-up-regions" class="section level2">
-<h2>Looking up regions</h2>
-<p><code>taxify_regions()</code> returns the regions
-<code>region=</code> accepts so you can find the right code or confirm a
-name resolves. With no argument it lists both vocabularies; with a
-search term it filters, matching the code and all three level names. The
-<code>scheme</code> column names the vocabulary a row belongs to, and
-<code>scheme=</code> restricts the listing to one of them.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">taxify_regions</span>(<span class="st">&quot;Belgium&quot;</span>)</span></code></pre></div>
-<pre><code>#&gt;   code    name   level2_name level1_name scheme
-#&gt; 1  BGM Belgium Middle Europe      EUROPE wgsrpd</code></pre>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># every code Europe expands to</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">nrow</span>(<span class="fu">taxify_regions</span>(<span class="st">&quot;Europe&quot;</span>))</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; [1] 41</span></span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co"># browse the full table</span></span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">taxify_regions</span>())</span></code></pre></div>
-<p>The same crosswalk powers <code>add_wcvp()</code>, so the botanical
-codes here are the ones that appear in native-range enrichment
-output.</p>
+<div id="looking-up-regions" class="section level3">
+<h3>Looking up regions</h3>
+<p><code>taxify_regions()</code> lists the regions <code>region</code>
+accepts and filters them by a search term matched against the code and
+all three level names. The botanical regions ship with the package:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">taxify_regions</span>(<span class="st">&quot;Belgium&quot;</span>, <span class="at">scheme =</span> <span class="st">&quot;wgsrpd&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt;   code    name   level2_name level1_name scheme</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; 1  BGM Belgium Middle Europe      EUROPE wgsrpd</span></span></code></pre></div>
+<p>Each Level 1 region expands to its Level 3 codes:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>wgsrpd <span class="ot">&lt;-</span> <span class="fu">taxify_regions</span>(<span class="at">scheme =</span> <span class="st">&quot;wgsrpd&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>n_l3 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">table</span>(wgsrpd<span class="sc">$</span>level1_name), <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(n_l3, <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">&quot;Level 1 region&quot;</span>, <span class="st">&quot;Level 3 regions&quot;</span>))</span></code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Level 1 region</th>
+<th align="right">Level 3 regions</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">AFRICA</td>
+<td align="right">71</td>
+</tr>
+<tr class="even">
+<td align="left">ANTARCTIC</td>
+<td align="right">12</td>
+</tr>
+<tr class="odd">
+<td align="left">ASIA-TEMPERATE</td>
+<td align="right">52</td>
+</tr>
+<tr class="even">
+<td align="left">ASIA-TROPICAL</td>
+<td align="right">31</td>
+</tr>
+<tr class="odd">
+<td align="left">AUSTRALASIA</td>
+<td align="right">13</td>
+</tr>
+<tr class="even">
+<td align="left">EUROPE</td>
+<td align="right">41</td>
+</tr>
+<tr class="odd">
+<td align="left">NORTHERN AMERICA</td>
+<td align="right">73</td>
+</tr>
+<tr class="even">
+<td align="left">PACIFIC</td>
+<td align="right">28</td>
+</tr>
+<tr class="odd">
+<td align="left">SOUTHERN AMERICA</td>
+<td align="right">48</td>
+</tr>
+</tbody>
+</table>
+<p>The same codes appear in the native-range output of
+<code>add_wcvp()</code>.</p>
 </div>
-<div id="marine-regions" class="section level2">
-<h2>Marine regions</h2>
-<p>Marine names use the second range source: WoRMS distribution records
-rolled up to Marine Ecoregions of the World. It arrives with the
-<code>marine_distribution</code> asset, which downloads on first use,
-and from then on <code>region=</code> takes MEOW names and codes the
-same way it takes botanical ones.</p>
+<div id="marine-regions" class="section level3">
+<h3>Marine regions</h3>
+<p>Marine names use the <code>marine_distribution</code> asset, which
+downloads on first use. From then on <code>region</code> takes MEOW
+ecoregion, province and realm names and codes the same way it takes
+botanical ones; a province or realm expands to its member
+ecoregions.</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Carcinus maenus&quot;</span>, <span class="st">&quot;Gadus morhua&quot;</span>), <span class="at">region =</span> <span class="st">&quot;North Sea&quot;</span>)</span></code></pre></div>
 <pre><code>#&gt;        input_name   accepted_name     family match_type backbone
 #&gt; 1 Carcinus maenus Carcinus maenas Carcinidae      fuzzy     col
 #&gt; 2    Gadus morhua    Gadus morhua    Gadidae      exact     col</code></pre>
-<p>An ecoregion name resolves to its own code. A province or realm name
-expands to its member ecoregions, the way a TDWG Level 1 continent
-expands to its Level 3 codes.</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">taxify_regions</span>(<span class="st">&quot;Temperate Northern Atlantic&quot;</span>, <span class="at">scheme =</span> <span class="st">&quot;meow&quot;</span>))</span></code></pre></div>
-<pre><code>#&gt;    code                           name                       level2_name
-#&gt; 1 25042                     Carolinian Warm Temperate Northwest Atlantic
-#&gt; 2 20043        Northern Gulf of Mexico Warm Temperate Northwest Atlantic
-#&gt; 3 25040     Gulf of Maine/Bay of Fundy Cold Temperate Northwest Atlantic
-#&gt; 4 20041                      Virginian Cold Temperate Northwest Atlantic
-#&gt; 5 20030                   Adriatic Sea                 Mediterranean Sea
-#&gt; 6 25033 Tunisian Plateau/Gulf of Sidra                 Mediterranean Sea
-#&gt;                   level1_name scheme
-#&gt; 1 Temperate Northern Atlantic   meow
-#&gt; 2 Temperate Northern Atlantic   meow
-#&gt; 3 Temperate Northern Atlantic   meow
-#&gt; 4 Temperate Northern Atlantic   meow
-#&gt; 5 Temperate Northern Atlantic   meow
-#&gt; 6 Temperate Northern Atlantic   meow</code></pre>
-<p>Coordinates behave the same way. A point at sea maps to the MEOW
-ecoregion containing it, and <code>taxify()</code> unions that with the
-botanical lookup, so a single <code>coords</code> argument serves a list
-holding both plants and marine animals.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co"># central North Sea</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">taxify</span>(field_names, <span class="at">coords =</span> <span class="fu">c</span>(<span class="fl">3.0</span>, <span class="fl">56.0</span>))</span></code></pre></div>
-<p>MEOW maps coastal and shelf waters, so a point over a deep ocean
-basin belongs to no ecoregion. The filter treats that as absence of data
-and leaves those names alone.</p>
+<p>A point at sea maps to the MEOW ecoregion containing it and is
+unioned with the botanical lookup, so one <code>coords</code> argument
+serves a list of plants and marine animals. MEOW covers coastal and
+shelf waters; a point over a deep ocean basin belongs to no ecoregion
+and leaves those names unconstrained.</p>
 </div>
-<div id="what-it-covers-and-what-it-does-not" class="section level2">
-<h2>What it covers, and what it does not</h2>
-<p>The two sources cover vascular plants and marine taxa. A name outside
-both scopes has no range records, so the filter leaves it alone by
-design, which is why a mixed list can carry a region without harming the
-matches it has no data for.</p>
-<p>Marine ranges inherit the grain of the underlying record. WoRMS files
-a distribution against a named locality, and those run from a single bay
-to a whole ocean basin; a record against a basin maps to every ecoregion
-inside it. The median species spans 4 ecoregions and a quarter span
-exactly one, so most ranges are sharp. About 0.3% span more than half
-the ocean, and for those the filter is permissive: a species recorded
-that widely is in region wherever you ask, so it breaks no ties. The
-constraint also acts on fuzzy candidates only, so it changes nothing for
-a list that matches exactly throughout. It is most useful on regional
-field lists with the usual crop of misspellings, where the right
-correction and a plausible wrong one are a single edit apart.</p>
-<p>The related check in <code>inspect()</code> looks at the other end of
-the pipeline. Rather than steering a correction, it takes matched names
-and flags the ones WCVP does not record in your region, surfacing a real
-but geographically out-of-place species for review. The two share the
-<code>region</code>, <code>coords</code>, and <code>range</code>
-arguments. See the <a href="https://gillescolling.com/taxify/articles/inspecting-names.html">name
-inspection vignette</a> for that pass.</p>
+</div>
+<div id="how-the-filter-decides" class="section level2">
+<h2>How the filter decides</h2>
+<p>For each input name, <code>taxify()</code> looks its fuzzy candidates
+up in the range source that owns the resolved region codes and drops an
+out-of-region candidate when another candidate survives. Three rules
+apply:</p>
+<ul>
+<li>Exact and case-folded matches are never filtered.</li>
+<li>A candidate with no range data is kept. Vascular plants and marine
+taxa are covered; a name outside both passes through unchanged, so a
+mixed list can carry a region safely.</li>
+<li>When every candidate for a name is out of region, all are kept.</li>
+</ul>
+<p>Marine ranges inherit the grain of the WoRMS locality they were
+recorded against, which runs from a single bay to an ocean basin. The
+median species spans 4 ecoregions and a quarter span exactly one; about
+0.3% span more than half the ocean and are in region wherever it is
+asked.</p>
+<p>The constraint is most useful on regional field lists with
+misspellings, where the intended correction and a wrong one are a single
+edit apart. The related check in <code>inspect()</code> works after
+matching: it flags matched names that WCVP does not record in the
+declared region, using the same <code>region</code>, <code>coords</code>
+and <code>range</code> arguments.</p>
 </div>
 <div id="where-to-go-next" class="section level2">
 <h2>Where to go next</h2>
@@ -547,8 +538,21 @@ matching</a> for the candidate generation the region filter
 refines.</p></li>
 <li><p><a href="https://gillescolling.com/taxify/articles/enrichments.html">Enrichments</a>
 for <code>add_wcvp()</code>, which attaches native range on the same
-TDWG codes. ```</p></li>
+TDWG codes.</p></li>
 </ul>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Brummitt RK (2001). <em>World Geographical Scheme for Recording Plant
+Distributions</em>, Edition 2. <a href="https://github.com/tdwg/wgsrpd" class="uri">https://github.com/tdwg/wgsrpd</a></p>
+<p>Govaerts R, Nic Lughadha E, Black N, Turner R, Paton A (2021). The
+World Checklist of Vascular Plants, a continuously updated resource for
+exploring global plant diversity. <em>Scientific Data</em> 8: 215. <a href="https://doi.org/10.1038/s41597-021-00997-6" class="uri">https://doi.org/10.1038/s41597-021-00997-6</a></p>
+<p>Spalding MD, Fox HE, Allen GR, Davidson N, Ferdana ZA, Finlayson M,
+Halpern BS, Jorge MA, Lombana A, Lourie SA, Martin KD, McManus E, Molnar
+J, Recchia CA, Robertson J (2007). Marine Ecoregions of the World: a
+bioregionalization of coastal and shelf areas. <em>BioScience</em> 57:
+573-583. <a href="https://doi.org/10.1641/B570707" class="uri">https://doi.org/10.1641/B570707</a></p>
 </div>
 
 

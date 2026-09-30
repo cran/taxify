@@ -1,3 +1,233 @@
+# taxify 0.6.0
+
+## Genus register kingdoms
+
+* The genus register (`genus_register.vtr`, which fills `kingdom_group`, `taxon_group` and `life_form`) is rebuilt: its kingdom is read from accepted genus records before synonyms, a spelling shared by genera in two kingdoms resolves to the genus with more accepted species, a genus's ranks all come from one of the genera sharing its spelling, and GBIF's own kingdom column is read. Genera without a kingdom fall from 44,024 to 2,978 of 502,381, and 5,767 change kingdom. *Olea europaea* read `kingdom_group = "animalia"` (the register had picked the sea slug *Olea*), and *Aa*, *Abelia* and *Acaena* read as animals from synonym records; *Panthera* and *Pteropus* carried a moth's and a stick insect's family.
+* The register's new `multi_kingdom` column marks the 5,026 genera whose spelling accepted records place in more than one kingdom. For those, a matched row's `kingdom_group` is the kingdom of the record it matched, read from the backbone's `kingdom` column, and `taxon_group` / `life_form` are `NA` where that kingdom differs from the register's.
+* A backbone scoped to one kingdom (WFO, Euro+Med, LCVP, WCVP, Species Fungorum, MDD, AviList, ReptileDB, FishBase) always sets a matched row's `kingdom_group` to that kingdom.
+* `taxify_register_coverage()` reports the release each backbone was indexed from; the previous coverage table had none for 17 of 19 backbones.
+
+## Euro+Med distribution status
+
+* `add_euromed_distribution()` attaches the status Euro+Med PlantBase states for a taxon in each Euro+Med area: `euromed_status` is `native`, `naturalised`, `introduced`, `casual`, `cultivated`, `doubtful` or `extinct`, and `euromed_status_detail` keeps the term as Euro+Med words it (`endemic`, `introduced: uncertain degree of naturalisation`). The citing references of each record are in `euromed_status_source` (resolve with `cite(x$euromed_status_source, source = "euromed_distribution")`), and `cols = "all"` adds the taxon's Euro+Med UUID as `taxon_id`, the `taxon_id` of the `euromed` backbone. `region` takes ISO 3166-1 alpha-2 country codes or Euro+Med area codes. A report Euro+Med marks as made in error is not carried, and a former presence is `extinct` (issue #90).
+* `euromed_areas()` lists the areas with the ISO code of those that are exactly one country. A combined area (Italy with San Marino and Vatican City, Ireland with Northern Ireland) has none; its countries are read from the level-2 areas (`Au(A)` Austria, `Au(L)` Liechtenstein).
+* The status is harvested per accepted taxon from the europlusmed.org portal taxon pages, served from the CyberTaxonomy CDM which has no bulk export, by `crawl_euromed_portal.py` in taxifydb.
+
+## Requesting GBIF data for a name list
+
+* `gbif_request()` takes a species list, matches it against the GBIF backbone
+  and requests occurrence data for every accepted taxon key the matches resolve
+  to. GBIF serves records by taxon key rather than by name, and a name it files
+  under several keys (a homonym, or a name held once as accepted and again as a
+  doubtful record) needs all of them: of the four species in the new vignette,
+  *Quercus robur* has three keys and *Pinus sylvestris* six. `strict = TRUE`
+  narrows the request to the key `taxify()` reported, and reports how many
+  keys and records that leaves behind. It is off by default.
+* `taxify_ids()` gains a `gbif_key` column: the legacy GBIF taxon key(s) of each accepted ID, which are what GBIF serves occurrence records for. On the `gbif` backbone it is the ID itself; on a COL XR build that carries a GBIF crosswalk it is the `|`-delimited set of GBIF keys for the same name, several where GBIF files it under more than one. `gbif_request()` reads it, so a default-chain result whose names are on COL XR is requested without a second match pass over the GBIF backbone; only names on a backbone with no crosswalk, on a COL XR build that predates it, or that resolve to several accepted taxa (COL XR files a homonym's synonyms under other species) are still re-matched against GBIF. `taxon_id` and `accepted_id` stay COL XR's.
+* `method = "download"` (default) submits one asynchronous GBIF download
+  covering every key as a single `taxonKey IN (...)` predicate, so the list
+  returns as one dataset under one citable DOI. It needs a GBIF account in
+  `GBIF_USER` / `GBIF_PWD` / `GBIF_EMAIL`, and says which are missing before
+  contacting GBIF. `method = "search"` sends unauthenticated searches and
+  returns the records directly, with a `taxon_key_requested` column tracing
+  each row to the key that asked for it.
+* Before a request is sent, the expected size is reported from the backbone's
+  own occurrence counts, and `dry_run = TRUE` returns the keys while contacting
+  nothing. An ID that is not a GBIF integer key is refused rather than sent,
+  which is what happens against the bundled example database.
+* A result from the default backbone chain works without being re-matched by
+  hand. The chain starts at COL XR, whose alphanumeric IDs GBIF does not serve
+  records for, so `gbif_request()` re-matches every row without a GBIF key
+  against the GBIF backbone and keeps the rows that already had one. A mixed
+  result, where the one name only GBIF carries landed on `gbif`, keeps all of
+  its names rather than dropping the others.
+* rgbif moves into Suggests. Resolving names and reading off their keys stays
+  offline and does not need it; only the request itself does.
+* `gbif_fetch()` waits for a submitted download, retrieves it, imports it and
+  attaches the queried names, so the records come back in one call instead of a
+  wait/get/import loop. A split request is fetched the same way: every download
+  is waited for and the frames stacked on the union of their columns, since
+  GBIF returns only the fields a record carries.
+* `gbif_backmatch()` links the returned occurrence records back to the names
+  they were requested for. Joining on `taxonKey` alone loses records without
+  saying so: GBIF returns a key's descendants too, and a record identified
+  below species level carries its own key, so a request for *Pinus nigra*
+  returns rows whose `taxonKey` is its subspecies and which carry the
+  requested key only in `speciesKey`. On a 300-record sample of that request
+  a `taxonKey` join matches 250; `gbif_backmatch()` matches 300.
+* A list too long for one GBIF query is split automatically. GBIF caps a
+  download query at 12,000 characters, which a taxonKey predicate reaches at
+  about 1,187 keys (10 characters per key plus 125 of envelope, measured
+  against `occ_download_prep()`), so a few hundred names can exceed it once
+  their homonyms are counted. `gbif_request()` chunks at 1,000 keys and
+  submits through rgbif's `occ_download_queue()`, which respects GBIF's limit
+  of three concurrent downloads. Each chunk gets its own DOI and `cite()`
+  reports all of them.
+* `cite()` reports a GBIF download's DOI beside the backbone citations. The
+  download key travels from `gbif_request()` through `gbif_backmatch()` onto
+  the records, and the DOI is read from GBIF at citation time, since GBIF
+  issues it only once the download has finished preparing. A download still
+  running is reported as having no DOI yet, and an unreachable GBIF leaves
+  the backbone citations intact rather than failing. `file =` writes the
+  download as a BibTeX `@misc` entry too.
+* New vignette, `vignette("gbif-requests")`, which also covers installing
+  rgbif and storing GBIF credentials.
+
+## Names with several accepted IDs
+
+* `taxify()` output replaces `is_ambiguous` and `ambiguous_targets` with
+  `n_ids` and `accepted_ids`: how many distinct accepted taxa the backbone
+  files the matched name under, and all of those IDs (`|`-joined, the one in
+  `accepted_id` first). The old flag fired only when candidates tied in the top
+  priority tier, so a name GBIF holds both as an accepted record and as a
+  doubtful or duplicate one came back with one ID and `is_ambiguous = FALSE`.
+  `n_ids` counts every record of the name. In a fuzzy match only names at the
+  pick's distance count: a farther neighbour is a worse reading of the input,
+  not another taxon it names.
+* `taxify()` warns once per call when any name resolves to more than one
+  accepted ID, naming the count and a few examples. The warning has class
+  `taxify_multiple_ids`; switch it off with
+  `options(taxify.warn_multiple_ids = FALSE)`. The verbs built on `taxify()`
+  (`reconcile()`, `synonyms()`, `upstream()`, ...) do not repeat it.
+  `summary()` shows the count as a `multiple ids` line.
+* `taxify_ids()` lists every accepted ID of each matched name, one row per
+  (name, ID), with accepted name, authorship, rank, status, family, the GBIF
+  occurrence count and which ID `taxify()` picked. It replaces
+  `taxify_candidates()`, which only expanded tied homonyms.
+* `n_ids` and `accepted_ids` appear in `taxify()` output only when some name
+  resolves to more than one accepted ID, which is also when the
+  `taxify_multiple_ids` warning fires (unless switched off). Otherwise `accepted_id` says all there
+  is to say and the two columns are left out. `taxify_ids()` and `reconcile()`
+  work either way (`reconcile()` always carries `n_ids`). Results from two
+  calls can then differ in columns: combine them with `dplyr::bind_rows()`,
+  which fills the missing columns with `NA`, rather than base `rbind()`.
+* On the GBIF backbone the pick now reads occurrence records: among the
+  records that keep a name as their own concept (accepted, doubtful,
+  unplaced), a key with any GBIF occurrence records beats a key with none,
+  before taxonomic status is consulted. A synonym record never wins on
+  records, since its accepted ID is another species and a download by it
+  returns that species' data; its key stays listed in `accepted_ids` and
+  `taxify_ids()`. Between keys that both have records, or both have none,
+  status decides as before, and the count only breaks a tie status, rank and
+  epithet leave.
+  Checked against the live GBIF API: *Karwinskia mollis* went to the doubtful
+  Standl. key (0 records) and now goes to the accepted Schltdl. key (663).
+* Among records the status, rank and epithet steps leave level, typically
+  one name published by several authors, the earliest-published record
+  wins before the occurrence count is read (priority of publication; the
+  year comes from GBIF's `year` or `name_published_in`). *Absinthium
+  vulgare* Lam. (1779) resolves to *Artemisia absinthium* rather than to
+  the Dulac homonym (1867). Years order names under the botanical code only
+  (plants, fungi, chromists, protozoa) and only between records of one
+  kingdom: priority does not cross codes, and the zoological code protects
+  prevailing usage over strict priority, which the occurrence count tracks.
+* A fuzzy match on GBIF now reads occurrence counts and publication years
+  too; the fuzzy path used to drop those columns.
+  Needs the `gbif-2023.08` backbone (built 2026-09-22), which also carries GBIF's `DOUBTFUL`
+  status instead of folding it into `ACCEPTED`.
+* `reconcile()` marks a name `"ambiguous"` when it has several accepted IDs and
+  does not resolve to itself as accepted, and gains an `n_ids` column; a name
+  accepted under its own spelling stays `"unchanged"` when a homonym record also
+  exists. `inspect()`'s `ambiguous` label follows the same rule.
+* The abbreviated-genus stage (`"Q. robur"`) considers only names with as many
+  words as the query, so a binomial no longer draws the infraspecific names
+  built on it into its candidates.
+
+## Session cache
+
+* The session cache of resolved backbone and enrichment paths is scoped by
+  data directory. Pointing `taxify.data_dir` elsewhere mid-session (at the
+  example database, at a second install) now reads that directory's files;
+  a backbone opened under the previous directory used to keep answering under
+  the same name.
+
+# taxify 0.5.6
+
+* Cross-backbone recovery in grouped doors (`add_wcvp()` and the others over an
+  authorship-bearing source) now also runs for a name whose own concept the
+  source does not hold under that name, even where parts of the taxon supplied
+  values, and for each part of the matched taxon that found nothing under its
+  own name. A part is asked of the source's own backbone only when the source
+  is also a backbone. When the matched backbone is known, an alternative is
+  taken only if it lies inside the matched taxon: one at a broader rank (a
+  species offered for a subspecies) is refused, and so is one the matched
+  backbone accepts as a taxon of its own, unless that accepted record is a
+  homonym under another author. Over 10,000 wcvp keys through COL / WFO / GBIF
+  this gains 10,062 / 4,894 / 5,193 cells and drops 4,966 / 11,975 / 8,782.
+  Every dropped cell traces to one of the two refusals (switching the check
+  off restores all of them): a species' range under an infraspecific name, or
+  an independent taxon's range (*Dianthus carthusianorum*'s under *D.
+  rogowiczii*, which WFO accepts on its own). Each "accepted elsewhere"
+  refusal behind a dropped cell rests on agreeing authors or on an autonym.
+* A grouped door now reports what the within-taxon check left empty: the
+  recovery message counts the names, `summary()` shows the count, and the
+  enrichment's `taxify_meta` entry carries `n_refused` plus a `refused` table
+  (queried name, refused name, reason, the backbones offering it, and how many
+  requested groups it would have filled). Through COL / WFO / GBIF over the
+  same 10,000 names that is 2,284 / 2,001 / 2,664 names.
+* `add_wcvp()`: where parts of the matched taxon disagree on a region,
+  `native` wins over `introduced` and `introduced` over `extinct`, since a taxon
+  is native wherever any of its parts is; ties go to the name's own record,
+  then the parts by name. Previously the first part read won. This changes
+  126 / 159 / 197 cells through COL / WFO / GBIF, all to `native`.
+* Faster grouped enrichment: the backbone reads behind the concept pick use
+  the cached in-memory block, a `.vtr`'s schema is read once per session,
+  author citations are parsed once per distinct string, and the group fill and
+  `pick_best_vec()`'s ambiguity flag no longer scale with the square of the
+  group count. `add_wcvp(region = "all")` over 10,000 names through GBIF,
+  including the wider recovery above, went from 53 s to 22 s.
+  `add_griis(country = "all")` over 10,000 GRIIS keys went from 29.6 s to
+  3.7 s through WFO and from 10.4 s to 4.4 s through GBIF, with output
+  identical cell for cell: GRIIS carries no authorship column, so neither
+  the wider recovery nor the within-taxon check applies to it.
+
+* `add_wcvp()` (and every grouped door over an authorship-bearing source)
+  now returns the range of the taxon a name was matched to, as the matching
+  backbone draws it. The build keys a source concept under every name a
+  backbone gives it, so the rows under one name belonged to several concepts
+  and the guard only ever separated two authored ones:
+  - A row with no authorship is an autonym (WCVP writes no author for one).
+    It is the name's own concept under an autonym key and another name's
+    autonym anywhere else. *Erigeron pulchellus* Michx. came back native in
+    Turkey, Iran and the Caucasus from *E. caucasicus* subsp. *caucasicus*;
+    1,042 names in the current `wcvp` asset carried another name's autonym
+    this way (40,447 rows).
+  - A name's range is its own concept plus the concept of every name the
+    matched backbone places inside it (its synonyms and, for a species, its
+    accepted infraspecific taxa and their synonyms), each read under its own
+    key and picked by the author the backbone gives it. Through COL and GBIF,
+    which hold *Eucalyptus bicostata* as a subspecies or variety of
+    *E. globulus*, *E. globulus* includes New South Wales; through WFO, which
+    keeps *E. bicostata* a species, it does not. A subspecies filed only
+    under its own name now counts for its species.
+  - Rows under the name that no part of the taxon accounts for are dropped,
+    also when they are the only rows there. The largest group is a species'
+    range filed under one of its subspecies or varieties.
+  - An author citation is matched as sources vary it (initials, the part
+    before `ex`, `fil.` for `f.`, a dropped basionym author, a co-author left
+    out, a one-letter typo), so a name's own concept is still found when the
+    backbone and the source cite it differently, while `L.` and `L.f.`, or
+    `Rose` and `Lowe`, stay apart.
+
+  Over 10,000 `wcvp` keys (half at random, half holding several concepts),
+  matched through COL / WFO / GBIF, against the previous release: 8,595 /
+  8,574 / 39,964 region cells are gone, of which 5,450 / 4,761 / 34,770 were
+  a species' range under one of its subspecies or varieties and 1,005 / 954 /
+  710 another name's autonym; 4,188 / 5,823 / 9,457 cells are new, from the
+  parts of each taxon. Names left with no range: 19 / 5 / 25.
+
+* `enrichment_authorship_col()`, the column `enrich_by_group()`'s homonym
+  guard reads, is exported (internal) so taxifydb keys each region row of an
+  authorship-bearing enrichment on the concept the guard will accept
+  (gcol33/taxifydb#58).
+
+* Every backbone entry in the bundled manifest now records `source_date`, the
+  date the source gives the release a build was made from (an ISO date, or
+  `YYYY-MM` / `YYYY` where the source dates it no finer), so
+  `list_backbones()`, `taxify_databases()` and the `cite()` data-version note
+  report it for all nineteen backbones rather than GBIF alone. taxifydb
+  records it at build time from the same place it reads the version (#88).
+
 # taxify 0.5.5
 
 * `taxify_regions()`'s two search examples (`"belgium"`, `"Europe"`) are

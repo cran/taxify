@@ -11,11 +11,26 @@ score_candidates(candidates)
 optionally \code{is_synonym} (the backbone's normalized synonym flag),
 \code{fuzzy_dist} (fuzzy proximity), \code{nomenclaturalStatus} (validity),
 \code{matched_name_std} and \code{accepted_name} (epithet preservation), plus
-\code{authorship} and \code{accepted_authorship} (homotypy).}
+\code{authorship} and \code{accepted_authorship} (homotypy).
+Two scores read the candidate's \code{n_occurrences} (records filed under its
+key, a column only the GBIF backbone carries), both 0 throughout when the
+column is absent and both outside the tier: which key holds the data is not
+a statement about which taxon the name denotes. \code{data_score} is 0 for a key
+with at least one record that keeps the name as its own concept (accepted,
+doubtful or unplaced; never a synonym, whose accepted ID is another taxon)
+and 1 otherwise (no records, no count, or a synonym); it orders
+after \code{dist_score} and before \code{status_score}. \code{occ_score} is minus the count,
+\code{Inf} where it is missing; it orders after \code{epithet_score}, so it only
+separates keys the concept scores leave level. \code{year_score} is the year the
+name was published (the \code{year} column, else the first year in
+\code{name_published_in}; \code{Inf} where unknown, 0 throughout when both columns are
+absent); it orders after \code{epithet_score} and before \code{occ_score}, so the
+earliest of several same-name homonyms wins before the count is read.}
 }
 \value{
-A list with the numeric vectors \code{dist_score} and \code{status_score},
-integer vectors \code{rank_score}, \code{valid_score}, \code{epithet_score}, and the
+A list with the numeric vectors \code{dist_score}, \code{data_score},
+\code{year_score}, \code{occ_score} and
+\code{status_score}, integer vectors \code{rank_score}, \code{valid_score}, \code{epithet_score}, and the
 character \code{tier} signature (\code{"dist/status/rank/epithet"}) per row, in input
 order.
 }

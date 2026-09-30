@@ -30,7 +30,7 @@ print.taxify_result <- function(x, ...) {
 #' Subset a taxify_result, preserving its metadata
 #'
 #' The default data.frame `[` method drops the `taxify_meta` attribute that the
-#' downstream doors ([add_data()], [cite()], [summary()], [taxify_lock()]) read.
+#' downstream doors ([add_data()], [cite()], [base::summary()], [taxify_lock()]) read.
 #' This method carries `taxify_meta` and the `taxify_result` class through
 #' row/column subsetting, so a subset (including one taken internally by a door
 #' that reorders columns) still exposes its provenance. A subset that collapses
@@ -184,6 +184,18 @@ summary.taxify_result <- function(object, ...) {
     }
   }
 
+  # Names filed under more than one accepted taxon: the row's accepted_id is
+  # one of several, which matters to anyone requesting data by ID.
+  n_multi <- if ("n_ids" %in% names(object)) {
+    sum(!is.na(object$n_ids) & object$n_ids > 1L)
+  } else {
+    0L
+  }
+  if (n_multi > 0L) {
+    cat(sprintf("  multiple ids%5d  (more than one accepted ID; see taxify_ids())\n",
+                n_multi))
+  }
+
   cat(sprintf("  %s\n", rule))
 
   # Taxon-group summary line
@@ -221,6 +233,12 @@ summary.taxify_result <- function(object, ...) {
         sprintf(" (%d via another backbone's accepted name)", n_rec)
       } else {
         ""
+      }
+      n_ref <- e$n_refused %||% 0L
+      if (!is.na(n_ref) && n_ref > 0L) {
+        rec_str <- paste0(rec_str, sprintf(
+          " (%d left empty: values only for a broader or separately accepted taxon)",
+          n_ref))
       }
       cat(sprintf("    %-*s  (%s)%s \u2014 %d of %d matched%s%s\n",
                   max_name, e$name,
@@ -262,8 +280,8 @@ summary.taxify_result <- function(object, ...) {
     is_hybrid           = NA,
     match_type          = NA_character_,
     fuzzy_dist          = NA_real_,
-    is_ambiguous        = NA,
-    ambiguous_targets   = NA_character_,
+    n_ids               = NA_integer_,
+    accepted_ids        = NA_character_,
     backbone            = NA_character_,
     backbone_version    = NA_character_,
     kingdom_group       = NA_character_,
@@ -298,5 +316,5 @@ empty_taxify_result <- function(backbone = NULL) {
   proto <- .taxify_result_proto()
   df <- as.data.frame(lapply(proto, function(v) v[0L]),
                       stringsAsFactors = FALSE, check.names = FALSE)
-  as_taxify_result(df, bb)
+  warn_multiple_ids(as_taxify_result(df, bb))
 }

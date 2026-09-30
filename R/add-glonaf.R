@@ -5,8 +5,9 @@
 #'
 #' @param x A data.frame returned by [taxify()].
 #' @param region Character. GloNAF region identifier(s), or `"all"`.
-#'   Regions use TDWG-compatible codes extended with dot notation for
-#'   sub-national units (e.g., `"USA.CA"` for California).
+#'   Regions are ISO 3166 alpha-3 country codes extended with dot notation
+#'   for sub-national units (e.g., `"DEU"` for Germany, `"USA.CA"` for
+#'   California). List them with `enrichment_groups("glonaf")`.
 #'   \itemize{
 #'     \item Single region: adds `naturalized` column (no suffix).
 #'     \item Multiple regions: adds `naturalized_<region>` columns.
@@ -15,7 +16,7 @@
 #' @param verbose Logical. Default `TRUE`.
 #' @return The same data.frame with additional column(s):
 #' \describe{
-#'   \item{naturalized}{Integer `1` if the species is recorded as
+#'   \item{naturalized}{`1` if the species is recorded as
 #'     naturalized in that region, `NA` otherwise.}
 #' }
 #'
@@ -26,20 +27,20 @@
 #'
 #' @references
 #' van Kleunen M et al. (2019) The Global Naturalized Alien Flora
-#' (GloNAF) database. Ecology 100:e02542.
+#' (GloNAF) database. Ecology 100:e02542. \doi{10.1002/ecy.2542}
 #'
-#' Davis K et al. (2025) The updated Global Naturalized Alien Flora
-#' (GloNAF 2.0) database. Ecology, e70245.
+#' Davis AJS et al. (2025) The updated Global Naturalized Alien Flora
+#' (GloNAF 2.0) database. Ecology 106:e70245. \doi{10.1002/ecy.70245}
 #'
 #' @examples
 #' # Runs offline against the bundled example database.
 #' old <- options(taxify.data_dir = taxify_example_data())
 #'
 #' taxify("Robinia pseudoacacia") |>
-#'   add_glonaf(region = "EUR")
+#'   add_glonaf(region = "DEU")
 #'
 #' taxify("Robinia pseudoacacia") |>
-#'   add_glonaf(region = c("EUR", "NAM"))
+#'   add_glonaf(region = c("DEU", "AUT"))
 #'
 #' options(old)
 #'

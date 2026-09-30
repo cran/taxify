@@ -553,7 +553,7 @@ fill_compiled_matches <- function(result, matches, match_type, col_map) {
 #' The one place a picked backbone row becomes result columns, shared by every
 #' matching pass: the matched record's own name, ID, rank, authorship and
 #' status, the accepted taxon it resolves to (with that taxon's family and
-#' genus), and the pick's ambiguity. `match_type` and `fuzzy_dist` describe how
+#' genus), and every accepted ID among the candidates. `match_type` and `fuzzy_dist` describe how
 #' the row was reached and are left to the caller.
 #'
 #' @param result Match result data.frame.
@@ -580,8 +580,8 @@ write_match_rows <- function(result, idx, best, col_map) {
   result$accepted_id[idx]         <- best$accepted_taxon_id
   result$is_synonym[idx]          <- best$is_synonym
   result$taxonomic_status[idx]    <- col_or_na(col_map$status)
-  result$is_ambiguous[idx]        <- best$is_ambiguous %||% FALSE
-  result$ambiguous_targets[idx]   <- best$ambiguous_targets %||% NA_character_
+  result$n_ids[idx]               <- best$n_ids %||% NA_integer_
+  result$accepted_ids[idx]        <- best$accepted_ids %||% NA_character_
   result
 }
 
@@ -592,13 +592,21 @@ write_match_rows <- function(result, idx, best, col_map) {
 #' @return A `vectra_block`.
 #' @noRd
 backbone_block <- function(vtr_path) {
-  cache_key <- backbone_memo_key(".blk_", vtr_path)
-  blk <- .taxify_env[[cache_key]]
+  blk <- loaded_backbone_block(vtr_path)
   if (is.null(blk)) {
     blk <- vectra::materialize(vectra::tbl(vtr_path))
-    .taxify_env[[cache_key]] <- blk
+    .taxify_env[[backbone_memo_key(".blk_", vtr_path)]] <- blk
   }
   blk
+}
+
+#' The materialized backbone block if this session has already loaded it
+#'
+#' @param vtr_path Path to the backbone `.vtr`.
+#' @return A `vectra_block`, or `NULL` when the build is not loaded.
+#' @noRd
+loaded_backbone_block <- function(vtr_path) {
+  .taxify_env[[backbone_memo_key(".blk_", vtr_path)]]
 }
 
 
@@ -769,7 +777,9 @@ get_fuzzy_bb <- function(vtr_path, col_map) {
     col_map$name, col_map$genus, col_map$id, col_map$rank,
     col_map$status, col_map$epithet, col_map$authorship,
     "accepted_name", "accepted_family", "accepted_genus",
-    "accepted_taxon_id", "accepted_authorship", "is_synonym", "fuzzy_block"
+    "accepted_taxon_id", "accepted_authorship", "is_synonym", "fuzzy_block",
+    "n_occurrences", "year", "bracket_year", "bracket_authorship",
+    "name_published_in", "kingdom"
   ))
 
   # Drop any columns a pre-accepted_authorship backbone .vtr does not carry,
@@ -912,8 +922,8 @@ spelled_genera <- function(cleaned) {
 #' then resolves only when that yields a single accepted taxon. When two or
 #' more genera with the initial share the epithet the abbreviation is genuinely
 #' ambiguous: the row is left unmatched (`match_type` stays `NA`, becoming
-#' `"none"`) with `is_ambiguous = TRUE` and the conflicting accepted IDs in
-#' `ambiguous_targets`, rather than guessing a genus.
+#' `"none"`) with the candidate accepted IDs in `accepted_ids` and their number
+#' in `n_ids`, rather than guessing a genus.
 #'
 #' Disambiguation prefers a genus the author spelled out in full elsewhere in
 #' the same input (the convention of abbreviating after first mention): when a
@@ -957,11 +967,17 @@ match_abbrev_genus <- function(backend, result, names_df, vtr_path,
   cand_initial <- tolower(substr(cand_all[[col_map$genus]], 1L, 1L))
   cand_epithet <- tolower(cand_all[[col_map$epithet]])
   cand_genus   <- tolower(cand_all[[col_map$genus]])
+  # The epithet lookup also returns the infraspecific names built on that
+  # species; "Q. robur" names the binomial, not Quercus robur subsp. robur, so a
+  # candidate has to have as many words as the query.
+  n_words <- function(s) lengths(strsplit(trimws(s), "\\s+"))
+  cand_words  <- n_words(cand_all[[col_map$name]])
+  query_words <- n_words(cleaned)
 
   cand_list <- vector("list", length(rows))
   for (k in seq_along(rows)) {
     hit <- !is.na(cand_epithet) & cand_initial == initial[k] &
-           cand_epithet == epithet[k]
+           cand_epithet == epithet[k] & cand_words == query_words[k]
     if (!any(hit)) next
     cand <- cand_all[hit, , drop = FALSE]
 
@@ -989,8 +1005,8 @@ match_abbrev_genus <- function(backend, result, names_df, vtr_path,
 
   if (any(ambiguous)) {
     amb <- best[ambiguous, , drop = FALSE]
-    result$is_ambiguous[amb$row_idx]      <- TRUE
-    result$ambiguous_targets[amb$row_idx] <- amb$ambiguous_targets
+    result$n_ids[amb$row_idx]        <- amb$n_ids
+    result$accepted_ids[amb$row_idx] <- amb$accepted_ids
   }
 
   result
@@ -1042,8 +1058,8 @@ empty_match_result <- function(n) {
     is_hybrid         = NA,
     match_type        = NA_character_,
     fuzzy_dist        = NA_real_,
-    is_ambiguous      = NA,
-    ambiguous_targets = NA_character_,
+    n_ids             = NA_integer_,
+    accepted_ids      = NA_character_,
     backbone          = NA_character_,
     backbone_version  = NA_character_,
     stringsAsFactors  = FALSE
@@ -1060,10 +1076,6 @@ empty_match_result <- function(n) {
 #' @return Logical. TRUE if the backbone has precomputed columns.
 #' @noRd
 is_compiled_backbone <- function(vtr_path) {
-  tryCatch({
-    cols <- names(vectra::tbl(vtr_path) |>
-                    vectra::slice_head(n = 1L) |>
-                    vectra::collect())
-    "accepted_name" %in% cols
-  }, error = function(e) FALSE)
+  tryCatch("accepted_name" %in% vtr_schema(vtr_path),
+           error = function(e) FALSE)
 }

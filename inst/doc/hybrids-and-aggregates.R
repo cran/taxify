@@ -4,6 +4,8 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
 library(taxify)
 
 ## -----------------------------------------------------------------------------
@@ -36,19 +38,9 @@ library(taxify)
 #                     "hybrid_parent_1", "hybrid_parent_2")]
 
 ## -----------------------------------------------------------------------------
-# info <- result |> add_hybrid_info()
-# formula_rows <- info[!is.na(info$hybrid_type) & info$hybrid_type == "formula", ]
-# formula_rows[, c("input_name", "hybrid_parent_1", "hybrid_parent_1_accepted",
-#                  "hybrid_parent_2", "hybrid_parent_2_accepted")]
-
-## -----------------------------------------------------------------------------
 # # A hybrid formula with no direct trait record inherits from its parents
 # taxify("Salix alba x Salix fragilis", backbone = "wfo") |>
 #   add_trait("plant_height")
-
-## -----------------------------------------------------------------------------
-# # Authorship is stripped; hybrid detection still works
-# taxify("Mentha x piperita L.", backbone = "wfo")
 
 ## -----------------------------------------------------------------------------
 # agg_names <- c(
@@ -73,4 +65,14 @@ library(taxify)
 #   add_trait("plant_height", aggregate_trait_fallback = FALSE)
 # 
 # options(taxify.aggregate_trait_fallback = FALSE)
+
+## -----------------------------------------------------------------------------
+# info <- result |> add_hybrid_info()
+# formula_rows <- info[!is.na(info$hybrid_type) & info$hybrid_type == "formula", ]
+# formula_rows[, c("input_name", "hybrid_parent_1", "hybrid_parent_1_accepted",
+#                  "hybrid_parent_2", "hybrid_parent_2_accepted")]
+
+## -----------------------------------------------------------------------------
+# # Authorship is stripped; hybrid detection still works
+# taxify("Mentha x piperita L.", backbone = "wfo")
 

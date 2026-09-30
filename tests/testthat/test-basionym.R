@@ -82,7 +82,10 @@ issue81_taxify <- function(x, with_basionym = TRUE) {
   withr::local_options(list(taxify.data_dir = dd))
   set_backbone_path("wfo", bb)
   on.exit(set_backbone_path("wfo", NULL), add = TRUE)
-  as.data.frame(taxify(x, backbone = "wfo", fuzzy = FALSE, verbose = FALSE))
+  # The fixture keeps two Lycopsis orientalis records on purpose.
+  as.data.frame(suppressWarnings(
+    taxify(x, backbone = "wfo", fuzzy = FALSE, verbose = FALSE),
+    classes = "taxify_multiple_ids"))
 }
 
 issue81_names <- c("Koenigia polystachya", "Rubrivena polystachya",
@@ -96,7 +99,11 @@ test_that("the result carries the backbone's own status", {
   expect_equal(res$taxonomic_status,
                c("UNCHECKED", "UNCHECKED", "ACCEPTED", "UNCHECKED", "SYNONYM",
                  "ACCEPTED", "SYNONYM", NA))
-  expect_identical(names(res), names(empty_taxify_result("wfo")))
+  # Lycopsis orientalis has two accepted IDs, so the result also carries the
+  # columns an empty result leaves out.
+  expect_identical(setdiff(names(res), c("n_ids", "accepted_ids")),
+                   names(empty_taxify_result("wfo")))
+  expect_true(all(c("n_ids", "accepted_ids") %in% names(res)))
 })
 
 test_that("an unplaced combination resolves to where its basionym is placed", {
@@ -148,8 +155,10 @@ test_that("a homotypic synonym record is picked over an unplaced homonym", {
   expect_equal(res$accepted_name, "Anchusa arvensis subsp. orientalis")
   # Steph.'s record is a different type the backbone keeps, so the conflict is
   # still reported.
-  expect_true(res$is_ambiguous)
-  expect_equal(res$ambiguous_targets, "wfo-0000533555|wfo-0001327831")
+  expect_equal(res$n_ids, 2L)
+  expect_equal(res$accepted_ids, paste(res$accepted_id, "wfo-0001327831",
+                                       sep = "|"))
+  expect_equal(res$accepted_id, "wfo-0000533555")
 })
 
 test_that("an author in the query still picks the unplaced homonym", {
@@ -158,7 +167,9 @@ test_that("an author in the query still picks the unplaced homonym", {
   expect_equal(res$accepted_name,
                c("Lycopsis orientalis", "Anchusa arvensis subsp. orientalis"))
   expect_equal(res$taxonomic_status, c("UNCHECKED", "SYNONYM"))
-  expect_false(any(res$is_ambiguous))
+  # The author picks the record; the other target stays listed after it.
+  expect_equal(res$n_ids, c(2L, 2L))
+  expect_equal(sub("[|].*$", "", res$accepted_ids), res$accepted_id)
 })
 
 test_that("homotypic_placement reads the basionym author and final epithet", {

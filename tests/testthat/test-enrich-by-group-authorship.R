@@ -9,6 +9,7 @@
 setup_mock_wfo <- function() {
   vtr_path <- mock_backbone_vtr()
   set_backbone_path("wfo", vtr_path)
+  withr::defer(set_backbone_path("wfo", NULL), envir = parent.frame())
 }
 
 # Build a WCVP-shaped enrichment .vtr where "Quercus robur" covers two
@@ -45,10 +46,10 @@ setup_mock_wcvp <- function(wcvp = NULL) {
 
 
 test_that("add_wcvp() does not attach a homonym's native range", {
-  setup_mock_wfo()
   data_dir <- setup_mock_wcvp()
   old <- options(taxify.data_dir = data_dir)
   on.exit(options(old), add = TRUE)
+  setup_mock_wfo()
 
   r <- taxify("Quercus robur", backbone = "wfo", verbose = FALSE)
   expect_equal(r$accepted_authorship, "L.")
@@ -70,10 +71,10 @@ test_that("add_wcvp() does not attach a homonym's native range", {
 })
 
 test_that("add_wcvp() warns 'no match' when the query shares nothing with any candidate", {
-  setup_mock_wfo()
   data_dir <- setup_mock_wcvp()
   old <- options(taxify.data_dir = data_dir)
   on.exit(options(old), add = TRUE)
+  setup_mock_wfo()
 
   # A resolved authorship that matches neither concept in the fixture (e.g.
   # a third backbone's homonym record) shares nothing with either "L." or
@@ -92,10 +93,10 @@ test_that("add_wcvp() warns 'no match' when the query shares nothing with any ca
 })
 
 test_that("a single-concept name is unaffected by the authorship check", {
-  setup_mock_wfo()
   data_dir <- setup_mock_wcvp()
   old <- options(taxify.data_dir = data_dir)
   on.exit(options(old), add = TRUE)
+  setup_mock_wfo()
 
   r <- taxify("Quercus petraea", backbone = "wfo", verbose = FALSE)
   # Not in the fixture at all: normal "no data for this name" path, no warning.
@@ -123,10 +124,10 @@ wcvp_variant_df <- function(second) {
 }
 
 enrich_with <- function(authorship, wcvp) {
-  setup_mock_wfo()
   data_dir <- setup_mock_wcvp(wcvp)
   old <- options(taxify.data_dir = data_dir)
   on.exit(options(old), add = TRUE)
+  setup_mock_wfo()
   r <- taxify("Quercus robur", backbone = "wfo", verbose = FALSE)
   r$accepted_authorship <- authorship
   add_wcvp(r, region = c("EUR", "NAM"), verbose = FALSE)
@@ -191,7 +192,6 @@ test_that("add_wcvp() gives the 'no match' warning for #87's own repro shape", {
   # authorship component with the queried concept -- the WCVP enrichment
   # simply doesn't hold this concept under any spelling. This is not a tie
   # to break, so it must not read as "match more than one concept".
-  setup_mock_wfo()
   three <- data.frame(
     canonical_name = rep("Quercus robur", 3L),
     tdwg_code      = c("EUR", "NAM", "GER"),
@@ -202,6 +202,7 @@ test_that("add_wcvp() gives the 'no match' warning for #87's own repro shape", {
   data_dir <- setup_mock_wcvp(three)
   old <- options(taxify.data_dir = data_dir)
   on.exit(options(old), add = TRUE)
+  setup_mock_wfo()
 
   r <- taxify("Quercus robur", backbone = "wfo", verbose = FALSE)
   r$accepted_authorship <- "(Fernald & Wiegand) Fernald"
@@ -211,4 +212,113 @@ test_that("add_wcvp() gives the 'no match' warning for #87's own repro shape", {
   out <- suppressWarnings(add_wcvp(r, region = c("EUR", "GER"), verbose = FALSE))
   expect_true(is.na(out$native_status_EUR))
   expect_true(is.na(out$native_status_GER))
+})
+
+
+# A row with no authorship is an autonym: WCVP writes none for one, and the
+# build keys an autonym's range under every name a backbone sends it to, so
+# Erigeron caucasicus subsp. caucasicus arrived under Erigeron pulchellus and
+# attached Turkey, Iran and the Caucasus to a North American species.
+wcvp_ranked_df <- function(name, tdwg, authors, rank, infra) {
+  data.frame(
+    canonical_name = rep(name, length(tdwg)),
+    tdwg_code      = tdwg,
+    native_status  = rep("native", length(tdwg)),
+    taxon_authors  = authors,
+    taxon_rank     = rank,
+    infraspecies   = infra,
+    stringsAsFactors = FALSE
+  )
+}
+
+enrich_ranked <- function(name, wcvp, region) {
+  data_dir <- setup_mock_wcvp(wcvp)
+  old <- options(taxify.data_dir = data_dir)
+  on.exit(options(old), add = TRUE)
+  setup_mock_wfo()
+  r <- taxify(name, backbone = "wfo", verbose = FALSE)
+  add_wcvp(r, region = region, verbose = FALSE)
+}
+
+test_that("another name's autonym under a name is not its range", {
+  df <- wcvp_ranked_df("Quercus robur", c("EUR", "TUR"), c("L.", NA),
+                       c("Species", "Subspecies"), c(NA, "caucasicus"))
+  out <- expect_no_warning(enrich_ranked("Quercus robur", df, c("EUR", "TUR")))
+  expect_equal(out$native_status_EUR, "native")
+  expect_true(is.na(out$native_status_TUR))
+})
+
+test_that("the concept of a name the matched backbone places inside the taxon is added", {
+  # The mock WFO lists Quercus pedunculata (Mattusch.) Bonnier & Layens as a
+  # synonym of Q. robur L., so the concept the source keys under that name,
+  # picked by that author, is part of Q. robur: its GER record is added even
+  # though nothing filed it under Q. robur. A row under Q. robur that no part
+  # of the taxon accounts for (NAM, "Mill.") is dropped.
+  df <- rbind(
+    wcvp_ranked_df("Quercus robur", c("EUR", "NAM"), c("L.", "Mill."),
+                   rep("Species", 2L), rep(NA, 2L)),
+    wcvp_ranked_df("Quercus pedunculata", c("GER", "SPA"),
+                   c("(Mattusch.) Bonnier & Layens", "Hoffm."),
+                   rep("Species", 2L), rep(NA, 2L))
+  )
+  out <- expect_no_warning(
+    enrich_ranked("Quercus robur", df, c("EUR", "GER", "NAM", "SPA")))
+  expect_equal(out$native_status_EUR, "native")
+  expect_equal(out$native_status_GER, "native")
+  expect_true(is.na(out$native_status_NAM))
+  # The other concept under the synonym's name is not the synonym's.
+  expect_true(is.na(out$native_status_SPA))
+})
+
+test_that("a name with rows of one foreign concept only keeps none of them", {
+  # Every row under the name belongs to a concept that is neither the name's
+  # nor any part's -- the case a collision-only check never looked at.
+  df <- wcvp_ranked_df("Quercus robur", c("EUR", "NAM"), c("Mill.", "Mill."),
+                       rep("Species", 2L), rep(NA, 2L))
+  expect_warning(out <- enrich_ranked("Quercus robur", df, c("EUR", "NAM")),
+                 "none share any authorship")
+  expect_true(is.na(out$native_status_EUR))
+  expect_true(is.na(out$native_status_NAM))
+})
+
+test_that("an accepted subspecies' range is part of its species", {
+  # The mock WFO accepts Quercus robur subsp. robur under Q. robur; its rows
+  # under its own key count for the species.
+  df <- rbind(
+    wcvp_ranked_df("Quercus robur", "EUR", "L.", "Species", NA),
+    wcvp_ranked_df("Quercus robur subsp. robur", "TUR", NA, "Subspecies",
+                   "robur")
+  )
+  out <- expect_no_warning(
+    enrich_ranked("Quercus robur", df, c("EUR", "TUR")))
+  expect_equal(out$native_status_EUR, "native")
+  expect_equal(out$native_status_TUR, "native")
+})
+
+test_that("an autonym keeps its own rows, not its species' range", {
+  # The mock WFO writes the autonym with its species' author, "L.", which is
+  # also the author of the species rows keyed under it.
+  df <- wcvp_ranked_df("Quercus robur subsp. robur", c("EUR", "NAM"),
+                       c(NA, "L."), c("Subspecies", "Species"),
+                       c("robur", NA))
+  out <- expect_no_warning(
+    enrich_ranked("Quercus robur subsp. robur", df, c("EUR", "NAM")))
+  expect_equal(out$native_status_EUR, "native")
+  expect_true(is.na(out$native_status_NAM))
+})
+
+test_that("a recombination of a part, filed under the name, is kept", {
+  # The mock WFO places Quercus pedunculata (Mattusch.) Bonnier & Layens inside
+  # Q. robur. A subspecies row with that epithet whose basionym authors are
+  # the part's authors is the same type at another rank; one with another
+  # epithet is not.
+  df <- wcvp_ranked_df("Quercus robur", c("EUR", "GER", "NAM"),
+                       c("L.", "(Bonnier & Layens) Schwarz", "(Bonnier & Layens) Schwarz"),
+                       c("Species", "Subspecies", "Subspecies"),
+                       c(NA, "pedunculata", "sessiliflora"))
+  out <- expect_no_warning(
+    enrich_ranked("Quercus robur", df, c("EUR", "GER", "NAM")))
+  expect_equal(out$native_status_EUR, "native")
+  expect_equal(out$native_status_GER, "native")
+  expect_true(is.na(out$native_status_NAM))
 })

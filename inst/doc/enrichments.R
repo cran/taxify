@@ -4,13 +4,9 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
-library(taxify)
 
-## ----eval=FALSE---------------------------------------------------------------
-# # Rubus fruticosus agg. gets the aggregate's trait where the source has it,
-# # otherwise the nominal Rubus fruticosus value.
-# taxify("Rubus fruticosus agg.") |>
-#   add_trait("plant_height")
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
+library(taxify)
 
 ## ----list-enrichments---------------------------------------------------------
 # list_enrichments()
@@ -20,13 +16,12 @@ library(taxify)
 # #> 3                wcvp  ...  340000  FALSE                        native_status ...
 # #> ...
 
-## ----list-traits--------------------------------------------------------------
-# list_traits()
-# #>          trait              label        kind   unit n_sources    sources
-# #> 1    woodiness          Woodiness categorical   <NA>         2 zanne, gift
-# #> 2 plant_height       Plant height     numeric      m         2  diaz, gift
-# #> 3    seed_mass          Seed mass     numeric     mg         2  diaz, gift
-# #> 4          sla Specific leaf area     numeric mm2/mg         2  leda, gift
+## ----list-traits, eval = TRUE-------------------------------------------------
+traits <- list_traits()
+nrow(traits)
+top <- head(traits[order(-traits$n_sources), ], 10)
+knitr::kable(top[, c("trait", "label", "kind", "unit", "n_sources")],
+             row.names = FALSE)
 
 ## ----add-trait-coalesce-------------------------------------------------------
 # taxify("Abies alba") |>
@@ -40,30 +35,9 @@ library(taxify)
 # #> # accepted_name  ... woodiness_zanne woodiness_gift
 # #> # Abies alba     ...           woody          woody
 
-## ----trait-info---------------------------------------------------------------
-# trait_info("seed_mass")
-# #> Seed mass (numeric, mg)  |  default priority: diaz > gift
-# #>   source  enrichment       column                   note caution
-# #> 1   diaz diaz_traits seed_mass_mg            Milligrams.      NA
-# #> 2   gift        gift gift_seed_mass_mean GIFT grams -> mg.    NA
-
-## ----pre-download-------------------------------------------------------------
-# # Download a single enrichment
-# taxify_download_enrichment("iucn")
-# 
-# # Download several at once
-# taxify_download_enrichment(c("zanne", "eive", "leda"))
-# 
-# # Download all of them
-# taxify_download_enrichment(c(
-#   "iucn", "griis", "wcvp", "eive",
-#   "elton_traits", "avonet", "pantheria", "amphibio",
-#   "common_names", "zanne", "diaz_traits", "leda",
-#   "fungal_traits", "funguild", "algae_traits",
-#   "fishmorph", "fishbase", "repttraits", "anage", "glonaf",
-#   "leptraits", "animaltraits", "arthropod_traits", "alien_first_records",
-#   "baseflor", "ecoflora", "floraweb"
-# ))
+## ----trait-info, eval = TRUE--------------------------------------------------
+info <- trait_info("seed_mass")
+knitr::kable(info[, c("source", "enrichment", "column", "note")])
 
 ## ----woodiness----------------------------------------------------------------
 # plants <- taxify(c(
@@ -443,28 +417,31 @@ library(taxify)
 #   add_alien_first_records(location = c("AT", "DE", "CH")) |>
 #   taxify_long(group_col = "country_code")
 
+## ----wcvp-codes, eval = TRUE--------------------------------------------------
+taxify_regions("Germany", scheme = "wgsrpd")
+
 ## ----wcvp-single--------------------------------------------------------------
 # trees <- taxify(c(
 #   "Quercus robur", "Quercus suber", "Eucalyptus globulus",
 #   "Nothofagus pumilio", "Sequoiadendron giganteum"
 # ))
 # 
-# trees |> add_wcvp(region = "EUR")
-# #>              input_name native_status
-# #> 1          Quercus robur        native
-# #> 2          Quercus suber        native
-# #> 3    Eucalyptus globulus            NA
-# #> 4    Nothofagus pumilio            NA
-# #> 5 Sequoiadendron giganteum          NA
+# trees |> add_wcvp(region = "GER")
+# #>                 input_name native_status
+# #> 1            Quercus robur        native
+# #> 2            Quercus suber          <NA>
+# #> 3      Eucalyptus globulus          <NA>
+# #> 4       Nothofagus pumilio          <NA>
+# #> 5 Sequoiadendron giganteum    introduced
 
 ## ----wcvp-multi---------------------------------------------------------------
-# trees |> add_wcvp(region = c("EUR", "AUS", "SAM"))
-# #>              input_name native_status_EUR native_status_AUS native_status_SAM
-# #> 1          Quercus robur           native                NA                NA
-# #> 2          Quercus suber           native                NA                NA
-# #> 3    Eucalyptus globulus               NA            native                NA
-# #> 4    Nothofagus pumilio               NA                NA            native
-# #> 5 Sequoiadendron giganteum              NA                NA                NA
+# trees |> add_wcvp(region = c("GER", "AGS"))
+# #>                 input_name native_status_GER native_status_AGS
+# #> 1            Quercus robur            native              <NA>
+# #> 2            Quercus suber              <NA>              <NA>
+# #> 3      Eucalyptus globulus              <NA>              <NA>
+# #> 4       Nothofagus pumilio              <NA>            native
+# #> 5 Sequoiadendron giganteum        introduced              <NA>
 
 ## ----glonaf-------------------------------------------------------------------
 # plants <- taxify(c(
@@ -472,8 +449,8 @@ library(taxify)
 #   "Impatiens glandulifera", "Quercus robur"
 # ))
 # 
-# plants |> add_glonaf(region = "EUR")
-# #>              input_name naturalized
+# plants |> add_glonaf(region = "DEU")
+# #>               input_name naturalized
 # #> 1   Robinia pseudoacacia           1
 # #> 2    Ailanthus altissima           1
 # #> 3 Impatiens glandulifera           1
@@ -573,11 +550,6 @@ library(taxify)
 # #> 5 Amanita muscaria       NA          NA                    NA           NA   ectomycorrhizal               NA ...
 # #> 6    Salmo trutta        NA          NA                    NA           NA              <NA>              3.4 ...
 
-## ----coverage-check-----------------------------------------------------------
-# result <- taxify(species_list) |> add_zanne()
-# # Fraction of matched species with woodiness data
-# mean(!is.na(result$woodiness[!is.na(result$accepted_name)]))
-
 ## ----summary-enrichments------------------------------------------------------
 # result <- taxify(c("Quercus robur", "Fagus sylvatica", "Pinus sylvestris")) |>
 #   add_iucn() |>
@@ -597,6 +569,50 @@ library(taxify)
 # #>     zanne                (Zanne et al. 2014 1.0)    -- 3 of 3 matched
 # #>     eive                 (EIVE 1.0 2023.1)          -- 3 of 3 matched
 
+## ----pre-download-------------------------------------------------------------
+# # Download a single enrichment
+# taxify_download_enrichment("iucn")
+# 
+# # Download several at once
+# taxify_download_enrichment(c("zanne", "eive", "leda"))
+# 
+# # Download all of them
+# taxify_download_enrichment(c(
+#   "iucn", "griis", "wcvp", "eive",
+#   "elton_traits", "avonet", "pantheria", "amphibio",
+#   "common_names", "zanne", "diaz_traits", "leda",
+#   "fungal_traits", "funguild", "algae_traits",
+#   "fishmorph", "fishbase", "repttraits", "anage", "glonaf",
+#   "leptraits", "animaltraits", "arthropod_traits", "alien_first_records",
+#   "baseflor", "ecoflora", "floraweb"
+# ))
+
+## ----add-data-csv-------------------------------------------------------------
+# result <- taxify(c("Quercus robur", "Pinus sylvestris", "Fagus sylvatica"))
+# 
+# # From a CSV file (auto-detect species column)
+# result |> add_data("my_traits.csv")
+
+## ----add-data-df--------------------------------------------------------------
+# # From a data.frame with explicit species column
+# my_traits <- data.frame(
+#   species = c("Quercus robur", "Pinus sylvestris", "Fagus sylvatica"),
+#   bark_thickness_mm = c(25, 15, 8),
+#   shade_tolerance = c(0.6, 0.3, 0.8)
+# )
+# result |> add_data(my_traits, species_col = "species")
+
+## ----eval=FALSE---------------------------------------------------------------
+# # Rubus fruticosus agg. gets the aggregate's trait where the source has it,
+# # otherwise the nominal Rubus fruticosus value.
+# taxify("Rubus fruticosus agg.") |>
+#   add_trait("plant_height")
+
+## ----coverage-check-----------------------------------------------------------
+# result <- taxify(species_list) |> add_zanne()
+# # Fraction of matched species with woodiness data
+# mean(!is.na(result$woodiness[!is.na(result$accepted_name)]))
+
 ## ----guide-euro-plants--------------------------------------------------------
 # result <- taxify(species_list, backbone = "wfo") |>
 #   add_iucn() |>
@@ -605,7 +621,7 @@ library(taxify)
 #   add_eive() |>
 #   add_diaz_traits() |>
 #   add_leda() |>
-#   add_wcvp(region = "EUR") |>
+#   add_wcvp(region = c("GER", "AUT", "SWI")) |>
 #   add_common_names()
 
 ## ----guide-global-plants------------------------------------------------------
@@ -614,7 +630,7 @@ library(taxify)
 #   add_zanne() |>
 #   add_fungalroot() |>
 #   add_diaz_traits() |>
-#   add_wcvp(region = c("NAM", "SAM", "AFR")) |>
+#   add_wcvp(region = c("CAL", "BZS", "CPP")) |>
 #   add_common_names()
 
 ## ----guide-birds--------------------------------------------------------------
@@ -688,26 +704,11 @@ library(taxify)
 ## ----guide-mixed-split--------------------------------------------------------
 # result <- taxify(species_list)
 # 
-# plants  <- result[result$kingdom == "Plantae", ]
+# plants  <- result[result$kingdom_group %in% "Plantae", ]
 # birds   <- result[result$family %in% bird_families, ]
 # mammals <- result[result$family %in% mammal_families, ]
 # 
 # plants  <- plants |> add_zanne() |> add_eive()
 # birds   <- birds |> add_avonet() |> add_elton_traits()
 # mammals <- mammals |> add_pantheria() |> add_elton_traits()
-
-## ----add-data-csv-------------------------------------------------------------
-# result <- taxify(c("Quercus robur", "Pinus sylvestris", "Fagus sylvatica"))
-# 
-# # From a CSV file (auto-detect species column)
-# result |> add_data("my_traits.csv")
-
-## ----add-data-df--------------------------------------------------------------
-# # From a data.frame with explicit species column
-# my_traits <- data.frame(
-#   species = c("Quercus robur", "Pinus sylvestris", "Fagus sylvatica"),
-#   bark_thickness_mm = c(25, 15, 8),
-#   shade_tolerance = c(0.6, 0.3, 0.8)
-# )
-# result |> add_data(my_traits, species_col = "species")
 

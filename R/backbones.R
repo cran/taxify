@@ -59,7 +59,7 @@
     ),
     label = c(
       "the WFO backbone", "the COL backbone",
-      "the COL Extended Release backbone", "the GBIF backbone",
+      "the COL Extended Release backbone", "the GBIF Backbone Taxonomy (legacy)",
       "the ITIS backbone", "the NCBI backbone", "the OTT backbone",
       "the WoRMS backbone", "the Euro+Med backbone",
       "the Species Fungorum backbone", "the AlgaeBase backbone",
@@ -79,22 +79,23 @@
       FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
       FALSE
     ),
-    # The kingdom a backbone's rows always belong to, for the handful of
-    # backbones whose .vtr carries no `kingdom` column of its own (single-
-    # kingdom source, so nothing to denormalize) *and* whose scope is
-    # unambiguous. Read by filter_result_by_kingdom() ahead of the genus
-    # register fallback: the register is a single cross-backbone genus index,
-    # so a genus name that is a homonym across kingdoms (not rare -- botanical
-    # and zoological nomenclature are independent codes) resolves to whichever
-    # kingdom happens to be recorded for that genus string globally, which can
-    # contradict a backbone that is scoped to one kingdom by construction.
-    # AlgaeBase and SeaLifeBase are deliberately left NA: "algae" and "non-fish
+    # The kingdom a backbone's rows always belong to, for a backbone whose
+    # scope is unambiguous, whether or not its .vtr carries a `kingdom`
+    # column of its own. Read by filter_result_by_kingdom() and by
+    # enrich_with_register() ahead of the genus register: the register holds
+    # one kingdom per genus spelling, and botanical and zoological
+    # nomenclature are independent codes, so a spelling can name genera in
+    # two kingdoms (Euro+Med's Olea is the olive, WoRMS also carries a sea
+    # slug Olea). A fixed scope settles the kingdom without reading the .vtr.
+    # MDD, AviList, ReptileDB and FishBase each cover one animal group.
+    # AlgaeBase and SeaLifeBase are left NA: "algae" and "non-fish
     # marine/aquatic" each span more than one kingdom, so there is no single
-    # correct fixed value.
+    # correct fixed value; LPSN spans Bacteria and Archaea for the same
+    # reason.
     fixed_kingdom = c(
       "plantae", NA, NA, NA, NA, NA, NA, NA, "plantae",
-      "fungi", NA, NA, NA, NA, "plantae", "plantae", NA, NA,
-      NA
+      "fungi", NA, "animalia", NA, "animalia", "plantae", "plantae",
+      "animalia", "animalia", NA
     ),
     stringsAsFactors = FALSE
   )
@@ -371,8 +372,9 @@ install_backbones <- function(backbones = NULL, verbose = TRUE) {
 #'   date of the upstream data, which can be much earlier. The GBIF backbone is
 #'   the case that matters: GBIF froze it at 2023-08-28 and has said it will not
 #'   be updated again, so a current release tag there carries a treatment three
-#'   years older than the tag suggests. `source_date` is `NA` for a backbone
-#'   whose upstream date has not been recorded.
+#'   years older than the tag suggests. `source_date` is an ISO date, or
+#'   `YYYY-MM` / `YYYY` where the source dates its release no finer, and `NA`
+#'   for a backbone whose upstream date has not been recorded.
 #'
 #' @seealso [list_enrichments()], [list_traits()], [taxify_databases()].
 #'

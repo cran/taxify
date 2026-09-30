@@ -184,19 +184,16 @@
 #'     unplaced record, the `accepted_*` columns that taxon; needs a backbone
 #'     built with its basionym links), or `"none"`.}
 #'   \item{fuzzy_dist}{Normalized string distance (0--1), `NA` if exact.}
-#'   \item{is_ambiguous}{Logical. `TRUE` when the matched scientificName had
-#'     multiple rows pointing to different accepted taxa at the same priority
-#'     tier (homonym ambiguity). A record the backbone keeps unplaced does not
-#'     settle such a conflict: it is reported beside the records that place the
-#'     name, whichever of them is picked. Where one record of the name is a
-#'     synonym homotypic with its accepted name and another is unplaced, the
-#'     homotypic record is picked. An authorship carried by the input resolves it
-#'     where it picks out one target; `nomenclaturalStatus = "Valid"` orders
-#'     which candidate the scalar columns hold, but does not clear the flag,
-#'     because a valid name and an illegitimate one can be synonyms of different
-#'     species. Expand the alternatives with [taxify_candidates()].}
-#'   \item{ambiguous_targets}{Character. `|`-joined list of conflicting
-#'     accepted taxon IDs when `is_ambiguous = TRUE`; `NA` otherwise.}
+#'   \item{n_ids}{Integer, present only when some name has more than one
+#'     accepted ID (the call then warns, see Details). How many distinct
+#'     accepted taxa the backbone files the matched name under, across every
+#'     record of it (accepted, doubtful, unplaced, synonym). `1` for a name with
+#'     one accepted ID; more for a homonym or a name the backbone holds twice,
+#'     e.g. GBIF's *Karwinskia mollis*, kept both as the accepted Schltdl. name
+#'     and as a doubtful Standl. one. `NA` when nothing matched.}
+#'   \item{accepted_ids}{Character, present alongside `n_ids`. Those accepted
+#'     IDs, `|`-joined, the one in `accepted_id` first. List them with their
+#'     names, status and GBIF occurrence counts through [taxify_ids()].}
 #'   \item{backbone}{Which backbone was used (e.g., `"wfo"`, `"col"`,
 #'     `"gbif"`).}
 #'   \item{backbone_version}{Backend name, version, and download date
@@ -209,6 +206,28 @@
 #'   \item{life_form}{Life-form classification of the matched genus, from the
 #'     genus register's family-based lookup; `NA` when unavailable.}
 #' }
+#'
+#' @section Names with several accepted IDs:
+#' A backbone can file one name under several accepted taxa: a homonym (the same
+#' binomial published by two authors), or a name held twice, once accepted and
+#' once as a doubtful or duplicate record. `accepted_id` holds one of them;
+#' `accepted_ids` and `n_ids` hold all of them, and [taxify_ids()] lists them one
+#' row per ID with name, authorship, status and, for GBIF, occurrence count.
+#'
+#' Which one `accepted_id` holds is decided by fuzzy distance first, then, on a
+#' backbone that carries occurrence counts (GBIF), by whether any GBIF
+#' occurrence records are filed under a key that keeps the name as its own
+#' concept (accepted, doubtful or unplaced), then by taxonomic status
+#' (accepted before doubtful or unplaced before synonym), rank and epithet, and
+#' only then by the number of records, before the remaining tiebreaks. An empty
+#' accepted key thus loses to a doubtful key of the name that has the data,
+#' while a synonym record, whose accepted ID is another taxon, never displaces
+#' the name's own key; it stays listed in `accepted_ids`.
+#'
+#' When any input resolves to more than one accepted ID, `taxify()` issues one
+#' warning per call, of class `taxify_multiple_ids`, naming the count and a few
+#' examples. Silence it with `options(taxify.warn_multiple_ids = FALSE)` or
+#' catch it by class.
 #'
 #' @section Backbone-specific accepted names:
 #' Each backbone is an independent taxonomy, and they can legitimately disagree
@@ -318,18 +337,19 @@ taxify <- function(x,
         mode))
     } else {
       ensure_backbones_current(bb_names, verbose = verbose)
-      return(taxify_compare(x, bb_names, mode, fuzzy, fuzzy_threshold,
-                            fuzzy_method, aggregates, region, range, kingdom,
-                            verbose))
+      return(warn_multiple_ids(taxify_compare(
+        x, bb_names, mode, fuzzy, fuzzy_threshold, fuzzy_method, aggregates,
+        region, range, kingdom, verbose)))
     }
   }
 
   # Handle a single backend object
   if (inherits(backbone, "taxify_backend")) {
     ensure_backbones_current(backbone$name, verbose = verbose)
-    return(taxify_single(x, backbone, fuzzy, fuzzy_threshold, fuzzy_method,
-                         aggregates, region = region, range_mode = range,
-                         kingdom = kingdom, verbose = verbose))
+    return(warn_multiple_ids(taxify_single(
+      x, backbone, fuzzy, fuzzy_threshold, fuzzy_method, aggregates,
+      region = region, range_mode = range, kingdom = kingdom,
+      verbose = verbose)))
   }
 
   if (!is.character(backbone) || length(backbone) == 0L) {
@@ -341,9 +361,10 @@ taxify <- function(x,
 
   if (length(backbone) == 1L) {
     be <- resolve_backend(backbone)
-    return(taxify_single(x, be, fuzzy, fuzzy_threshold, fuzzy_method,
-                         aggregates, region = region, range_mode = range,
-                         kingdom = kingdom, verbose = verbose))
+    return(warn_multiple_ids(taxify_single(
+      x, be, fuzzy, fuzzy_threshold, fuzzy_method, aggregates,
+      region = region, range_mode = range, kingdom = kingdom,
+      verbose = verbose)))
   }
 
   # Multi-backbone fallback chain
@@ -398,7 +419,7 @@ taxify <- function(x,
   result <- enrich_with_register(result, names_df, backbone)
   result <- finalize_hybrids(result, names_df, backbone)
   rownames(result) <- NULL
-  as_taxify_result(result, backbone = backbone)
+  warn_multiple_ids(as_taxify_result(result, backbone = backbone))
 }
 
 
@@ -1014,6 +1035,70 @@ is_backbone_match <- function(match_type) {
   !is.na(match_type) & match_type %in% .backbone_match_types
 }
 
+#' Report names that resolve to more than one accepted ID
+#'
+#' A name the backbone files under several accepted taxa comes back with one of
+#' them in `accepted_id`, and a caller requesting data by that ID gets only that
+#' taxon's share. When any row has several, the result keeps `n_ids` and
+#' `accepted_ids` and one warning is raised per call, never one per name: on a
+#' long list a per-name warning buries everything else. It carries the affected
+#' rows in `rows` and the class `taxify_multiple_ids`, so it can be caught or
+#' muffled; `options(taxify.warn_multiple_ids = FALSE)` switches it off. When no
+#' row has several, both columns are dropped: `accepted_id` then says all there
+#' is to say.
+#'
+#' @param x A `taxify_result`.
+#' @return `x`, without `n_ids` and `accepted_ids` when no row has more than one
+#'   accepted ID.
+#' @noRd
+warn_multiple_ids <- function(x) {
+  n <- x$n_ids
+  if (is.null(n)) return(x)
+  multi <- which(!is.na(n) & n > 1L)
+  if (length(multi) == 0L) {
+    x$n_ids <- NULL
+    x$accepted_ids <- NULL
+    return(x)
+  }
+  if (!isTRUE(getOption("taxify.warn_multiple_ids", TRUE))) return(x)
+  ex <- unique(x$input_name[multi])
+  shown <- paste(utils::head(ex, 3L), collapse = ", ")
+  if (length(ex) > 3L) shown <- paste0(shown, ", ...")
+  msg <- sprintf(paste0(
+    "%d of %d names resolve to more than one accepted ID (%s). ",
+    "`accepted_id` holds one and `accepted_ids` all of them; list them with ",
+    "taxify_ids() before requesting data by ID."),
+    length(multi), nrow(x), shown)
+  warning(structure(
+    class = c("taxify_multiple_ids", "warning", "condition"),
+    list(message = msg, call = NULL, rows = multi)))
+  x
+}
+
+
+#' Rows whose several accepted IDs leave the verdict open
+#'
+#' A row with `n_ids > 1` whose input is not itself the accepted name: a name
+#' the backbone accepts under its own spelling still names that taxon when a
+#' homonym record also exists, so only the rest count. The one rule behind
+#' [reconcile()]'s `"ambiguous"` status and [inspect()]'s `ambiguous` label.
+#' Input and accepted name are compared in the normalized space the matcher
+#' uses, so a case-only difference reads as the same name.
+#'
+#' @param res A `taxify_result`.
+#' @return Logical vector along the rows.
+#' @noRd
+open_multiple_ids <- function(res) {
+  n <- res$n_ids
+  if (is.null(n)) return(rep(FALSE, nrow(res)))
+  in_norm  <- normalize_epithets(clean_names(res$input_name)$cleaned)
+  acc_norm <- normalize_epithets(res$accepted_name)
+  self <- !is.na(in_norm) & !is.na(acc_norm) & in_norm == acc_norm &
+    !(res$is_synonym %in% TRUE)
+  !is.na(n) & n > 1L & !self
+}
+
+
 #' Match types a backbone lookup produces, strongest evidence first
 #' @noRd
 .backbone_match_types <- c("exact", "exact_ci", "abbrev", "fuzzy",
@@ -1029,8 +1114,8 @@ is_backbone_match <- function(match_type) {
 .match_record_cols <- c("matched_name", "taxon_id", "accepted_id", "rank",
                         "family", "genus", "epithet", "authorship",
                         "accepted_authorship", "is_synonym",
-                        "taxonomic_status", "fuzzy_dist", "is_ambiguous",
-                        "ambiguous_targets")
+                        "taxonomic_status", "fuzzy_dist", "n_ids",
+                        "accepted_ids")
 
 
 #' Demote matched rows back to unmatched (blanking their match columns)
@@ -1098,6 +1183,26 @@ row_kingdom_groups <- function(bb_name, kingdom = NULL, genus = NULL, n) {
 }
 
 
+#' A backbone's own `kingdom` value for a set of taxon ids
+#'
+#' @param vtr_path Path to the backbone `.vtr`.
+#' @param ids Taxon ids to look up (`taxon_id`).
+#' @return Character vector parallel to `ids` (`NA` where an id is absent), or
+#'   `NULL` when the backbone stores no `kingdom` column.
+#' @noRd
+backbone_kingdom_values <- function(vtr_path, ids) {
+  schema <- tryCatch(vtr_schema(vtr_path), error = function(e) character(0L))
+  if (!"kingdom" %in% schema) return(NULL)
+  j <- tryCatch(
+    backbone_join(vtr_path, ids, bb_key = "taxon_id",
+                  select_cols = c("taxon_id", "kingdom")),
+    error = function(e) NULL)
+  if (is.null(j) || nrow(j) == 0L) return(rep(NA_character_, length(ids)))
+  j <- j[!duplicated(j$lookup), , drop = FALSE]
+  j$kingdom[match(ids, j$lookup)]
+}
+
+
 #' Drop matched rows whose kingdom is not among the requested set
 #'
 #' Resolves each matched row's kingdom with `row_kingdom_groups()`, reading the
@@ -1120,19 +1225,8 @@ filter_result_by_kingdom <- function(result, vtr_path, kingdom_set, bb_name) {
   if (length(matched) == 0L) return(result)
 
   bb_kingdom <- NULL
-  if (is.na(backbone_fixed_kingdom(bb_name))) {
-    schema <- tryCatch(vtr_schema(vtr_path), error = function(e) character(0L))
-    if ("kingdom" %in% schema && "accepted_id" %in% names(result)) {
-      j <- tryCatch(
-        backbone_join(vtr_path, result$accepted_id[matched],
-                      bb_key = "taxon_id",
-                      select_cols = c("taxon_id", "kingdom")),
-        error = function(e) NULL)
-      if (!is.null(j) && nrow(j) > 0L) {
-        j <- j[!duplicated(j$lookup), , drop = FALSE]
-        bb_kingdom <- j$kingdom[match(result$accepted_id[matched], j$lookup)]
-      }
-    }
+  if (is.na(backbone_fixed_kingdom(bb_name)) && "accepted_id" %in% names(result)) {
+    bb_kingdom <- backbone_kingdom_values(vtr_path, result$accepted_id[matched])
   }
 
   kg <- row_kingdom_groups(
@@ -1348,7 +1442,53 @@ release_out_of_scope <- function(result, names_df, scope) {
 }
 
 
+#' Kingdom group of the records matched rows came from
+#'
+#' The backbone's fixed scope (`backbone_fixed_kingdom()`) for every row, then,
+#' for rows flagged in `read_backbone`, the matched accepted record's own
+#' `kingdom` value where the backbone stores one.
+#'
+#' @param result The match result data.frame.
+#' @param rows Row indices into `result`.
+#' @param read_backbone Logical, parallel to `rows`: read the backbone `.vtr`
+#'   for these rows when the backbone has no fixed scope.
+#' @return Character vector of coarse kingdom groups parallel to `rows`, `NA`
+#'   where unknown.
+#' @noRd
+matched_row_kingdoms <- function(result, rows, read_backbone) {
+  bb <- result$backbone[rows]
+  kg <- normalize_kingdom_group(backbone_fixed_kingdom(bb))
+
+  mt <- result$match_type[rows]
+  ask <- read_backbone & is.na(kg) & !is.na(bb) & !is.na(mt) &
+    !mt %in% c("none", "out_of_scope", "hybrid_formula")
+  if ("accepted_id" %in% names(result)) {
+    ask <- ask & !is.na(result$accepted_id[rows])
+  } else {
+    ask[] <- FALSE
+  }
+  for (b in unique(bb[ask])) {
+    i <- which(ask & bb == b)
+    path <- get_backbone_path(b) %||% versioned_vtr_path(b, "latest")
+    if (!file.exists(path)) next
+    k <- backbone_kingdom_values(path, result$accepted_id[rows[i]])
+    if (!is.null(k)) kg[i] <- normalize_kingdom_group(k)
+  }
+  kg
+}
+
+
 #' Enrich unmatched names using the unified genus register
+#'
+#' The register holds one classification per genus spelling. Where the
+#' spelling belongs to genera in more than one kingdom (the register's
+#' `multi_kingdom` flag: *Olea* the olive and a sea slug), its kingdom is the
+#' one taxifydb's build chose, which can contradict the record a row actually
+#' matched. For a matched row, the kingdom of that record wins: the backbone's
+#' fixed scope (`backbone_fixed_kingdom()`) for every genus, and for a
+#' `multi_kingdom` genus also the backbone's own `kingdom` column. Where that
+#' kingdom differs from the register's, `life_form` and `taxon_group`, which
+#' the register carries only for the genus it chose, are left `NA`.
 #'
 #' @param result The match result data.frame.
 #' @param names_df The cleaned names data.frame from `clean_names()`.
@@ -1403,9 +1543,24 @@ enrich_with_register <- function(result, names_df, backbone) {
   if (any(found)) {
     f_rows <- active_rows[found]
     f_idx  <- reg_idx[found]
-    result$life_form[f_rows] <- reg$life_form[f_idx]
-    if (has_kingdom_group) result$kingdom_group[f_rows] <- reg$kingdom_group[f_idx]
-    if (has_taxon_group)   result$taxon_group[f_rows]   <- reg$taxon_group[f_idx]
+
+    multi <- if ("multi_kingdom" %in% names(reg)) {
+      !is.na(reg$multi_kingdom[f_idx]) & reg$multi_kingdom[f_idx]
+    } else {
+      rep(FALSE, length(f_rows))
+    }
+    row_kg   <- matched_row_kingdoms(result, f_rows, read_backbone = multi)
+    reg_kg   <- if (has_kingdom_group) normalize_kingdom_group(reg$kingdom_group[f_idx]) else
+      rep(NA_character_, length(f_rows))
+    conflict <- !is.na(row_kg) & !is.na(reg_kg) & row_kg != reg_kg
+
+    result$life_form[f_rows] <- ifelse(conflict, NA_character_, reg$life_form[f_idx])
+    if (has_kingdom_group) {
+      result$kingdom_group[f_rows] <- ifelse(!is.na(row_kg), row_kg, reg_kg)
+    }
+    if (has_taxon_group) {
+      result$taxon_group[f_rows] <- ifelse(conflict, NA_character_, reg$taxon_group[f_idx])
+    }
   }
 
   if (!is.null(covered_genera)) {

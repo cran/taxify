@@ -4,6 +4,8 @@ knitr::opts_chunk$set(
   comment = "#>",
   eval = FALSE
 )
+
+## ----eval = TRUE, message = FALSE, warning = FALSE----------------------------
 library(taxify)
 
 ## -----------------------------------------------------------------------------
@@ -36,14 +38,14 @@ library(taxify)
 # inspect(names, backbones = TRUE, min_tier = "review")
 
 ## -----------------------------------------------------------------------------
-# inspect("Quercus robber", backbones = TRUE)
-# #> Warning: list-context anomaly checks need a batch of names; with a single
-# #> name only the per-name checks run.
-
-## -----------------------------------------------------------------------------
 # report <- inspect(names, backbones = TRUE)
 # 
 # # the names that came back with a confident replacement
 # fixes <- report[!is.na(report$suggestion), c("input_name", "suggestion")]
 # fixes
+
+## -----------------------------------------------------------------------------
+# inspect("Quercus robber", backbones = TRUE)
+# #> Warning: list-context anomaly checks need a batch of names; with a single
+# #> name only the per-name checks run.
 
