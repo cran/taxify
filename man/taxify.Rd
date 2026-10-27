@@ -25,8 +25,8 @@ taxify(
 \item{backbone}{Character vector of backbone names (e.g., \code{"wfo"}, \code{"col"},
 \code{"gbif"}) or a single \code{taxify_backend} object. Several are tried in order
 as a fallback chain. \code{NULL} (default) uses every installed backbone in
-priority order, installing the default set (COL, GBIF, ITIS) on first use;
-override the priority with \code{options(taxify.backbone_priority = ...)} and the
+priority order, offering the default set (COL, GBIF, ITIS) when none is
+installed; override the priority with \code{options(taxify.backbone_priority = ...)} and the
 first-run set with \code{options(taxify.default_backbones = ...)}.}
 
 \item{fuzzy}{Logical. Enable fuzzy matching for names that fail exact
@@ -60,7 +60,7 @@ the \code{qualifier} column.}
 \item{region}{Region(s) to constrain fuzzy matching to, or \code{NULL} (default)
 for no geographic constraint. Botanical (WCVP, vascular plants): TDWG Level
 3 codes (\code{"BGM"}, \code{c("BGM", "GER")}) or region names at any level, matched
-case- and accent-insensitively against the bundled WGSRPD crosswalk -- a
+case- and accent-insensitively against the bundled WGSRPD crosswalk: a
 Level 3 name (\code{"Belgium"}), a Level 2 region (\code{"Middle Europe"}), or a Level
 1 continent (\code{"Europe"}, which expands to all its codes). Marine (only when
 the \code{marine_distribution} asset is installed): a MEOW ecoregion \code{ECO_CODE},
@@ -90,7 +90,7 @@ native fallback; force the engine with
 
 \item{range}{Character. Which range statuses count as in-region when \code{region}
 or \code{coords} is set. \code{"present"} (default) accepts any record (native,
-introduced, extinct, or unknown status) -- the right choice for name
+introduced, extinct, or unknown status), the right choice for name
 disambiguation. \code{"native"} accepts only native records, \code{"introduced"} only
 introduced (alien) records; both fold an ecological filter into matching and
 are for callers who want that. Ignored when no region is set.}
@@ -108,7 +108,7 @@ the next backbone, so the in-kingdom treatment wins. The kingdom is read
 from the backbone where it stores one (COL, ITIS, NCBI, OTT, WoRMS); for a
 backbone that does not (WFO, GBIF), it falls back to the genus register's
 kingdom, which cannot split a genus that is itself homonymous across
-kingdoms -- name a kingdom-appropriate \code{backbone} for those.}
+kingdoms; name a kingdom-appropriate \code{backbone} for those.}
 
 \item{mode}{Character. How to combine results when \code{backbone} names more than
 one backbone. \code{"fallback"} (default) is the fallback chain described above:
@@ -199,15 +199,16 @@ basionym: \code{matched_name}, \code{taxon_id} and \code{taxonomic_status} descr
 unplaced record, the \verb{accepted_*} columns that taxon; needs a backbone
 built with its basionym links), or \code{"none"}.}
 \item{fuzzy_dist}{Normalized string distance (0--1), \code{NA} if exact.}
-\item{n_ids}{Integer, present only when some name has more than one
-accepted ID (the call then warns, see Details). How many distinct
+\item{n_ids}{Integer. How many distinct
 accepted taxa the backbone files the matched name under, across every
 record of it (accepted, doubtful, unplaced, synonym). \code{1} for a name with
 one accepted ID; more for a homonym or a name the backbone holds twice,
 e.g. GBIF's \emph{Karwinskia mollis}, kept both as the accepted Schltdl. name
 and as a doubtful Standl. one. \code{NA} when nothing matched.}
-\item{accepted_ids}{Character, present alongside \code{n_ids}. Those accepted
-IDs, \code{|}-joined, the one in \code{accepted_id} first. List them with their
+\item{accepted_ids}{Character. Those accepted IDs, \code{|}-joined, the one in
+\code{accepted_id} first (\code{accepted_id} itself for a name with one). Both
+columns are in every result; printing leaves them out when no row has
+more than one ID. List them with their
 names, status and GBIF occurrence counts through \code{\link[=taxify_ids]{taxify_ids()}}.}
 \item{backbone}{Which backbone was used (e.g., \code{"wfo"}, \code{"col"},
 \code{"gbif"}).}
@@ -238,9 +239,9 @@ round again for a fuzzy one. A name is therefore resolved by the
 highest-priority backbone that matches it \emph{at the best quality any backbone
 reaches}, so a near neighbour in an early backbone does not settle a name a
 later backbone holds exactly. Names matched earlier are not re-matched later.
-On a fresh setup with nothing installed yet, the first call downloads a
-default set (COL, GBIF, ITIS) once; pre-install a different set with
-\code{\link[=install_backbones]{install_backbones()}}. Name a backbone (or several) explicitly to match only
+On a fresh setup with nothing installed yet, \code{\link[=install_backbones]{install_backbones()}} installs
+the default set (COL, GBIF, ITIS); a first call without it asks before
+downloading in an interactive session and stops otherwise. Name a backbone (or several) explicitly to match only
 against that one, or those in that order.
 }
 \section{Names with several accepted IDs}{

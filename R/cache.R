@@ -276,10 +276,14 @@ is_example_data_dir <- function() {
 #' resolution (`resolve_default_backend()`) and by [inspect()] when
 #' `backbones = TRUE` to match against every installed backbone.
 #'
+#' @param code Nomenclature code to restrict to (`"taxon"` by default, so the
+#'   default chain and every verb that consults "all installed backbones" stay
+#'   with taxon names), or `NULL` for every code.
 #' @return Character vector of installed backend names (possibly empty).
 #' @noRd
-installed_backbones <- function() {
+installed_backbones <- function(code = "taxon") {
   known <- backbone_names()
+  if (!is.null(code)) known <- known[backbone_code(known) %in% code]
   ok <- vapply(known, function(nm) {
     p <- versioned_vtr_path(nm, "latest")
     file.exists(p) && is_compiled_backbone(p)
@@ -316,6 +320,9 @@ ensure_backbone <- function(backend, version = "latest", verbose = TRUE) {
   path <- tryCatch(
     download_backbone(bb_name, version = version, verbose = verbose),
     error = function(e) {
+      # A declined install is an answer, not a missing asset: building from
+      # source would fetch the raw data the user just declined.
+      if (inherits(e, "taxify_download_declined")) stop(e)
       # If pre-built download fails, fall back to build-from-source
       if (verbose) {
         message(sprintf(

@@ -12,7 +12,7 @@
 
 
 
-<title>Inspecting a name list with inspect()</title>
+<title>Checking a name list</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -337,312 +337,238 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Inspecting a name list with inspect()</h1>
+<h1 class="title toc-ignore">Checking a name list</h1>
 
 
 
-<p>This vignette shows how to screen a species list for the names that
-need attention before analysis. A field list arrives as a column of
-strings, and some of those strings are wrong: a genus is misspelled, an
-animal sits in a list of plants, a synonym slipped in from an old data
-sheet, the same species appears under two spellings.
-<code>taxify()</code> resolves what it can and returns a row for every
-name, matched or not, so the problems are spread through a wide table.
-<code>inspect()</code> returns one row per anomalous name, ordered
-most-notable first, each labelled with what stands out and, where known,
-the name to use instead. Clean names are dropped, so a short report
-means a clean list.</p>
+<p>This article shows how to find the names in a list that need a
+decision before analysis: a genus no backbone knows, a misspelling, a
+species from another kingdom, a synonym, a species outside the study
+region. <code>inspect()</code> returns one row per such name, with a
+label for what stands out and, where it can, the name to use instead. At
+the end the article compares a whole checklist with a backbone’s current
+treatment using <code>reconcile()</code>. Installation is covered in <a href="taxify.html">Get started</a>.</p>
 <ol style="list-style-type: decimal">
-<li><strong>Screen</strong> the raw names against the genus register and
-the rest of the list with <code>inspect()</code>.</li>
-<li><strong>Match</strong> them to pick up typos, synonyms and
-ambiguity, with <code>backbones = TRUE</code> or by piping in a
-<code>taxify()</code> result.</li>
-<li><strong>Place</strong> the matched species against a declared
-<code>region</code>, <code>coords</code> or <code>range</code>.</li>
-<li><strong>Filter</strong> the report to the rows that need action with
-<code>min_tier</code>.</li>
-<li><strong>Apply</strong> the confident <code>suggestion</code>s and
-re-run <code>taxify()</code> on the corrected list.</li>
+<li><p><strong>Screen</strong> the raw names with
+<code>inspect()</code>, which needs no matching.</p></li>
+<li><p><strong>Match</strong> them as well, with
+<code>backbones = TRUE</code> or by passing a <code>taxify()</code>
+result, to find misspellings, synonyms and names with several accepted
+taxa.</p></li>
+<li><p><strong>Place</strong> the matched species against a
+<code>region</code>.</p></li>
+<li><p><strong>Filter</strong> the report with <code>min_tier</code>,
+and apply its suggestions.</p></li>
+<li><p><strong>Compare</strong> a checklist with a backbone’s treatment
+with <code>reconcile()</code>.</p></li>
 </ol>
-<div id="example" class="section level2">
-<h2>Example</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
-<div id="a-first-look-without-matching" class="section level3">
-<h3>A first look, without matching</h3>
-<p>By default <code>inspect()</code> runs only the checks that need no
-backbone; it matches nothing unless asked. On a plain character vector
-it asks the genus register whether each genus is a real one and compares
-each name against the rest of the batch. Both are fast and offline.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>,</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Panthera leo&quot;</span>,         <span class="co"># an animal among plants</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="st">&quot;Bogusia fakensis&quot;</span>,     <span class="co"># not a real genus</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="st">&quot;Festuca rubra&quot;</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="st">&quot;Festuca rubra&quot;</span>,</span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="st">&quot;Festuca rubraa&quot;</span>,       <span class="co"># one stray letter</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="st">&quot;Pinus sylvestris&quot;</span>,</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="st">&quot;Pinus abies&quot;</span>           <span class="co"># a synonym of Picea abies</span></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>)</span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="fu">inspect</span>(names)</span></code></pre></div>
-<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
-#&gt;   8 names inspected  |  3 with anomalies
-#&gt;   backbones: none (register + list checks only)
-#&gt;   unresolved: 1   review: 2
-#&gt;   ────────────────────────────────────────────────────────────
-#&gt;   [unresolved] Bogusia fakensis  -&gt;  ?               genus &#39;Bogusia&#39; is not in the taxonomic register
-#&gt;   [review    ] Festuca rubraa    -&gt;  Festuca rubra   near-duplicate of more frequent &#39;Festuca rubra&#39;
-#&gt;   [review    ] Panthera leo      -&gt;  ?               animalia outlier (list is mostly plantae)</code></pre>
-<p>Three names surface. <em>Bogusia fakensis</em> uses a genus no
-backbone recognises. <em>Festuca rubraa</em> is one letter off
-<em>Festuca rubra</em>, which appears twice in the same list, so it
-looks like a slip of that name. <em>Panthera leo</em> is the lone animal
-among plants, and a cross-kingdom homonym typo often shows up exactly
-this way.</p>
-<p><em>Pinus abies</em> slips past this first pass. It is a well-formed
-binomial, and its synonymy with <em>Picea abies</em> surfaces only when
-a backbone is matched. That check is opt-in.</p>
+<div id="checks-without-matching" class="section level2">
+<h2>Checks without matching</h2>
+<p>A list straight from field sheets can be screened before anything is
+matched. Without matching, <code>inspect()</code> checks each genus
+against the genus register, an index of the genera of every backbone,
+and compares each name with the rest of the list. The list below is a
+plant list with four problems: an animal, a genus that does not exist, a
+name written with one extra letter, and an old synonym.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>plants <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Panthera leo&quot;</span>, <span class="st">&quot;Xyzzia fakensis&quot;</span>, <span class="st">&quot;Festuca rubra&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;Festuca rubra&quot;</span>, <span class="st">&quot;Festuca rubraa&quot;</span>, <span class="st">&quot;Pinus sylvestris&quot;</span>, <span class="st">&quot;Pinus abies&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">inspect</span>(plants)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; ── taxify inspection ──────────────────────────────────────────</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt;   8 names inspected  |  3 with anomalies</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt;   backbones: none (register + list checks only)</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt;   unresolved: 1   review: 2</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt;   ────────────────────────────────────────────────────────────</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt;   [unresolved] Xyzzia fakensis  -&gt;  ?              genus &#39;Xyzzia&#39; is not in the taxonomic register</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt;   [review    ] Festuca rubraa   -&gt;  Festuca rubra  near-duplicate of more frequent &#39;Festuca rubra&#39;</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co">#&gt;   [review    ] Panthera leo     -&gt;  ?              animalia outlier (list is mostly plantae)</span></span></code></pre></div>
+<p><em>Festuca rubraa</em> is flagged because the correct spelling
+occurs twice in the same list. <em>Pinus abies</em> is a well-formed
+name of a real genus and passes these checks; its synonymy shows only
+when it is matched.</p>
 </div>
-<div id="turning-on-matching" class="section level3">
-<h3>Turning on matching</h3>
-<p>To pick up typos, synonyms, and ambiguity, let <code>inspect()</code>
-match. The simplest route is <code>backbones = TRUE</code>, which runs
-the names through every installed backbone and records which ones it
-used in the report header.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
-<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
-#&gt;   8 names inspected  |  4 with anomalies
-#&gt;   backbones: COL, GBIF, ITIS
-#&gt;   unresolved: 1   review: 2   note: 1
-#&gt;   ────────────────────────────────────────────────────────────
-#&gt;   [unresolved] Bogusia fakensis  -&gt;  ?              genus &#39;Bogusia&#39; is not in the taxonomic register
-#&gt;   [review    ] Festuca rubraa    -&gt;  Festuca rubra  likely misspelling; near-duplicate of more frequent &#39;Festuca rubra&#39;
-#&gt;   [review    ] Panthera leo      -&gt;  Panthera leo   animalia outlier (list is mostly plantae)
-#&gt;   [note      ] Pinus abies       -&gt;  Picea abies    outdated synonym</code></pre>
-<p>Now <em>Pinus abies</em> is recognised as a synonym and resolved to
-<em>Picea abies</em>, and <em>Festuca rubraa</em> carries both its
-list-context label and the fuzzy <code>typo</code> label that confirms
-it. <em>Panthera leo</em> now matches in GBIF, so the candidate-typo
-label drops. It stays a kingdom-group outlier in a plant list.</p>
-<p>If the list is already matched, inspect the result instead of asking
-<code>inspect()</code> to match again. This reuses the exact backbone,
-region, and options of the original call.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">taxify</span>(names, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="fu">inspect</span>()</span></code></pre></div>
-<p>The two routes return the same kind of report. Pass
-<code>backbones = TRUE</code> for a quick standalone check; pipe a
-result in when matching is already part of the workflow.</p>
+<div id="checks-on-matched-names" class="section level2">
+<h2>Checks on matched names</h2>
+<p>Some problems, such as an outdated synonym, show only once a name is
+matched. <code>backbones = TRUE</code> matches the names against every
+installed backbone, in the order of the default fallback chain of
+<code>taxify()</code>, and adds the checks that read the match:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>report <span class="ot">&lt;-</span> <span class="fu">inspect</span>(plants, <span class="at">backbones =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>report</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; ── taxify inspection ──────────────────────────────────────────</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt;   8 names inspected  |  4 with anomalies</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt;   backbones: colxr, col, worms, wcvp, euromed, lcvp, wfo, fungorum, algaebase, fishbase, sealifebase, reptiledb, mdd, avilist, lpsn, gbif, itis, ncbi, ott</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt;   unresolved: 1   review: 3</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt;   ────────────────────────────────────────────────────────────</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;   [unresolved] Xyzzia fakensis  -&gt;  ?              genus &#39;Xyzzia&#39; is not in the taxonomic register</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;   [review    ] Festuca rubraa   -&gt;  Festuca rubra  likely misspelling; near-duplicate of more frequent &#39;Festuca rubra&#39;</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt;   [review    ] Panthera leo     -&gt;  Panthera leo   animalia outlier (list is mostly plantae)</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt;   [review    ] Pinus abies      -&gt;  Picea abies    ambiguous (targets: 4HPZF|4HQ46|8K9Y|6BRMR|4HQ4F|4HQ48); outdated synonym</span></span></code></pre></div>
+<p><em>Pinus abies</em> is now recognised as a synonym of <em>Picea
+abies</em>, and as a name with more than one accepted taxon behind it.
+<em>Festuca rubraa</em> carries the label of the fuzzy match as well as
+the list check. <em>Panthera leo</em> matches a backbone, so it is
+reported only as the animal in a plant list.</p>
+<p>A list that is already matched is passed to <code>inspect()</code>
+directly, which keeps the backbones and options of that call:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">taxify</span>(plants, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;col&quot;</span>, <span class="st">&quot;gbif&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="fu">inspect</span>()</span></code></pre></div>
 </div>
-<div id="geographic-checks" class="section level3">
-<h3>Geographic checks</h3>
-<p>When a list is regionally coherent, a species whose range sits
-elsewhere is worth a second look. With a declared <code>region</code>,
-<code>inspect()</code> flags matched species that WCVP does not record
-there.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>alpine <span class="ot">&lt;-</span> <span class="fu">taxify</span>(<span class="fu">c</span>(<span class="st">&quot;Gentiana lutea&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Banksia serrata&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="fu">inspect</span>(<span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>)</span></code></pre></div>
-<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
-#&gt;   3 names inspected  |  1 with anomalies
-#&gt;   backbones: COL
-#&gt;   review: 1
-#&gt;   ────────────────────────────────────────────────────────────
-#&gt;   [review] Banksia serrata  -&gt;  Banksia serrata  outside region per WCVP</code></pre>
-<p><em>Banksia serrata</em> is a real, well-matched name, so nothing
-else flags it. It is the geographic context that makes it stand out: an
-Australian shrub in a European list. The same check accepts
-<code>coords</code> instead of a region name, and a <code>range</code>
-argument to count only native or only introduced records. The <a href="https://gillescolling.com/taxify/articles/regions.html">geographic
-constraints vignette</a> covers those inputs in full. The geographic
-arguments act on matched names, so on a character vector inspected
-without matching they have no effect.</p>
-<p>Without a declared region, the <code>out_of_range</code> check does
-the comparison from the list itself: it finds the continents that hold
-the bulk of the matched species and flags any species occurring on none
-of them. A globally spread list needs too many continents to reach that
-bulk, fails the coherence test, and flags nothing, so the check stays
-quiet unless the list is regionally tight. Both geographic checks use
-WCVP, which covers vascular plants only.</p>
-</div>
-<div id="reporting-fewer-rows" class="section level3">
-<h3>Reporting fewer rows</h3>
-<p>On a long list even the <code>note</code> rows add up.
-<code>min_tier</code> raises the floor so the report keeps only what
-needs action.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># only names that need a decision or a second look</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>, <span class="at">min_tier =</span> <span class="st">&quot;review&quot;</span>)</span></code></pre></div>
-<pre><code>#&gt; ── taxify inspection ──────────────────────────────────────
-#&gt;   8 names inspected  |  3 with anomalies
-#&gt;   backbones: COL, GBIF, ITIS
-#&gt;   unresolved: 1   review: 2
-#&gt;   ────────────────────────────────────────────────────────────
-#&gt;   [unresolved] Bogusia fakensis  -&gt;  ?              genus &#39;Bogusia&#39; is not in the taxonomic register
-#&gt;   [review    ] Festuca rubraa    -&gt;  Festuca rubra  likely misspelling; near-duplicate of more frequent &#39;Festuca rubra&#39;
-#&gt;   [review    ] Panthera leo      -&gt;  Panthera leo   animalia outlier (list is mostly plantae)</code></pre>
-<p><code>min_tier = &quot;review&quot;</code> drops the <code>note</code>-tier
-synonym; <code>min_tier = &quot;unresolved&quot;</code> would leave only the
-unknown name.</p>
-</div>
-<div id="using-the-report-in-a-cleaning-script" class="section level3">
-<h3>Using the report in a cleaning script</h3>
-<p>The printed view is a convenience. The object underneath is an
-ordinary data.frame with columns <code>input_name</code>,
-<code>suggestion</code>, <code>anomalies</code>, <code>tier</code>,
-<code>reason</code>, <code>fuzzy_dist</code>, and
-<code>backbone</code>.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>report <span class="ot">&lt;-</span> <span class="fu">inspect</span>(names, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a></span>
-<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co"># the names that came back with a confident replacement</span></span>
-<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>fixes <span class="ot">&lt;-</span> report[<span class="sc">!</span><span class="fu">is.na</span>(report<span class="sc">$</span>suggestion), <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;suggestion&quot;</span>)]</span>
-<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>fixes</span></code></pre></div>
-<pre><code>#&gt;      input_name    suggestion
-#&gt; 1 Festuca rubraa Festuca rubra
-#&gt; 2    Pinus abies   Picea abies</code></pre>
-<p><code>tier</code> is an ordered factor (<code>note</code> &lt;
-<code>review</code> &lt; <code>unresolved</code>), so
-<code>report[report$tier &gt;= &quot;review&quot;, ]</code> keeps the rows worth a
-person’s time. A typical loop is to run <code>inspect()</code>, apply
-the confident <code>suggestion</code>s, decide the handful of
-<code>unresolved</code> names by hand, then re-run <code>taxify()</code>
-on the corrected list.</p>
-</div>
-</div>
-<div id="the-labels" class="section level2">
-<h2>The labels</h2>
-<p>Each flagged name carries one or more labels in its
-<code>anomalies</code> column. The list-only checks need no
-matching:</p>
-<table>
-<colgroup>
-<col width="50%" />
-<col width="50%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Label</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>unknown</code></td>
-<td>The genus is not in the register, the union of every backbone’s
-genera. No backbone recognises it.</td>
-</tr>
-<tr class="even">
-<td><code>near_duplicate</code></td>
-<td>A near-identical spelling of a more frequent name in the same list,
-so probably a misspelling of it. Caught from the list alone, even for
-names no backbone holds.</td>
-</tr>
-<tr class="odd">
-<td><code>outlier_group</code></td>
-<td>The name’s kingdom group is a tiny minority of an otherwise coherent
-list, typically a cross-kingdom homonym typo.</td>
-</tr>
-</tbody>
-</table>
-<p>The remaining labels read from a <code>taxify()</code> result and
-only appear once matching has run:</p>
-<table>
-<colgroup>
-<col width="50%" />
-<col width="50%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Label</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>typo</code></td>
-<td>Resolved only after fuzzy correction. The input most likely contains
-a spelling error; <code>suggestion</code> holds the corrected name.</td>
-</tr>
-<tr class="even">
-<td><code>synonym</code></td>
-<td>The input is an outdated synonym, or an unplaced name whose basionym
-the backbone places; <code>suggestion</code> holds the current accepted
-name.</td>
-</tr>
-<tr class="odd">
-<td><code>case</code></td>
-<td>Resolved only after ignoring case.</td>
-</tr>
-<tr class="even">
-<td><code>rank_fallback</code></td>
-<td>An infraspecific name the backbone does not carry, resolved to its
-species.</td>
-</tr>
-<tr class="odd">
-<td><code>ambiguous</code></td>
-<td>A homonym resolving to more than one accepted taxon.</td>
-</tr>
-<tr class="even">
-<td><code>geographic</code></td>
-<td>The matched species is real but has no record in a declared region
-(vascular plants, via WCVP).</td>
-</tr>
-<tr class="odd">
-<td><code>out_of_range</code></td>
-<td>No region declared, yet the species’ range falls outside the list’s
-main continents.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="tiers" class="section level2">
-<h2>Tiers</h2>
-<p>Every flagged row also gets a <code>tier</code>. A tier names the
-action a row needs before analysis, from a required decision down to
-optional cleanup:</p>
+<div id="labels-and-tiers" class="section level2">
+<h2>Labels and tiers</h2>
+<p>Each row has one or more labels in <code>anomalies</code>. Three need
+no matching:</p>
 <ul>
-<li><code>unresolved</code>: no usable name came back, so the row needs
-a decision before analysis. <code>unknown</code> lands here.</li>
-<li><code>review</code>: a name is there, but its identity is uncertain.
-The identity checks (<code>typo</code>, <code>near_duplicate</code>,
-<code>rank_fallback</code>, <code>ambiguous</code>,
-<code>geographic</code>, <code>out_of_range</code>,
-<code>outlier_group</code>) land here.</li>
-<li><code>note</code>: the name is correct, the change is optional
-cleanup. <code>case</code> and <code>synonym</code> land here.</li>
+<li><p><code>unknown</code>: the genus is in no backbone.</p></li>
+<li><p><code>near_duplicate</code>: a near-identical spelling of a name
+that occurs more often in the same list.</p></li>
+<li><p><code>outlier_group</code>: the name’s kingdom is a small
+minority in a list that is otherwise of one kingdom.</p></li>
 </ul>
-<p>An anomaly can be intended. A list may genuinely include one animal
-among plants, or deliberately keep a synonym. The tier is a triage hint,
-so treat it as a starting point.</p>
-</div>
-<div id="what-needs-a-batch-and-what-needs-the-register" class="section level2">
-<h2>What needs a batch, and what needs the register</h2>
-<p>The list-context labels (<code>near_duplicate</code>,
-<code>outlier_group</code>, <code>out_of_range</code>) weigh a name
-against the rest of the batch, so they cannot apply to a single name.
-<code>inspect()</code> on one name warns and reports only the per-name
-labels.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">inspect</span>(<span class="st">&quot;Quercus robber&quot;</span>, <span class="at">backbones =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt; Warning: list-context anomaly checks need a batch of names; with a single</span></span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; name only the per-name checks run.</span></span></code></pre></div>
-<p>The register checks (<code>unknown</code>, and the register-derived
-<code>outlier_group</code>) need the genus register installed, and the
-range checks need the WCVP range data. A check that could not run is
-named on a <code>not checked</code> line in the report header, so an
-empty report is never mistaken for a clean one, and the rest of the
-checks still run.</p>
-</div>
-<div id="where-to-go-next" class="section level2">
-<h2>Where to go next</h2>
+<p>The others read the match:</p>
 <ul>
-<li><p><a href="https://gillescolling.com/taxify/articles/regions.html">Geographic
-constraints</a> for the <code>region</code>, <code>coords</code>, and
-<code>range</code> arguments the geographic checks share with
-<code>taxify()</code>.</p></li>
-<li><p><a href="https://gillescolling.com/taxify/articles/fuzzy-matching.html">Fuzzy
-matching</a> for how the <code>typo</code> label is produced and
-tuned.</p></li>
-<li><p><a href="https://gillescolling.com/taxify/articles/quickstart.html">Getting
-started</a> for the matching pipeline <code>inspect()</code> sits on top
-of.</p></li>
+<li><p><code>typo</code>: resolved only by fuzzy matching;
+<code>suggestion</code> holds the corrected name.</p></li>
+<li><p><code>synonym</code>: an outdated synonym, or an unplaced name
+whose basionym the backbone places; <code>suggestion</code> holds the
+accepted name.</p></li>
+<li><p><code>case</code>: resolved only after capitals were
+ignored.</p></li>
+<li><p><code>rank_fallback</code>: an infraspecific name no backbone
+holds, resolved to its species.</p></li>
+<li><p><code>ambiguous</code>: a name with more than one accepted taxon,
+which is not itself the accepted name.</p></li>
+<li><p><code>geographic</code>: the species has no record in the
+declared region.</p></li>
+<li><p><code>out_of_range</code>: without a declared region, the species
+occurs on none of the continents that hold most of the list.</p></li>
+</ul>
+<p>The <code>tier</code> names the action a row needs.
+<code>unresolved</code> means no usable name came back
+(<code>unknown</code>). <code>review</code> means a name is there but
+its identity is uncertain (<code>typo</code>,
+<code>near_duplicate</code>, <code>rank_fallback</code>,
+<code>ambiguous</code>, <code>geographic</code>,
+<code>out_of_range</code>, <code>outlier_group</code>).
+<code>note</code> means the name is correct and the change is optional
+(<code>case</code>, <code>synonym</code>). A row takes the highest tier
+of its labels, so <em>Pinus abies</em> is <code>review</code> because it
+is also <code>ambiguous</code>. A label can describe something intended,
+such as one animal kept on purpose in a plant list.</p>
+</div>
+<div id="checks-against-a-region" class="section level2">
+<h2>Checks against a region</h2>
+<p>A species far from the study region is worth a second look even when
+its name is correct. The list <code>alpine</code> holds two European
+mountain plants and one Australian shrub. With a declared
+<code>region</code>, <code>inspect()</code> reports matched species with
+no record there in the World Checklist of Vascular Plants (WCVP):</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>alpine <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Gentiana lutea&quot;</span>, <span class="st">&quot;Primula veris&quot;</span>, <span class="st">&quot;Banksia serrata&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">taxify</span>(alpine, <span class="at">backbone =</span> <span class="st">&quot;wcvp&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="fu">inspect</span>(<span class="at">region =</span> <span class="st">&quot;Europe&quot;</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; ── taxify inspection ──────────────────────────────────────────</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt;   3 names inspected  |  1 with anomalies</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;   backbones: wcvp</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt;   review: 1</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;   ────────────────────────────────────────────────────────────</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   [review] Banksia serrata  -&gt;  Banksia serrata  outside region per WCVP</span></span></code></pre></div>
+<p><em>Banksia serrata</em> is an Australian shrub. Its name is correct,
+so only the region check reports it. <code>coords</code> and
+<code>range</code> work as in <code>taxify()</code>, described in <a href="regions.html">Matching within a region</a>. Both geographic checks
+cover vascular plants only, since they read WCVP.</p>
+<p>Without a declared region, <code>out_of_range</code> compares each
+species with the rest of the list: it finds the continents that hold
+most of the matched species and reports a species found on none of them.
+A list spread over many continents has no such core, and the check
+reports nothing.</p>
+</div>
+<div id="using-the-report" class="section level2">
+<h2>Using the report</h2>
+<p>A report is used to decide what to change. It is a data frame with
+the columns <code>input_name</code>, <code>suggestion</code>,
+<code>anomalies</code>, <code>tier</code>, <code>reason</code>,
+<code>fuzzy_dist</code> and <code>backbone</code>. <code>min_tier</code>
+drops the lower tiers:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">inspect</span>(plants, <span class="at">backbones =</span> <span class="cn">TRUE</span>, <span class="at">min_tier =</span> <span class="st">&quot;review&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; ── taxify inspection ──────────────────────────────────────────</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt;   8 names inspected  |  4 with anomalies</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt;   backbones: colxr, col, worms, wcvp, euromed, lcvp, wfo, fungorum, algaebase, fishbase, sealifebase, reptiledb, mdd, avilist, lpsn, gbif, itis, ncbi, ott</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt;   unresolved: 1   review: 3</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt;   ────────────────────────────────────────────────────────────</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt;   [unresolved] Xyzzia fakensis  -&gt;  ?              genus &#39;Xyzzia&#39; is not in the taxonomic register</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt;   [review    ] Festuca rubraa   -&gt;  Festuca rubra  likely misspelling; near-duplicate of more frequent &#39;Festuca rubra&#39;</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt;   [review    ] Panthera leo     -&gt;  Panthera leo   animalia outlier (list is mostly plantae)</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt;   [review    ] Pinus abies      -&gt;  Picea abies    ambiguous (targets: 4HPZF|4HQ46|8K9Y|6BRMR|4HQ4F|4HQ48); outdated synonym</span></span></code></pre></div>
+<p>Nothing is dropped here: the one <code>note</code> label,
+<code>synonym</code> on <em>Pinus abies</em>, sits beside the
+<code>review</code> label <code>ambiguous</code>, and a row takes its
+highest tier. <code>tier</code> is an ordered factor, so
+<code>report[report$tier &gt;= &quot;review&quot;, ]</code> selects the same rows
+from an existing report. The suggestions can replace the input names
+before the list is matched again:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>fixes <span class="ot">&lt;-</span> report[<span class="sc">!</span><span class="fu">is.na</span>(report<span class="sc">$</span>suggestion), <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;suggestion&quot;</span>)]</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>fixes</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt;       input_name    suggestion</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; 2 Festuca rubraa Festuca rubra</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; 3   Panthera leo  Panthera leo</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; 4    Pinus abies   Picea abies</span></span></code></pre></div>
+<p><em>Panthera leo</em> keeps its own name as the suggestion: the
+outlier check questions whether it belongs in the list, not how it is
+spelt.</p>
+<p>The checks that compare a name with the rest of the list need more
+than one name; <code>inspect()</code> on a single name warns and runs
+only the others. A check that could not run, such as the region check
+without the WCVP range data, is named on a <code>not checked</code> line
+in the header, so an empty report always means that the checks that ran
+found nothing.</p>
+</div>
+<div id="comparing-a-checklist-with-a-backbone" class="section level2">
+<h2>Comparing a checklist with a backbone</h2>
+<p>A checklist compiled years ago follows an older treatment.
+<code>reconcile()</code> reports for each name whether the backbone
+still accepts it, as one <code>status</code>, and which names now fall
+together:</p>
+<ul>
+<li><p><code>unchanged</code>: the backbone accepts the name.</p></li>
+<li><p><code>synonym</code>: the backbone treats it as a
+synonym.</p></li>
+<li><p><code>misspelling</code>: matched only by fuzzy
+matching.</p></li>
+<li><p><code>ambiguous</code>: a synonym with more than one accepted
+taxon.</p></li>
+<li><p><code>unresolved</code>: no match.</p></li>
+</ul>
+<p>The checklist below holds a synonym and its accepted name, a
+misspelling and a genus name:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>checklist <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  <span class="st">&quot;Quercus robur&quot;</span>, <span class="st">&quot;Pinus abies&quot;</span>, <span class="st">&quot;Picea abies&quot;</span>, <span class="st">&quot;Festuca rubraa&quot;</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="st">&quot;Prunella&quot;</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>rec <span class="ot">&lt;-</span> <span class="fu">reconcile</span>(checklist, <span class="at">backbone =</span> <span class="st">&quot;col&quot;</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; Matching 5 names...</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt;   Fuzzy matching 1 unmatched...</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>rec[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;status&quot;</span>, <span class="st">&quot;merged_with&quot;</span>)]</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt;       input_name accepted_name      status merged_with</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; 1  Quercus robur Quercus robur   unchanged        &lt;NA&gt;</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; 2    Pinus abies   Picea abies   ambiguous Picea abies</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; 3    Picea abies   Picea abies   unchanged Pinus abies</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; 4 Festuca rubraa Festuca rubra misspelling        &lt;NA&gt;</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; 5       Prunella      Prunella   unchanged        &lt;NA&gt;</span></span></code></pre></div>
+<p><em>Pinus abies</em> and <em>Picea abies</em> now name the same
+species, so each lists the other in <code>merged_with</code>.
+<em>Prunella</em> is the accepted name of two genera and stays
+<code>unchanged</code>; <code>n_ids</code> (not shown) counts them.</p>
+</div>
+<div id="where-next" class="section level2">
+<h2>Where next</h2>
+<ul>
+<li><p><a href="fuzzy-matching.html">How names are matched</a>: how the
+fuzzy matches behind <code>typo</code> are made.</p></li>
+<li><p><a href="regions.html">Matching within a region</a>: the
+<code>region</code>, <code>coords</code> and <code>range</code>
+arguments.</p></li>
 </ul>
 </div>
 

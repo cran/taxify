@@ -11,7 +11,7 @@
 #'     `"infrageneric"`, or `"infraspecific"`.}
 #'   \item{nomenclaturalCode}{Nomenclatural code (`"ICN"`, `"ICZN"`, etc.).}
 #'   \item{nomenclaturalStatus}{Nomenclatural status.}
-#'   \item{namePublishedIn}{Original publication reference.}
+#'   \item{name_published_in}{Original publication reference.}
 #'   \item{kingdom}{Kingdom classification.}
 #'   \item{phylum}{Phylum classification.}
 #'   \item{col_class}{Class classification (renamed to avoid conflict with
@@ -43,7 +43,7 @@ add_col_info <- function(x) {
     notho                = "notho",
     nomenclaturalCode    = "nomenclaturalCode",
     nomenclaturalStatus  = "nomenclaturalStatus",
-    namePublishedIn      = "namePublishedIn",
+    name_published_in    = "name_published_in",
     kingdom              = "kingdom",
     phylum               = "phylum",
     col_class            = "class",
@@ -68,8 +68,7 @@ add_col_info <- function(x) {
 
   enrich_from_backbone(
     x, col_backend(), col_map,
-    enrichment_name = "col_info", label = "COL",
-    probe_cols = c("notho", "nomenclaturalCode", "kingdom", "is_extinct"),
+    label = "COL",
     extra_vtr = extra_vtr
   )
 }

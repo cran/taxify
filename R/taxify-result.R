@@ -7,7 +7,9 @@
 
 #' Print a taxify_result
 #'
-#' Delegates to the standard data.frame print method.
+#' Delegates to the standard data.frame print method. `n_ids` and
+#' `accepted_ids` are left out of the display when no row has more than one
+#' accepted ID, since `accepted_id` then says the same; the object keeps them.
 #'
 #' @param x A `taxify_result` object.
 #' @param ... Passed to the next method.
@@ -15,10 +17,16 @@
 #' @keywords internal
 #' @export
 print.taxify_result <- function(x, ...) {
-  NextMethod()
+  shown <- as.data.frame(x)
+  if (!any(!is.na(x$n_ids) & x$n_ids > 1L)) {
+    shown <- shown[, setdiff(names(shown),
+                             c("n_ids", "accepted_ids", "pick_basis")),
+                   drop = FALSE]
+  }
+  print(shown, ...)
   meta <- attr(x, "taxify_meta")
   if (!is.null(meta)) {
-    footer <- cite_footer(meta)
+    footer <- cite_footer(meta, backbones = cited_backbones(meta, x))
     if (nzchar(footer)) {
       cat(sprintf("Sources: %s | cite() for full citations\n", footer))
     }
@@ -30,9 +38,9 @@ print.taxify_result <- function(x, ...) {
 #' Subset a taxify_result, preserving its metadata
 #'
 #' The default data.frame `[` method drops the `taxify_meta` attribute that the
-#' downstream doors ([add_data()], [cite()], [base::summary()], [taxify_lock()]) read.
+#' downstream functions ([add_data()], [cite()], [base::summary()], [taxify_lock()]) read.
 #' This method carries `taxify_meta` and the `taxify_result` class through
-#' row/column subsetting, so a subset (including one taken internally by a door
+#' row/column subsetting, so a subset (including one taken internally by an `add_<source>()` function
 #' that reorders columns) still exposes its provenance. A subset that collapses
 #' to a single column via `drop = TRUE` returns the bare vector, as it would for
 #' a plain data.frame.
@@ -84,6 +92,7 @@ summary.taxify_result <- function(object, ...) {
                (tally$case_insensitive %||% 0L) +
                (tally$fuzzy %||% 0L) +
                (tally$abbrev %||% 0L) +
+               (tally$short_name %||% 0L) +
                (tally$rank_fallback %||% 0L) +
                (tally$basionym %||% 0L)
   n_oos     <- tally$out_of_scope %||% 0L
@@ -111,7 +120,8 @@ summary.taxify_result <- function(object, ...) {
   # Matched line
   n_rankfb <- tally$rank_fallback %||% 0L
   n_basio  <- tally$basionym %||% 0L
-  cat(sprintf("  matched     %5d  (exact: %d, case-insensitive: %d, fuzzy: %d, abbrev: %d%s%s)\n",
+  n_short  <- tally$short_name %||% 0L
+  cat(sprintf("  matched     %5d  (exact: %d, case-insensitive: %d, fuzzy: %d, abbrev: %d%s%s%s)\n",
               n_matched,
               tally$exact %||% 0L,
               tally$case_insensitive %||% 0L,
@@ -120,6 +130,8 @@ summary.taxify_result <- function(object, ...) {
               if (n_rankfb > 0L) sprintf(", species fallback: %d", n_rankfb)
               else "",
               if (n_basio > 0L) sprintf(", via basionym: %d", n_basio)
+              else "",
+              if (n_short > 0L) sprintf(", short name: %d", n_short)
               else ""))
 
   # Helper: pick the label column (taxon_group if present, else life_form)
@@ -186,11 +198,7 @@ summary.taxify_result <- function(object, ...) {
 
   # Names filed under more than one accepted taxon: the row's accepted_id is
   # one of several, which matters to anyone requesting data by ID.
-  n_multi <- if ("n_ids" %in% names(object)) {
-    sum(!is.na(object$n_ids) & object$n_ids > 1L)
-  } else {
-    0L
-  }
+  n_multi <- sum(!is.na(object$n_ids) & object$n_ids > 1L)
   if (n_multi > 0L) {
     cat(sprintf("  multiple ids%5d  (more than one accepted ID; see taxify_ids())\n",
                 n_multi))
@@ -282,6 +290,7 @@ summary.taxify_result <- function(object, ...) {
     fuzzy_dist          = NA_real_,
     n_ids               = NA_integer_,
     accepted_ids        = NA_character_,
+    pick_basis          = NA_character_,
     backbone            = NA_character_,
     backbone_version    = NA_character_,
     kingdom_group       = NA_character_,

@@ -90,8 +90,24 @@ taxify_input <- function(x, backbone, ..., verbose) {
     stop("Arguments passed on to taxify() must be named ",
          "(e.g. fuzzy = FALSE).", call. = FALSE)
   }
+  taxify_internal(x, backbone = backbone, ..., verbose = verbose)
+}
+
+
+#' Run taxify() on names the caller did not pass in
+#'
+#' Matching done inside another function (the data side of [add_data()], the
+#' cross-backbone recovery of an enrichment join, [inspect()]'s opt-in
+#' matching, the verbs behind `taxify_input()`) muffles the
+#' `taxify_multiple_ids` warning: it would point the caller at `accepted_ids`
+#' of rows they never see.
+#'
+#' @param ... Passed to [taxify()].
+#' @return A `taxify_result`.
+#' @noRd
+taxify_internal <- function(...) {
   withCallingHandlers(
-    taxify(x, backbone = backbone, ..., verbose = verbose),
+    taxify(...),
     taxify_multiple_ids = function(w) invokeRestart("muffleWarning"))
 }
 
@@ -146,7 +162,7 @@ backbone_join <- function(bb, values, bb_key, select_cols, pre = NULL) {
 }
 
 
-#' Attach backbone columns to a taxify result (backbone-info doors)
+#' Attach backbone columns to a taxify result (backbone-specific columns)
 #'
 #' Shared engine behind [add_wfo_info()], [add_gbif_info()] and [add_col_info()]:
 #' for the rows a given backbone matched, look up their `taxon_id` in that
@@ -159,16 +175,16 @@ backbone_join <- function(bb, values, bb_key, select_cols, pre = NULL) {
 #' @param backbone A `taxify_backend` object.
 #' @param col_map Named character vector: output column -> backbone source
 #'   column. Output columns are attached as character.
-#' @param enrichment_name,label Identifiers passed to `register_enrichment()`.
-#' @param probe_cols Output columns whose non-NA state counts as enriched.
+#' @param label Backbone label used in the error message when the backbone is
+#'   not installed.
 #' @param extra_vtr `NULL`, or a list with `suffix` (appended to the backbone
 #'   path in place of `.vtr`), `key` (join column in the sidecar), `col_map`
 #'   (output -> source), `na` (the sentinel the outputs are initialized to) and
 #'   `transform` (applied to each filled value vector).
-#' @return `x` with the attached columns and the enrichment registered.
+#' @return `x` with the attached columns.
 #' @noRd
-enrich_from_backbone <- function(x, backbone, col_map, enrichment_name, label,
-                                 probe_cols, extra_vtr = NULL) {
+enrich_from_backbone <- function(x, backbone, col_map, label,
+                                 extra_vtr = NULL) {
   if (!"taxon_id" %in% names(x)) {
     stop("x must be a data.frame with a 'taxon_id' column (from taxify())",
          call. = FALSE)
@@ -243,10 +259,10 @@ enrich_from_backbone <- function(x, backbone, col_map, enrichment_name, label,
     }
   }
 
-  bb_meta <- read_backbone_meta(vtr_path)
-  ver <- if (!is.null(bb_meta)) bb_meta$version else be$version
-  n_enriched <- sum(rowSums(!is.na(x[, probe_cols, drop = FALSE])) > 0L)
-  register_enrichment(x, enrichment_name, label, ver, n_enriched)
+  # The columns come from a backbone the result already records in
+  # taxify_meta$backbone, so cite() and taxify_lock() cover them there; they
+  # are not registered as a separate enrichment.
+  x
 }
 
 
@@ -452,6 +468,22 @@ add_classification <- function(x, ranks = c("kingdom", "phylum", "class", "order
 #'     returns), as counted when the backbone was built. `NA` on a backbone
 #'     without counts, and for an ID whose count was not taken.}
 #'   \item{is_pick}{Logical. Is this the `accepted_id` [taxify()] reported?}
+#'   \item{role}{What the ID is to the queried name: `"pick"` (the
+#'     `accepted_id` [taxify()] reported), `"same_name"` (another record of the
+#'     same taxon, or a record keeping the queried name as its own concept, as
+#'     GBIF's doubtful homonym records of *Pinus sylvestris* do) or
+#'     `"other_taxon"` (the accepted taxon of a synonym record under another
+#'     author, a different species: GBIF files *Absinthium vulgare* Dulac under
+#'     *Artemisia vulgaris* subsp. *vulgaris* while the pick, Lam., goes to
+#'     *A. absinthium*).}
+#'   \item{pick_basis}{What decided the pick over the name's other accepted
+#'     IDs, the same on every row of a name: `"status"`, `"priority"`
+#'     (publication year), `"occurrences"`, `"validity"`, `"fuzzy"`, or `"id"`
+#'     when only the lowest taxon ID separated them, which settles nothing
+#'     about the taxon the name denotes; `"authorship"`, `"basionym"` or
+#'     `"kingdom"` when the input's author, the record's basionym link or the
+#'     `kingdom` argument of [taxify()] moved the pick. `NA`
+#'     for a name with one ID.}
 #' }
 #' Unmatched names contribute no rows.
 #'
@@ -479,11 +511,11 @@ taxify_ids <- function(x, verbose = TRUE) {
     authorship = character(0L), rank = character(0L),
     taxonomic_status = character(0L), family = character(0L),
     n_occurrences = numeric(0L), is_pick = logical(0L),
+    role = character(0L), pick_basis = character(0L),
     stringsAsFactors = FALSE
   )
 
-  multi <- x$accepted_ids %||% rep(NA_character_, nrow(x))
-  ids <- ifelse(is.na(multi), x$accepted_id, multi)
+  ids <- complete_id_sets(x)$accepted_ids
   rows <- which(!is.na(ids) & nzchar(ids) & !is.na(x$backbone))
   if (length(rows) == 0L) {
     if (verbose) message("No matched names to list.")
@@ -527,21 +559,52 @@ taxify_ids <- function(x, verbose = TRUE) {
       n_occurrences    = as.numeric(get("n_occurrences", NA_real_)),
       is_pick          = !is.na(x$accepted_id[sub$row]) &
         sub$id == x$accepted_id[sub$row],
+      pick_basis       = (x$pick_basis %||%
+                            rep(NA_character_, nrow(x)))[sub$row],
       stringsAsFactors = FALSE
     )
   }
   if (length(out) == 0L) return(empty)
   res <- do.call(rbind, out)
-  res <- res[order(res$ord), setdiff(names(res), "ord"), drop = FALSE]
+  res <- res[order(res$ord), , drop = FALSE]
+  res$role <- id_roles(res, x, long$row[match(res$ord, long$ord)])
+  res <- res[, setdiff(names(res), "ord"), drop = FALSE]
   rownames(res) <- NULL
   res
 }
 
 
+#' What each accepted ID is to the name it was listed for
+#'
+#' An ID other than the pick is the same taxon when it names what the pick
+#' names or what the queried name itself names (a doubtful or duplicate record
+#' keeping the name as its own concept); otherwise it is the accepted taxon a
+#' synonym record of the name under another author points to, a different
+#' species. Names are compared in the matcher's normalized space. An ID the
+#' backbone did not resolve has no name to compare and counts as another taxon.
+#'
+#' @param tab The `taxify_ids()` rows, in output order.
+#' @param x The `taxify()` result.
+#' @param rows The row of `x` each row of `tab` came from.
+#' @return Character vector of roles.
+#' @noRd
+id_roles <- function(tab, x, rows) {
+  norm <- function(v) normalize_epithets(as.character(v))
+  own <- if ("matched_name" %in% names(x)) x$matched_name[rows] else
+    rep(NA_character_, length(rows))
+  own <- ifelse(is.na(own), clean_names(x$input_name[rows])$cleaned, own)
+  id_name <- norm(tab$accepted_name)
+  same <- !is.na(id_name) & nzchar(id_name) &
+    ((!is.na(own) & id_name == norm(own)) |
+       (!is.na(x$accepted_name[rows]) & id_name == norm(x$accepted_name[rows])))
+  ifelse(tab$is_pick, "pick", ifelse(same, "same_name", "other_taxon"))
+}
+
+
 #' List the accepted taxa within a genus or family
 #'
-#' Returns the accepted taxa a backbone places inside a genus or family, so you
-#' can build a checklist from the backbone rather than only validating one. The
+#' Returns the accepted taxa a backbone places inside a genus or family, so a
+#' checklist can be built from the backbone as well as checked against it. The
 #' parent's rank is read from the backbone, as in [downstream()], restricted to
 #' genus and family: `children()` is [downstream()] for a genus or family parent.
 #'

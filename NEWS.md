@@ -1,3 +1,171 @@
+# taxify 0.7.0
+
+## Data directory
+
+* Backbones and enrichments are downloaded in the storage format of vectra
+  0.14.0, which taxify now requires, and take about a quarter of the space:
+  the nineteen taxon and two syntaxon backbones together 2.1 GB instead of
+  8.3 GB, the first-run set (COL, GBIF, ITIS) 1.1 GB instead of 3.8 GB, WFO
+  120 MB instead of 785 MB. The data are unchanged; each store was re-encoded
+  from the published one and compared with it column by column. A backbone or
+  enrichment already installed is replaced by its new copy at the next
+  version check, unless it was pinned by `taxify_restore()`. taxify reads its catalogue from `inst/manifest_v3.json`;
+  releases before 0.7.0 keep reading the earlier stores through
+  `inst/manifest.json`.
+* A backbone is installed only when asked for. `install_backbones()` and
+  `taxify_download()` install as before; any other function that needs a
+  backbone not on disk (a first `taxify()` call on a new setup, a browse verb
+  naming a backbone) asks before downloading in an interactive session and
+  stops with an error naming the `install_backbones()` call otherwise.
+  `options(taxify.auto_download = TRUE)` or the environment variable
+  `TAXIFY_AUTO_DOWNLOAD` restores downloading on first use for scripts and
+  pipelines.
+* A refreshed enrichment replaces the build it supersedes, as backbones
+  already did; `options(taxify.keep_enrichment_versions = TRUE)` keeps the old
+  build. A lockfile pin is restored from the published copy of that build.
+* `taxify_clean()` frees disk space: by default it removes builds taxify no
+  longer reads and files left by an interrupted download, keeping the active
+  build of every asset; it also removes named backbones or enrichments, or the
+  whole data directory with `"all"`.
+* Every download clears what an interrupted one left in the same directory
+  (curl's partial `.curltmp` file was never removed and could reach the size
+  of the backbone).
+
+## Vegetation units (syntaxa)
+
+* Two syntaxon backbones match vegetation-unit names the way the others match
+  taxon names: `evc`, the EuroVegChecklist (Mucina et al. 2016, current
+  version from FloraVeg.EU: 150 classes, 381 orders, 1,310 alliances and
+  their synonyms), and `vegcz`, the national classification of the Czech
+  Republic (Chytrý 2007-2013, from Pladias: classes, alliances and 496
+  associations). Name one in `taxify(backbone = )`; the default chain stays
+  with taxon names, and the two kinds are not combined in one call (#96).
+* A syntaxon result carries the accepted unit's `class`, `order`, `alliance`
+  and `association` in place of `family`, `genus` and `epithet`, so a name at
+  any rank rolls up. A Czech association reaches its EuroVegChecklist
+  alliance through `vegcz` (which places it under its alliance) and then
+  `evc`.
+* Names are read under the phytosociological code: the author citation
+  (`(Neuhäusl 1959) Oberd. et al. 1967`), annotations (`nom. inval. (5a)`),
+  a database code in front (`TDA - Arrhenatherion elatioris`), rank-labelled
+  lists (`all. X, ord. Y`) and code-page mojibake are parsed off, and the rank
+  is read from the suffix. `parse_name(x, code = "syntaxon")` returns the
+  parse.
+* A unit written without its epithets (`Cynosurion` for *Cynosurion
+  cristati*) resolves with the new `match_type = "short_name"` when its stems
+  name one unit; otherwise it stays unmatched with the candidates in
+  `accepted_ids`. Fuzzy matching of a syntaxon keeps its rank and the plant
+  names it is built from, so `Vaccinio-Piceion` is not matched to the
+  different alliance `Vaccinio-Pinion`.
+* The backbone registry records each backbone's nomenclature code
+  (`backbone_code()`, the `code` column of `list_backbones()`), and the name
+  cleaner, normalization key and stages a backbone runs are read from that
+  code.
+* A fuzzy syntaxon match whose first word is misspelt carries the accepted
+  unit's `class`, `order`, `alliance` and `association`, as every other match
+  does (#97).
+* A syntaxon whose suffix gives its rank no longer fuzzy-matches a name that
+  carries no rank suffix: `Deschampsietum caespitosae` is not matched to
+  `Deschampsiosum cespitosae` (#97).
+
+## Accepted-ID columns
+
+* `n_ids` and `accepted_ids` are in every `taxify()` result: `1` and the
+  `accepted_id` for a name with one accepted ID, `NA` for an unmatched row.
+  Two results now always `rbind()`, and `x$n_ids > 1` is `FALSE` rather than
+  `logical(0)` on a list without homonyms. Printing still leaves the two
+  columns out when no row has more than one ID (#92).
+
+## Requesting GBIF data
+
+* `gbif_request(keys = c("taxon", "pick", "all"))` replaces `strict`.
+  `taxify_ids()` gives each ID a `role`: `pick`, `same_name` (another record
+  of the same name, such as GBIF's doubtful *Pinus sylvestris* homonyms) or
+  `other_taxon` (the accepted taxon of a synonym record under another author,
+  a different species). The default `"taxon"` requests the first two and
+  names the keys of other taxa it leaves out; previously every key was
+  requested, so *Absinthium vulgare* returned two species under one name.
+  `"pick"` is the old `strict = TRUE`, `"all"` the old default (#93).
+* A default-chain result follows the taxon each row picked: a crosswalked
+  row takes its pick's GBIF key, a row without one is re-matched against GBIF
+  by its `accepted_name` rather than its input name. With the GBIF backbone
+  installed, GBIF's further records of the picked name and the occurrence
+  counts of crosswalked keys are read from it, so the same list requests the
+  same keys through `backbone = "gbif"` and through the default chain, and
+  the size estimate covers every key. The `taxa` attribute gains
+  `key_source` (`backbone` / `crosswalk` / `rematch`) and `requested` (#93).
+
+## Picking between homonyms
+
+* Publication year orders same-name homonyms only when every candidate at
+  that level has a year; a dated record beside an undated one no longer wins
+  for being dated. A recombination is dated by its own publication, not its
+  basionym's (ICN Art. 53.1): *Rhus hirta* (L.) Sudw. (1892) now loses to
+  *Rhus hirta* Harv. ex Engl. (1883) (#91).
+* `taxify()` results and `taxify_ids()` carry `pick_basis`, what decided the
+  pick over a name's other accepted IDs (`status`, `priority`,
+  `occurrences`, `validity`, `fuzzy`, `authorship`, `basionym`, or `id` when
+  only the lowest taxon ID separated them, which settles nothing) (#91).
+* `add_wfo_info()` and `add_col_info()` return the publication reference as
+  `name_published_in`, the name `add_gbif_info()` uses; it reads the
+  unified column taxifydb now writes for every backbone (gcol33/taxifydb#60).
+
+## Documentation
+
+* The README and every article were rewritten. Get started is now
+  `vignette("taxify")` (the old `quickstart` URL redirects), and the articles
+  are grouped into workflows and background. New articles cover exploring the
+  backbone (`synonyms()`, `children()`, `upstream()`, ...) and matching
+  vegetation units. The per-source detail of every published dataset moved to
+  The backbones and datasets.
+* The output shown in the README and the articles comes from running their
+  code against the installed backbones (`data-raw/precompute_vignettes.R`
+  knits `vignettes/*.Rmd.orig`), so it no longer drifts from what the
+  functions return.
+* `citation("taxify")` now reads `inst/CITATION`, with the CRAN DOI, and
+  `cite()` takes the package's own entry from it.
+* `scripts/benchmark-scale.R` times lists of 1,000 to 100,000 names; the
+  memory and WorldFlora benchmark scripts, which called `taxify()` with an
+  argument it no longer has, run again, and all three results were measured
+  for the articles that quote them.
+
+## New features and speed
+
+* `list_backbones()` gains a `title` column with each backbone's full name.
+* Exact matching of 100,000 WFO names takes 14 s instead of 61 s, measured
+  with `scripts/benchmark-scale.R` before and after the change: choosing the pick of each name
+  scanned the whole candidate table once per name.
+
+## Bug fixes
+
+* `add_data()`, the cross-backbone recovery of the `add_<source>()`
+  functions and `inspect(backbones = TRUE)` no longer repeat the
+  `taxify_multiple_ids` warning for names they match internally (the joined
+  table's names, a dataset's names); the warning still names the inputs of
+  the `taxify()` call itself.
+* `taxify(kingdom = )` now moves a name used in two kingdoms to its record in
+  the requested kingdom instead of leaving it unmatched: `Prunella` with
+  `kingdom = "plants"` matched the bird genus, dropped it, and returned
+  nothing, although COL also accepts the plant genus. The row's `pick_basis`
+  is `"kingdom"`.
+* `cite()` and the "Sources:" line under a printed result name only the
+  backbones that matched a row, not every backbone of the fallback chain, and
+  the line no longer prints `NA` for a backbone without a version.
+* `add_col_info()`, `add_wfo_info()`, `add_gbif_info()` and
+  `add_hybrid_info()` no longer register themselves as published datasets,
+  which made `cite()` list an empty entry ("COL (2025). col_info.") and
+  `taxify_lock()` record a dataset `taxify_restore()` could never find. Their
+  columns come from a backbone the result already cites.
+* `add_data()` records the joined table under `taxify_meta$user_data`
+  instead of among the published datasets, so `cite()` no longer lists it and
+  `taxify_restore()` no longer reports it as missing.
+* `inspect(backbones = TRUE)` matches in the order of the default fallback
+  chain, so its labels are the ones `taxify()` gives.
+* A subset of an `inspect()` report is a plain data frame; it printed as an
+  empty report.
+* `gbif_request(dry_run = TRUE)` prints the keys alone instead of the key
+  table and the match metadata attached to them.
+
 # taxify 0.6.0
 
 ## Genus register kingdoms

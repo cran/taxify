@@ -35,6 +35,9 @@ A data.frame with one row per (query, vernacular):
 \code{resolve = FALSE} or the input_name was already accepted).}
 \item{common_name}{A vernacular name.}
 \item{lang}{Language tag (\code{NA} for NCBI/Open Tree).}
+\item{name_rank}{Rank of the name among the taxon's names in that
+language, 1 being the one most source records give (the name
+\code{\link[=add_common_names]{add_common_names()}} reports).}
 }
 A query with no vernacular contributes no rows.
 }
@@ -44,7 +47,7 @@ common name(s) it is known by. Reads the bundled \code{common_names} enrichment
 (GBIF, NCBI, and Open Tree vernaculars) offline; the first call may trigger
 the one-time download. Where \code{\link[=add_common_names]{add_common_names()}} attaches vernaculars to a
 \code{\link[=taxify]{taxify()}} result as columns, \code{sci2comm()} takes bare names and returns the
-long lookup table -- one row per (name, vernacular). A name maps to many
+long lookup table, one row per (name, vernacular). A name maps to many
 common names (across languages and synonyms), so a query can carry several
 rows.
 }

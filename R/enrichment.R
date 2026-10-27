@@ -21,7 +21,7 @@
 #' taxify only ships a pre-built `.vtr` for a source whose licence permits
 #' redistribution. These sources do not qualify -- their terms are citation-only
 #' or unstated -- so no asset is published, they carry no manifest entry, and no
-#' version can be checked. Their doors reach them through taxifydb, which builds
+#' version can be checked. Their `add_<source>()` functions reach them through taxifydb, which builds
 #' the `.vtr` from the original source on the user's own machine. taxify
 #' redistributes none of the data.
 #'
@@ -368,7 +368,7 @@ build_enrichment_meta <- function(entry, actual_version, pinned, vtr_path) {
   if (!is.null(entry$license))          meta$license          <- entry$license
   if (!is.null(entry$citation))         meta$citation         <- entry$citation
   if (!is.null(entry$references$url)) {
-    meta$references <- list(file       = basename(entry$references$url),
+    meta$references <- list(file       = local_asset_name(entry$references$url),
                             content_id = entry$references$content_id,
                             nrow       = entry$references$nrow)
   }
@@ -390,9 +390,9 @@ build_enrichment_meta <- function(entry, actual_version, pinned, vtr_path) {
 download_enrichment_references <- function(entry, dest_dir, verbose = TRUE) {
   refs <- entry$references
   if (is.null(refs$url)) return(invisible(FALSE))
-  dest <- file.path(dest_dir, basename(refs$url))
+  dest <- file.path(dest_dir, local_asset_name(refs$url))
   tmp  <- tempfile(tmpdir = dest_dir, fileext = ".refs.tmp")
-  on.exit(if (file.exists(tmp)) unlink(tmp), add = TRUE)
+  on.exit(unlink_download(tmp), add = TRUE)
   ok <- tryCatch({
     fetch_asset_file(refs$content_url %||% refs$url, tmp,
                      sprintf("reference table '%s'", basename(refs$url)),
@@ -470,10 +470,9 @@ download_enrichment <- function(name, version = "latest", verbose = TRUE) {
   # archiving the build being replaced (which moves everything out of the
   # version directory) cannot sweep the download in progress along with it.
   store_root <- asset_store_root(name, "enrichment")
-  dir.create(store_root, recursive = TRUE, showWarnings = FALSE)
+  tmp_path <- asset_tmp_path(store_root)
+  on.exit(unlink_download(tmp_path), add = TRUE)
   dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
-  tmp_path <- tempfile(tmpdir = store_root, fileext = ".vtr.tmp")
-  on.exit(if (file.exists(tmp_path)) unlink(tmp_path), add = TRUE)
 
   fetch_asset_file(url, tmp_path, sprintf("enrichment '%s'", name),
                    verbose = verbose)
@@ -543,7 +542,7 @@ resolve_enrichment_entry <- function(manifest, name) {
 #'   `"iucn"`, `"griis"`, `"zanne"`).
 #' @param version Character. `"latest"` (default) or a specific version string.
 #' @param content_id Character or `NULL` (default). The content id of one exact
-#'   build -- the md5 of its `.vtr`, as recorded by [taxify_lock()] and by the
+#'   build, the md5 of its `.vtr`, as recorded by [taxify_lock()] and by the
 #'   manifest. Given one, taxify fetches that build from the immutable copy
 #'   published beside the rolling asset, verifies the bytes hash back to the id,
 #'   and makes it the active build; the build it replaces is kept on disk under
@@ -791,11 +790,12 @@ enrich_from_dataframe <- function(x, df, enrichment_name, col_map,
 #'   values = source columns in df.
 #' @param source_label Character.
 #' @param na_types Named list of NA sentinels (optional).
+#' @param prefer Optional `list(col =, order =)`, as for `enrich_by_group()`.
 #' @return The enriched data.frame.
 #' @noRd
 enrich_from_dataframe_grouped <- function(x, df, enrichment_name, group_col,
                                           groups, value_cols, source_label,
-                                          na_types = NULL) {
+                                          na_types = NULL, prefer = NULL) {
   if (!group_col %in% names(df)) return(x)
 
   # License lookup is delegated to taxifydb; emergency fallback leaves it unset.
@@ -846,7 +846,8 @@ enrich_from_dataframe_grouped <- function(x, df, enrichment_name, group_col,
   # names carry lang = NA) selects the NA rows here too rather than every row,
   # and the output column naming has one definition.
   df$lookup_name <- df$canonical_name
-  x <- .enrich_group_fill(x, df, x$accepted_name, groups, value_cols, group_col)
+  x <- .enrich_group_fill(x, df, x$accepted_name, groups, value_cols, group_col,
+                          prefer)
 
   n_enriched <- sum(
     rowSums(!is.na(x[, out_cols, drop = FALSE])) > 0L
@@ -1020,10 +1021,10 @@ try_emergency_fallback <- function(name, download_error = NULL, verbose = TRUE) 
 }
 
 
-#' Browse the trait columns an enrichment door can attach
+#' Browse the columns a published dataset can attach
 #'
-#' Lists the columns available from an enrichment's pre-built `.vtr`, so you can
-#' choose which to attach through the doors that accept a `cols` argument (such
+#' Lists the columns available from a published dataset's pre-built `.vtr`, for
+#' choosing which to attach through the functions that accept a `cols` argument (such
 #' as [add_gift()] and [add_floraweb()]). Read offline from the local `.vtr`;
 #' the first call may trigger the one-time download.
 #'
@@ -1050,11 +1051,11 @@ enrichment_cols <- function(source) {
 
 #' Browse the group values a grouped enrichment can filter on
 #'
-#' Some enrichment doors attach data per group: GRIIS invasive status by country
+#' Some `add_<source>()` functions attach data per group: GRIIS invasive status by country
 #' ([add_griis()]), WCVP native ranges by TDWG region ([add_wcvp()]), vernacular
 #' names by language ([add_common_names()]), alien first records by location
 #' ([add_alien_first_records()]). This lists the valid group values for such a
-#' door, the way [enrichment_cols()] lists a door's columns, so a country,
+#' function, the way [enrichment_cols()] lists a dataset's columns, so a country,
 #' region, or language code need not be guessed. Read offline from the local
 #' `.vtr` metadata (falling back to the manifest, then a scan of the `.vtr`); the
 #' first call may trigger the one-time download.
@@ -1172,7 +1173,7 @@ resolve_all_groups <- function(vtr_path, name, group_col, entry = NULL) {
   key    <- paste0(be_key, "_", paste(sort(parents), collapse = "|"))
   cached <- memo_get(".pres", key)
   if (!is.null(cached)) return(cached)
-  pr  <- taxify(parents, backbone = backbone, verbose = FALSE)
+  pr  <- taxify_internal(parents, backbone = backbone, verbose = FALSE)
   out <- data.frame(
     input_name    = pr$input_name,
     accepted_name = pr$accepted_name,
@@ -1281,7 +1282,7 @@ resolve_all_groups <- function(vtr_path, name, group_col, entry = NULL) {
   # reading as a coverage result, one level below where #55 did exactly that.
   failed <- character(0L)
   per_be <- lapply(bbs, function(bb) {
-    r <- tryCatch(taxify(q, backbone = bb, fuzzy = FALSE, verbose = FALSE),
+    r <- tryCatch(taxify_internal(q, backbone = bb, fuzzy = FALSE, verbose = FALSE),
                   error = function(e) {
                     failed <<- c(failed, sprintf("%s (%s)", bb,
                                                  conditionMessage(e)))
@@ -2947,7 +2948,7 @@ enrich_by_group <- function(x, enrichment_name, group_col, groups,
     df <- try_emergency_fallback(enrichment_name, verbose = verbose)
     return(enrich_from_dataframe_grouped(x, df, enrichment_name, group_col,
                                           groups, value_cols, source_label,
-                                          na_types))
+                                          na_types, prefer))
   }
 
   # Check schema
@@ -3044,8 +3045,8 @@ enrich_by_group <- function(x, enrichment_name, group_col, groups,
   infra_col <- intersect("infraspecies", names(schema))
   if (length(rank_col) == 0L) rank_col <- NULL
   if (length(infra_col) == 0L) infra_col <- NULL
-  select_cols <- unique(c(group_col, unname(value_cols), authorship_col,
-                          rank_col, infra_col))
+  select_cols <- unique(c(group_col, unname(value_cols), prefer$col,
+                          authorship_col, rank_col, infra_col))
   select_cols <- intersect(select_cols, names(schema))
 
   has_na_group <- anyNA(groups)
@@ -3204,7 +3205,7 @@ enrich_by_group <- function(x, enrichment_name, group_col, groups,
 
 #' List available enrichments
 #'
-#' Returns a summary of all enrichment layers available in the taxify manifest,
+#' Returns a summary of all published datasets available in the taxify manifest,
 #' including version, row count, whether the dataset is static, and which
 #' trait columns are provided.
 #'

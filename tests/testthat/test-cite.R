@@ -105,7 +105,14 @@ test_that("cite() handles multi-backbone result", {
   result <- mock_taxify_result(backbones = c("wfo", "col"))
   out <- capture.output(cite(result))
   expect_true(any(grepl("WFO|wfo|World Flora", out)))
-  expect_true(any(grepl("COL|col", out)))
+  expect_true(any(grepl("Catalogue of Life", out)))
+})
+
+test_that("cite() reads the package's own entry from inst/CITATION", {
+  out <- capture.output(cite(mock_taxify_result()))
+  own <- utils::citation("taxify")[[1L]]
+  expect_true(any(grepl(own$title, out, fixed = TRUE)))
+  expect_true(any(grepl(own$doi, out, fixed = TRUE)))
 })
 
 
@@ -252,11 +259,42 @@ test_that("an entry without a citation yields none", {
 })
 
 test_that("the bundled manifest cites both GloNAF versions and both FirstRecords works", {
-  mf <- jsonlite::read_json(system.file("manifest.json", package = "taxify"))
+  mf <- jsonlite::read_json(system.file("manifest_v3.json", package = "taxify"))
   glonaf <- extract_manifest_citations(mf, "enrichments", "glonaf")
   expect_identical(vapply(glonaf, `[[`, "", "doi"),
                    c("10.1002/ecy.70245", "10.1002/ecy.2542"))
   fr <- extract_manifest_citations(mf, "enrichments", "alien_first_records")
   expect_identical(vapply(fr, `[[`, "", "doi"),
                    c("10.5281/zenodo.18759840", "10.1038/ncomms14435"))
+})
+
+
+test_that("a backbone without a manifest citation is cited with its own version", {
+  meta <- list(backbone = c("nobb1", "nobb2"),
+               version = c(nobb1 = "2026.01", nobb2 = NA))
+  cits <- taxify:::collect_citations(meta)
+  keys <- vapply(cits, `[[`, character(1L), "key")
+  expect_true(all(c("nobb1202601", "nobb2") %in% keys))
+  expect_equal(cits[[match("nobb1202601", keys)]]$year, "2026")
+})
+
+test_that("a fallback chain cites only the backbones that matched a row", {
+  x <- data.frame(backbone = c("col", NA, "col"))
+  meta <- list(backbone = c("colxr", "col", "gbif"),
+               version = c(colxr = "2026.09", col = "2026.09", gbif = "2023.08"))
+  expect_equal(cited_backbones(meta, x), "col")
+  expect_equal(cite_footer(meta, cited_backbones(meta, x)), "COL 2026.09")
+})
+
+test_that("a wide or agreement result cites every backbone it compared", {
+  x <- data.frame(backbone = c("col", "col"))
+  meta <- list(backbone = c("col", "gbif"), mode = "wide")
+  expect_equal(cited_backbones(meta, x), c("col", "gbif"))
+})
+
+test_that("a column subset without `backbone` cites the backbones that matched", {
+  x <- data.frame(input_name = c("a", "b"))
+  meta <- list(backbone = c("col", "gbif", "itis"),
+               version = c(col = "2026.09", gbif = NA, itis = NA))
+  expect_equal(cited_backbones(meta, x), "col")
 })

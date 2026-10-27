@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Matching vegetation units</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Matching vegetation units</h1>
+
+
+
+<p>This article matches the names of vegetation units, such as the
+alliance recorded for each plot of a vegetation survey, against the
+EuroVegChecklist and the Czech national classification. It ends with
+each name resolved to its accepted unit and placed in the units above
+it. Installation is covered in <a href="taxify.html">Get
+started</a>.</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Parse</strong> a unit name into its parts with
+<code>parse_name(code = &quot;syntaxon&quot;)</code>.</p></li>
+<li><p><strong>Match</strong> the names with
+<code>taxify(backbone = &quot;evc&quot;)</code> or
+<code>backbone = &quot;vegcz&quot;</code>.</p></li>
+<li><p><strong>Roll up</strong> an association of the national
+classification to its European alliance and class.</p></li>
+</ol>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(taxify)</span></code></pre></div>
+<div id="names-of-vegetation-units" class="section level2">
+<h2>Names of vegetation units</h2>
+<p>A vegetation unit, or syntaxon, is a type of plant community: a
+class, an order, an alliance or an association. Its name follows the
+International Code of Phytosociological Nomenclature. The name is built
+from one or two plant names, and the last one carries a suffix for the
+rank: <code>-etea</code> for a class, <code>-etalia</code> for an order,
+<code>-ion</code> for an alliance, <code>-enion</code> for a suballiance
+and <code>-etum</code> for an association. The author citation carries
+years, as in <em>Caricenion gracilis</em> (Neuhäusl 1959) Oberd. et
+al. 1967.</p>
+<p><code>parse_name()</code> with <code>code = &quot;syntaxon&quot;</code> splits
+a name into these parts without matching it:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>parsed <span class="ot">&lt;-</span> <span class="fu">parse_name</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Caricenion gracilis (Neuhäusl 1959) Oberd. et al. 1967&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>    <span class="st">&quot;TDA - Arrhenatherion elatioris&quot;</span>),</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">code =</span> <span class="st">&quot;syntaxon&quot;</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>parsed[, <span class="fu">c</span>(<span class="st">&quot;name&quot;</span>, <span class="st">&quot;authorship&quot;</span>, <span class="st">&quot;rank&quot;</span>, <span class="st">&quot;code&quot;</span>)]</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt;                       name                         authorship        rank code</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt; 1      Caricenion gracilis (Neuhäusl 1959) Oberd. et al. 1967 suballiance &lt;NA&gt;</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; 2 Arrhenatherion elatioris                               &lt;NA&gt;    alliance  TDA</span></span></code></pre></div>
+<p>The rank is read from the suffix of the last plant name. A code
+written in front of the name, such as the national database code
+<code>TDA</code>, goes to <code>code</code> and is not used for
+matching.</p>
+</div>
+<div id="the-two-backbones" class="section level2">
+<h2>The two backbones</h2>
+<p>taxify holds two backbones of vegetation units:</p>
+<ul>
+<li><p><code>evc</code>, the EuroVegChecklist (Mucina et al. <a href="https://doi.org/10.1111/avsc.12257">2016</a>) in its current
+version as maintained in FloraVeg.EU (Chytrý et al. <a href="https://doi.org/10.1111/avsc.12798">2024</a>): the classes, orders
+and alliances of European vegetation, with their synonyms.</p></li>
+<li><p><code>vegcz</code>, the national classification of the Czech
+Republic (Chytrý 2007-2013), as published in the Pladias database
+(Chytrý et al. <a href="https://doi.org/10.23855/preslia.2021.001">2021</a>): classes,
+alliances and associations with their synonyms. It places each
+association in its alliance, a level below where the EuroVegChecklist
+stops.</p></li>
+</ul>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>bb <span class="ot">&lt;-</span> <span class="fu">list_backbones</span>(<span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>bb[bb<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;syntaxon&quot;</span>, <span class="fu">c</span>(<span class="st">&quot;name&quot;</span>, <span class="st">&quot;scope&quot;</span>, <span class="st">&quot;version&quot;</span>, <span class="st">&quot;n_names&quot;</span>)]</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt;     name                               scope version n_names</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; 20   evc European vegetation units (syntaxa)       4    7542</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; 21 vegcz    Czech vegetation units (syntaxa) 2026.10    2258</span></span></code></pre></div>
+<p>A backbone of vegetation units is used only when it is named in
+<code>backbone</code>. The default call reads names as taxa, and one
+call cannot mix the two kinds of backbone.</p>
+</div>
+<div id="matching-unit-names" class="section level2">
+<h2>Matching unit names</h2>
+<p>The names below are the kind found in the header data of vegetation
+plots:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>plots <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="st">&quot;Fagion sylvaticae Luquet 1926&quot;</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="st">&quot;Mesobromion erecti&quot;</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="st">&quot;Fagion silvaticae&quot;</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="st">&quot;TDA - Arrhenatherion elatioris&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="st">&quot;Cynosurion&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="st">&quot;Brachypodietalia pinnata&quot;</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="st">&quot;Carpinion&quot;</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>)</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">taxify</span>(plots, <span class="at">backbone =</span> <span class="st">&quot;evc&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; Warning: 1 of 7 names resolve to more than one accepted ID (Carpinion).</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt; `accepted_id` holds one and `accepted_ids` all of them; list them with</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt; taxify_ids() before requesting data by ID.</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;match_type&quot;</span>, <span class="st">&quot;is_synonym&quot;</span>)]</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt;                       input_name            accepted_name match_type is_synonym</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; 1  Fagion sylvaticae Luquet 1926        Fagion sylvaticae      exact      FALSE</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt; 2             Mesobromion erecti           Bromion erecti short_name       TRUE</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt; 3              Fagion silvaticae        Fagion sylvaticae   exact_ci      FALSE</span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt; 4 TDA - Arrhenatherion elatioris Arrhenatherion elatioris      exact      FALSE</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt; 5                     Cynosurion      Cynosurion cristati short_name      FALSE</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt; 6       Brachypodietalia pinnata Brachypodietalia pinnati      fuzzy      FALSE</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt; 7                      Carpinion                     &lt;NA&gt;       none         NA</span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt; Sources: EVC 4 | cite() for full citations</span></span></code></pre></div>
+<p>Before matching, the author citation and any code written in front of
+a name are removed, and spelling variants of Latin, such as
+<code>i</code> and <code>y</code>, are made equal. A name written
+without its epithet, the short form, is resolved through its stem when
+the stem names one unit. Each row reaches its unit by one of these
+routes:</p>
+<ul>
+<li><p><code>Fagion sylvaticae Luquet 1926</code> matches with its
+author citation removed.</p></li>
+<li><p><code>Mesobromion erecti</code> is a synonym of <em>Bromion
+erecti</em>, listed in the EuroVegChecklist without its epithet, as
+<em>Mesobromion</em>.</p></li>
+<li><p><code>Fagion silvaticae</code> is an older spelling of the
+epithet.</p></li>
+<li><p><code>TDA - Arrhenatherion elatioris</code> matches once the code
+in front is removed.</p></li>
+<li><p><code>Cynosurion</code> is the short form of <em>Cynosurion
+cristati</em>.</p></li>
+<li><p><code>Brachypodietalia pinnata</code> is misspelt and is matched
+by fuzzy matching.</p></li>
+<li><p><code>Carpinion</code> is the stem of three alliances, so it
+stays unresolved.</p></li>
+</ul>
+<p>The candidates of an unresolved short form are listed in
+<code>accepted_ids</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>res[res<span class="sc">$</span>input_name <span class="sc">==</span> <span class="st">&quot;Carpinion&quot;</span>, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;n_ids&quot;</span>, <span class="st">&quot;accepted_ids&quot;</span>)]</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co">#&gt;   input_name n_ids      accepted_ids</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; 7  Carpinion     3 CA03A|CB01G|CA03C</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; Sources: EVC 4 | cite() for full citations</span></span></code></pre></div>
+<p>An author citation in the input chooses among such candidates, as in
+<code>Fagion Luquet 1926</code>.</p>
+<p>Fuzzy matching keeps the rank, so a suballiance never matches an
+alliance, and it keeps the plant names a unit is named after.
+<code>Vaccinio-Piceion</code> is two letters from
+<code>Vaccinio-Pinion</code>, a different alliance, and is not matched
+to it.</p>
+</div>
+<div id="the-units-above-each-name" class="section level2">
+<h2>The units above each name</h2>
+<p>A result for vegetation units has the columns of a result for taxa
+except those only a taxon has: <code>family</code>, <code>genus</code>,
+<code>epithet</code>, the genus register’s columns and the hybrid and
+aggregate columns. In their place it carries the hierarchy of the
+accepted unit, <code>class</code>, <code>order</code>,
+<code>alliance</code> and <code>association</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;class&quot;</span>, <span class="st">&quot;order&quot;</span>, <span class="st">&quot;alliance&quot;</span>)]</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt;              accepted_name                      class</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; 1        Fagion sylvaticae Carpino-Fagetea sylvaticae</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; 2           Bromion erecti           Festuco-Brometea</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; 3        Fagion sylvaticae Carpino-Fagetea sylvaticae</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt; 4 Arrhenatherion elatioris    Molinio-Arrhenatheretea</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt; 5      Cynosurion cristati    Molinio-Arrhenatheretea</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt; 6 Brachypodietalia pinnati           Festuco-Brometea</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt; 7                     &lt;NA&gt;                       &lt;NA&gt;</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt;                         order                 alliance</span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt; 1        Fagetalia sylvaticae        Fagion sylvaticae</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt; 2    Brachypodietalia pinnati           Bromion erecti</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt; 3        Fagetalia sylvaticae        Fagion sylvaticae</span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt; 4 Arrhenatheretalia elatioris Arrhenatherion elatioris</span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; 5 Arrhenatheretalia elatioris      Cynosurion cristati</span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; 6    Brachypodietalia pinnati                     &lt;NA&gt;</span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt; 7                        &lt;NA&gt;                     &lt;NA&gt;</span></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt; Sources: EVC 4 | cite() for full citations</span></span></code></pre></div>
+<p>Every matched name, synonym or not, is placed in the ranks above
+it.</p>
+</div>
+<div id="from-a-national-association-to-a-european-alliance" class="section level2">
+<h2>From a national association to a European alliance</h2>
+<p>Plot data from the Czech Republic often record an association, a rank
+the EuroVegChecklist does not cover. The national classification places
+each association in an alliance. <em>Arrhenatheretum elatioris</em> is a
+synonym of two associations, under Braun 1915 and under Scherrer 1925,
+so an author citation in the input chooses between them:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>cz <span class="ot">&lt;-</span> <span class="fu">taxify</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Pastinaco sativae-Arrhenatheretum elatioris&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>    <span class="st">&quot;Arrhenatheretum elatioris Braun 1915&quot;</span>),</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">backbone =</span> <span class="st">&quot;vegcz&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; Warning: 1 of 2 names resolve to more than one accepted ID (Arrhenatheretum</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; elatioris Braun 1915). `accepted_id` holds one and `accepted_ids` all of them;</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt; list them with taxify_ids() before requesting data by ID.</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>cz[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;alliance&quot;</span>, <span class="st">&quot;accepted_ids&quot;</span>)]</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt;                                    input_name</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt; 1 Pastinaco sativae-Arrhenatheretum elatioris</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; 2        Arrhenatheretum elatioris Braun 1915</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt;                                 accepted_name                 alliance</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; 1 Pastinaco sativae-Arrhenatheretum elatioris Arrhenatherion elatioris</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt; 2 Pastinaco sativae-Arrhenatheretum elatioris Arrhenatherion elatioris</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt; Sources: VEGCZ 2026.10 | cite() for full citations</span></span></code></pre></div>
+<p>The second name, cited with Braun 1915, resolves to that author’s
+association, which is listed first in <code>accepted_ids</code>; the
+other association stays listed, so the warning names the row.</p>
+<p>The alliance then resolves against the EuroVegChecklist:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>eu <span class="ot">&lt;-</span> <span class="fu">taxify</span>(cz<span class="sc">$</span>alliance, <span class="at">backbone =</span> <span class="st">&quot;evc&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>eu[, <span class="fu">c</span>(<span class="st">&quot;input_name&quot;</span>, <span class="st">&quot;accepted_name&quot;</span>, <span class="st">&quot;order&quot;</span>, <span class="st">&quot;class&quot;</span>)]</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt;                 input_name            accepted_name                       order</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; 1 Arrhenatherion elatioris Arrhenatherion elatioris Arrhenatheretalia elatioris</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt; 2 Arrhenatherion elatioris Arrhenatherion elatioris Arrhenatheretalia elatioris</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt;                     class</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt; 1 Molinio-Arrhenatheretea</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; 2 Molinio-Arrhenatheretea</span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; Sources: EVC 4 | cite() for full citations</span></span></code></pre></div>
+<p>The two backbones can also form a fallback chain,
+<code>backbone = c(&quot;vegcz&quot;, &quot;evc&quot;)</code>, so that each name is resolved
+by the national classification where it holds the name and by the
+EuroVegChecklist otherwise.</p>
+</div>
+<div id="mixing-taxa-and-vegetation-units" class="section level2">
+<h2>Mixing taxa and vegetation units</h2>
+<p>A call that names a backbone of taxa and one of vegetation units
+stops with an error, since the two follow different codes of
+nomenclature:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">taxify</span>(<span class="st">&quot;Fagion sylvaticae&quot;</span>, <span class="at">backbone =</span> <span class="fu">c</span>(<span class="st">&quot;evc&quot;</span>, <span class="st">&quot;col&quot;</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; ! Backbones of different nomenclature codes cannot be combined: evc (syntaxon), col (taxon). Match taxon names and syntaxon names in separate calls.</span></span></code></pre></div>
+</div>
+<div id="how-the-backbones-were-built" class="section level2">
+<h2>How the backbones were built</h2>
+<p><code>evc</code> is built from the FloraVeg.EU list of European
+vegetation units (version 4, 2025-06-17) and the synonyms on each unit’s
+FloraVeg.EU nomenclature page. A few dozen of those pages fail partway
+through; for those units the synonym lists printed in Mucina et
+al. (2016), published under CC BY 4.0, supply the missing entries.</p>
+<p><code>vegcz</code> is built from the Pladias list of the vegetation
+units of the Czech Republic and the synonyms on each unit’s Pladias
+nomenclature page. Pladias data are free for research, teaching and
+conservation; commercial use needs the approval of the Pladias
+board.</p>
+<p>A name either source cites in another author’s sense
+(<code>sensu</code>, <code>auct.</code>) is kept with
+<code>taxonomic_status = &quot;MISAPPLIED&quot;</code>, and ranks below the
+synonyms when a name points to more than one unit.</p>
+</div>
+<div id="where-next" class="section level2">
+<h2>Where next</h2>
+<ul>
+<li><p><a href="fuzzy-matching.html">How names are matched</a>: the
+match stages and the fuzzy threshold.</p></li>
+<li><p><a href="backbones.html">Choosing and combining backbones</a>:
+fallback chains and backbone versions.</p></li>
+</ul>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Chytrý M (ed.) (2007-2013). <em>Vegetace České republiky 1-4
+[Vegetation of the Czech Republic 1-4]</em>. Academia, Praha.</p>
+<p>Chytrý M, Danihelka J, Kaplan Z, Wild J, Holubová D, Novotný P, et
+al. (2021). Pladias Database of the Czech Flora and Vegetation.
+<em>Preslia</em> 93: 1-87. <a href="https://doi.org/10.23855/preslia.2021.001" class="uri">https://doi.org/10.23855/preslia.2021.001</a></p>
+<p>Chytrý M, Řezníčková M, Novotný P, Holubová D, Preislerová Z, Attorre
+F, et al. (2024). FloraVeg.EU: an online database of European
+vegetation, habitats and flora. <em>Applied Vegetation Science</em> 27:
+e12798. <a href="https://doi.org/10.1111/avsc.12798" class="uri">https://doi.org/10.1111/avsc.12798</a></p>
+<p>Mucina L, Bültmann H, Dierßen K, Theurillat J-P, Raus T, Čarni A, et
+al. (2016). Vegetation of Europe: hierarchical floristic classification
+system of vascular plant, bryophyte, lichen, and algal communities.
+<em>Applied Vegetation Science</em> 19 (Suppl. 1): 3-264. <a href="https://doi.org/10.1111/avsc.12257" class="uri">https://doi.org/10.1111/avsc.12257</a></p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

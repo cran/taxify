@@ -13,8 +13,8 @@
 #' Classifies each name in a list against what a backbone currently accepts, so a
 #' checklist assembled at one time can be checked against the taxonomy as it
 #' stands now. Where [taxify()] returns the resolved match per name,
-#' `reconcile()` adds the editorial verdict -- unchanged, now a synonym, a
-#' misspelling, ambiguous, or unresolved -- and flags names that merge onto a
+#' `reconcile()` adds the editorial verdict (unchanged, now a synonym, a
+#' misspelling, ambiguous, or unresolved) and flags names that merge onto a
 #' single accepted taxon.
 #'
 #' @param x Character vector of names (a checklist).
@@ -128,7 +128,7 @@ reconcile <- function(x, backbone = NULL, ..., verbose = TRUE) {
     status        = status,
     is_synonym    = res$is_synonym,
     match_type    = mt,
-    n_ids         = res$n_ids %||% ifelse(resolved, 1L, NA_integer_),
+    n_ids         = res$n_ids,
     merged        = merged,
     merged_with   = merged_with,
     backbone       = if ("backbone" %in% names(res)) res$backbone else NA_character_,

@@ -18,15 +18,28 @@
 #' (whether the prefix-blocked fuzzy pass runs for this backbone).
 #'
 #' @return A data.frame with `name`, `scope`, `source` (homepage), `label`,
-#'   `version`, `prefix_fallback`, and `fixed_kingdom`, in canonical display
-#'   order.
+#'   `version`, `prefix_fallback`, `fixed_kingdom` and `code`, in canonical
+#'   display order.
 #' @noRd
 .backbone_registry <- function() {
   data.frame(
     name = c(
       "wfo", "col", "colxr", "gbif", "itis", "ncbi", "ott", "worms", "euromed",
       "fungorum", "algaebase", "fishbase", "sealifebase", "reptiledb",
-      "lcvp", "wcvp", "mdd", "avilist", "lpsn"
+      "lcvp", "wcvp", "mdd", "avilist", "lpsn", "evc", "vegcz"
+    ),
+    title = c(
+      "World Flora Online", "Catalogue of Life",
+      "Catalogue of Life Extended Release", "GBIF Backbone Taxonomy",
+      "Integrated Taxonomic Information System", "NCBI Taxonomy",
+      "Open Tree of Life Taxonomy", "World Register of Marine Species",
+      "Euro+Med PlantBase", "Species Fungorum Plus", "AlgaeBase", "FishBase",
+      "SeaLifeBase", "Reptile Database",
+      "Leipzig Catalogue of Vascular Plants",
+      "World Checklist of Vascular Plants", "Mammal Diversity Database",
+      "AviList Global Avian Checklist",
+      "List of Prokaryotic names with Standing in Nomenclature",
+      "EuroVegChecklist", "Vegetation of the Czech Republic"
     ),
     scope = c(
       "Vascular plants", "All kingdoms", "All kingdoms", "All kingdoms",
@@ -34,7 +47,9 @@
       "Marine/aquatic", "European/Mediterranean plants", "Fungi", "Algae",
       "Fishes", "Non-fish marine/aquatic", "Reptiles",
       "Vascular plants", "Vascular plants", "Mammals", "Birds",
-      "Prokaryotes (Bacteria/Archaea)"
+      "Prokaryotes (Bacteria/Archaea)",
+      "European vegetation units (syntaxa)",
+      "Czech vegetation units (syntaxa)"
     ),
     source = c(
       "https://www.worldfloraonline.org/",
@@ -55,7 +70,9 @@
       "https://powo.science.kew.org/",
       "https://www.mammaldiversity.org/",
       "https://www.avilist.org/",
-      "https://lpsn.dsmz.de"
+      "https://lpsn.dsmz.de",
+      "https://floraveg.eu/vegetation/",
+      "https://pladias.cz/en/vegetation/"
     ),
     label = c(
       "the WFO backbone", "the COL backbone",
@@ -66,18 +83,20 @@
       "the FishBase backbone", "the SeaLifeBase backbone",
       "the Reptile Database backbone", "the LCVP backbone", "the WCVP backbone",
       "the Mammal Diversity Database backbone", "the AviList backbone",
-      "the LPSN backbone"
+      "the LPSN backbone", "the EuroVegChecklist syntaxon backbone",
+      "the Vegetation of the Czech Republic syntaxon backbone"
     ),
     version = c(
       "2024-12", "2025", "2026-07-17", "2023-08-28", "2025.04", "2025.04",
       "3.7.3", "2025.04",
       "2026.07", "2025.04", "2025.04", "2026.06", "2026.06", "2026.06",
-      "3.0.1", "2026.06", "2.5", "2025b", "2026.07"
+      "3.0.1", "2026.06", "2.5", "2025b", "2026.07", "4",
+      "2026.10"
     ),
     prefix_fallback = c(
       TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE,
       FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,
-      FALSE
+      FALSE, TRUE, TRUE
     ),
     # The kingdom a backbone's rows always belong to, for a backbone whose
     # scope is unambiguous, whether or not its .vtr carries a `kingdom`
@@ -95,8 +114,14 @@
     fixed_kingdom = c(
       "plantae", NA, NA, NA, NA, NA, NA, NA, "plantae",
       "fungi", NA, "animalia", NA, "animalia", "plantae", "plantae",
-      "animalia", "animalia", NA
+      "animalia", "animalia", NA, NA, NA
     ),
+    # The nomenclature the backbone's names follow (see
+    # .nomenclature_codes()): "taxon" for botanical, zoological and
+    # prokaryote names, "syntaxon" for vegetation units. A name is matched
+    # under one code, so the default chain and every fallback chain stay
+    # within one.
+    code = c(rep("taxon", 19L), "syntaxon", "syntaxon"),
     stringsAsFactors = FALSE
   )
 }
@@ -168,7 +193,8 @@ backbone_label <- function(name) {
     "colxr", "col", "worms", "wcvp", "euromed", "lcvp", "wfo",
     "fungorum", "algaebase", "fishbase", "sealifebase", "reptiledb", "mdd", "avilist",
     "lpsn",
-    "gbif", "itis", "ncbi", "ott"
+    "gbif", "itis", "ncbi", "ott",
+    "vegcz", "evc"
   )
   known <- backbone_names()
   # Guard against a registry change leaving a name out of the default list.
@@ -238,7 +264,9 @@ default_set_size_note <- function(set) {
 #' Resolve the default backbone when `taxify(backbone = NULL)` is called
 #'
 #' Every installed backbone, in priority order. On a fresh setup with none
-#' installed, downloads the default set (`.default_backbone_set()`) first.
+#' installed, offers the default set (`.default_backbone_set()`): asked for in
+#' an interactive session, an error naming `install_backbones()` otherwise
+#' (see `require_download_consent()`).
 #'
 #' @param verbose Logical.
 #' @return Character vector of backbone names in priority order.
@@ -248,15 +276,14 @@ resolve_default_backend <- function(verbose = TRUE) {
   if (length(inst) > 0L) return(order_by_priority(inst))
 
   set <- .default_backbone_set()
-  if (verbose) {
+  if (verbose && (interactive() || auto_download_allowed())) {
     message(sprintf(paste0(
-      "No taxonomic backbone installed yet -- downloading the default set: ",
-      "%s%s.\nThis runs once; files are cached in %s. Pre-install a different ",
-      "set with install_backbones(), or set it via ",
+      "No taxonomic backbone is installed yet. The default set is %s; ",
+      "install_backbones() installs a different one, or set it via ",
       "options(taxify.default_backbones = ...)."),
-      paste(toupper(set), collapse = ", "),
-      default_set_size_note(set), taxify_data_dir()))
+      paste(toupper(set), collapse = ", ")))
   }
+  require_download_consent(set)
   install_backbones(set, verbose = verbose)
 
   inst <- order_by_priority(intersect(set, installed_backbones()))
@@ -274,7 +301,7 @@ resolve_default_backend <- function(verbose = TRUE) {
 #' The browse and lookup verbs ([synonyms()], [children()], [downstream()],
 #' [upstream()], [id2name()]) read one backbone directly rather than running the
 #' whole fallback chain, so `backbone = NULL` resolves to the highest-priority
-#' installed backbone -- installing the default set on a fresh machine exactly as
+#' installed backbone -- offering the default set on a fresh machine exactly as
 #' [taxify()] does, never a specific backbone the user did not ask for. A name or
 #' a `taxify_backend` object is returned unchanged.
 #'
@@ -292,9 +319,14 @@ resolve_single_backend <- function(backbone, verbose = TRUE) {
 #'
 #' Downloads the pre-built `.vtr` for each named backbone into the taxify data
 #' directory ([taxify_data_dir()]), so subsequent [taxify()] calls match against
-#' them offline. taxify installs its default set automatically on first use
-#' (COL, GBIF, ITIS); call this to pre-install a specific set, add a backbone to
-#' the default, or refresh to the latest release.
+#' them offline. Called without arguments it installs the default set (COL,
+#' GBIF, ITIS, about 1.1 GB); name backbones to install a different set, add a
+#' backbone, or refresh to the latest release. Calling it is the consent to
+#' download: other functions that reach a backbone not on disk ask first in an
+#' interactive session and stop with an error otherwise, unless
+#' `options(taxify.auto_download = TRUE)` (or the `TAXIFY_AUTO_DOWNLOAD`
+#' environment variable) allows the download. [taxify_clean()] removes
+#' backbones again.
 #'
 #' An installed backbone is compared against the manifest by the same check
 #' [taxify()] runs once per session: by content id where both sides record
@@ -331,7 +363,7 @@ install_backbones <- function(backbones = NULL, verbose = TRUE) {
 
   ok <- character(0)
   for (nm in order_by_priority(unique(backbones))) {
-    installed <- tryCatch({
+    installed <- with_download_consent(tryCatch({
       if (file.exists(versioned_vtr_path(nm, "latest"))) {
         state <- refresh_backbone(nm, verbose = verbose)
         if (identical(state, "pinned")) {
@@ -348,7 +380,7 @@ install_backbones <- function(backbones = NULL, verbose = TRUE) {
       warning(sprintf("Could not install backbone '%s': %s", nm,
                       conditionMessage(e)), call. = FALSE)
       FALSE
-    })
+    }))
     if (isTRUE(installed)) ok <- c(ok, nm)
   }
   invisible(order_by_priority(ok))
@@ -363,8 +395,13 @@ install_backbones <- function(backbones = NULL, verbose = TRUE) {
 #' [list_enrichments()] for the backbone side.
 #'
 #' @param verbose Logical. Default `TRUE`.
-#' @return A data.frame with columns: `name`, `scope`, `n_names`, `size_mb`,
-#'   `version`, `source_date`, `installed`, `source`. `n_names`, `size_mb`, and
+#' @return A data.frame with columns: `name`, `title` (the source's full
+#'   name), `scope`, `n_names`, `size_mb`, `version`, `source_date`,
+#'   `installed`, `code`, `source`. `code` is the
+#'   nomenclature the backbone's names follow: `"taxon"` for the taxonomic
+#'   backbones, `"syntaxon"` for a backbone of vegetation units (`"evc"`, the
+#'   EuroVegChecklist), which is matched only when named in
+#'   `taxify(backbone = )`. `n_names`, `size_mb`, and
 #'   `version` are `NA` for any backbone the manifest does not yet describe or
 #'   when the manifest cannot be fetched offline.
 #'
@@ -388,7 +425,7 @@ list_backbones <- function(verbose = TRUE) {
   reg <- .backbone_registry()
   manifest <- tryCatch(fetch_manifest(), error = function(e) NULL)
   bb <- if (!is.null(manifest)) manifest$backends else NULL
-  inst <- installed_backbones()
+  inst <- installed_backbones(code = NULL)
 
   field <- function(nm, key, default) {
     if (is.null(bb) || is.null(bb[[nm]])) return(default)
@@ -397,6 +434,7 @@ list_backbones <- function(verbose = TRUE) {
 
   data.frame(
     name    = reg$name,
+    title   = reg$title,
     scope   = reg$scope,
     n_names = vapply(reg$name, function(n) {
       as.integer(field(n, "nrow", NA_integer_))
@@ -417,6 +455,7 @@ list_backbones <- function(verbose = TRUE) {
       as.character(field(n, "source_date", NA_character_))
     }, character(1L)),
     installed = reg$name %in% inst,
+    code      = reg$code,
     source    = reg$source,
     stringsAsFactors = FALSE,
     row.names = NULL
