@@ -1,6 +1,6 @@
 Package: taxify
 Title: Offline Taxonomic Name Matching Against Darwin Core Backbones
-Version: 0.7.0
+Version: 0.7.1
 Authors@R: 
     person("Gilles", "Colling", , "gilles.colling051@gmail.com",
            role = c("aut", "cre", "cph"),
@@ -33,9 +33,9 @@ Config/testthat/edition: 3
 Encoding: UTF-8
 Config/roxygen2/version: 8.1.0
 NeedsCompilation: no
-Packaged: 2026-10-27 13:40:51 UTC; Gilles Colling
+Packaged: 2026-11-02 11:03:36 UTC; Gilles Colling
 Author: Gilles Colling [aut, cre, cph] (ORCID:
     <https://orcid.org/0000-0003-3070-6066>)
 Maintainer: Gilles Colling <gilles.colling051@gmail.com>
 Repository: CRAN
-Date/Publication: 2026-10-27 16:00:02 UTC
+Date/Publication: 2026-11-02 13:50:02 UTC
